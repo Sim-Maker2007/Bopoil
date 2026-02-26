@@ -123,6 +123,12 @@ p {
   align-items: flex-start;
 }
 
+.logo-img {
+  height: 50px;
+  width: auto;
+  filter: invert(1);
+}
+
 .logo-name {
   font-family: var(--font-script);
   font-size: 2.2rem;
