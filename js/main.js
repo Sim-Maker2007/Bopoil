@@ -116,13 +116,18 @@ document.addEventListener('DOMContentLoaded', () => {
   if (contactForm) {
     contactForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const name = document.getElementById('name').value;
-      const email = document.getElementById('email').value;
-      const message = document.getElementById('message').value;
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const message = document.getElementById('message').value.trim();
 
-      // For now, show a confirmation. Replace with actual form submission later.
+      if (!name || !email || !message) return;
+
+      const subject = encodeURIComponent('Message de ' + name + ' via bopoil.ca');
+      const body = encodeURIComponent('De: ' + name + '\nCourriel: ' + email + '\n\n' + message);
+      window.location.href = 'mailto:info@bopoil.ca?subject=' + subject + '&body=' + body;
+
       const btn = contactForm.querySelector('.btn-submit');
-      btn.textContent = 'Envoyé!';
+      btn.textContent = 'Merci!';
       btn.style.background = '#4a9e4a';
       btn.style.borderColor = '#4a9e4a';
       btn.style.color = '#fff';
