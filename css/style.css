@@ -84,6 +84,23 @@ p {
   margin-bottom: 1rem;
 }
 
+/* ---------- Skip Link (Accessibility) ---------- */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  background: var(--bg-dark);
+  color: var(--text-white);
+  padding: 0.8rem 1.5rem;
+  z-index: 10000;
+  border: 1px solid var(--text-white);
+  font-size: 0.9rem;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
 /* ---------- Utility ---------- */
 .container {
   width: 100%;
@@ -220,6 +237,19 @@ p {
   background: var(--text-white);
   margin: 5px 0;
   transition: all 0.3s ease;
+  transform-origin: center;
+}
+
+.menu-toggle.active span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.menu-toggle.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.menu-toggle.active span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
 }
 
 /* ---------- Hero Slideshow ---------- */
@@ -352,7 +382,14 @@ p {
   min-height: 300px;
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
+}
+
+@supports (background-attachment: fixed) {
+  @media (hover: hover) {
+    .image-banner {
+      background-attachment: fixed;
+    }
+  }
 }
 
 /* ---------- Page Banner (inner pages) ---------- */
