@@ -14,12 +14,39 @@ Aucun outil n'est requis. Copiez le contenu du dépôt sur n'importe quel
 hébergement statique — GitHub Pages, Netlify, Cloudflare Pages, ou un simple
 serveur web.
 
-Pour prévisualiser localement :
+### Prévisualiser sur votre ordinateur
 
 ```bash
+git clone -b claude/website-redesign-square-tqt1jj \
+  https://github.com/Sim-Maker2007/Bopoil.git
+cd Bopoil
 python3 -m http.server 8000
-# puis ouvrir http://localhost:8000
 ```
+
+Puis ouvrez <http://localhost:8000>.
+
+### Prévisualiser sur votre téléphone (même réseau Wi-Fi)
+
+Le serveur ci-dessus écoute déjà sur tout le réseau local. Il suffit de
+trouver l'adresse IP de l'ordinateur et de l'ouvrir depuis le téléphone.
+
+```bash
+# macOS
+ipconfig getifaddr en0
+
+# Linux
+hostname -I
+
+# Windows (PowerShell)
+ipconfig | Select-String IPv4
+```
+
+L'adresse ressemble à `192.168.1.42`. Sur le téléphone, connecté au **même
+Wi-Fi**, ouvrez `http://192.168.1.42:8000`.
+
+> Au premier lancement, macOS ou Windows peut demander d'autoriser Python à
+> accepter les connexions entrantes : acceptez, sinon le téléphone ne pourra
+> pas joindre l'ordinateur.
 
 ---
 
