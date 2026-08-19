@@ -1,121 +1,242 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr-CA">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bienvenue | BOPOIL Toilettage &amp; Boutique</title>
-  <meta name="description" content="Salon de toilettage Bo-Poil à Gatineau. Toilettage personnalisé pour chiens et chats dans un environnement doux et adapté.">
-  <link rel="icon" type="image/jpeg" href="images/IMG_8327.jpg">
-  <meta property="og:title" content="BOPOIL Toilettage & Boutique">
-  <meta property="og:description" content="Salon de toilettage Bo-Poil à Gatineau. Toilettage personnalisé pour chiens et chats dans un environnement doux et adapté.">
-  <meta property="og:image" content="images/Image 7.jpg">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Salon chien &amp; chat | BOPOIL Toilettage &amp; Boutique</title>
+  <meta name="description" content="BOPOIL Toilettage &amp; Boutique à Gatineau : salon professionnel pour toilettage chien, chat et lapin. Soins doux, produits premium et réservation en ligne.">
+  <link rel="canonical" href="https://www.bopoil.ca/">
+  <meta name="theme-color" content="#000000">
+
+  <meta property="og:site_name" content="BOPOIL Toilettage &amp; Boutique">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="fr_CA">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <meta property="og:title" content="Salon chien &amp; chat | BOPOIL Toilettage &amp; Boutique">
+  <meta property="og:description" content="BOPOIL Toilettage &amp; Boutique à Gatineau : salon professionnel pour toilettage chien, chat et lapin. Soins doux, produits premium et réservation en ligne.">
+  <meta property="og:url" content="https://www.bopoil.ca/">
+  <meta property="og:image" content="https://www.bopoil.ca/images/hero-printemps-1600.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+
+  <link rel="preload" href="fonts/playfair-display-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/libre-franklin-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "PetGroomer",
+    "name": "BOPOIL Toilettage & Boutique",
+    "url": "https://www.bopoil.ca/",
+    "image": "https://www.bopoil.ca/images/salon-photo-1-1600.jpg",
+    "telephone": "+18199682827",
+    "email": "info@bopoil.ca",
+    "priceRange": "$$",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "38 Av Gatineau",
+      "addressLocality": "Gatineau",
+      "addressRegion": "QC",
+      "postalCode": "J8T 4J1",
+      "addressCountry": "CA"
+    },
+    "sameAs": ["https://www.instagram.com/bopoil.toilettageboutique/"],
+    "openingHoursSpecification": [{"@type":"OpeningHoursSpecification","dayOfWeek":"Tuesday","opens":"09:00","closes":"16:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Wednesday","opens":"09:00","closes":"16:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Thursday","opens":"09:00","closes":"16:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Friday","opens":"09:00","closes":"16:00"}]
+  }
+  </script>
 </head>
 <body>
-  <a href="#main-content" class="skip-link">Passer au contenu</a>
+  <a class="skip-link" href="#contenu">Passer au contenu principal</a>
 
-  <!-- Header -->
-  <header class="header">
+  <header class="site-header profile-primary-bold">
     <div class="container">
-      <a href="index.html" class="logo">
-        <img src="images/IMG_8327.jpg" alt="Bopoil Toilettage &amp; Boutique" class="logo-img">
+      <a class="site-logo" href="index.html" aria-label="BOPOIL Toilettage &amp; Boutique — accueil">
+        <img src="images/logo-bopoil-blanc-720.png" width="230" height="103"
+             alt="BOPOIL Toilettage &amp; Boutique" fetchpriority="high">
       </a>
-      <nav class="nav">
-        <ul class="nav-links">
-          <li><a href="a-propos.html">À propos</a></li>
-          <li><a href="services.html">Nos services</a></li>
-          <li><a href="contact.html">Contactez-nous</a></li>
+      <button class="nav-toggle" type="button" aria-expanded="false"
+              aria-controls="site-nav" aria-label="Ouvrir le menu">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav" id="site-nav" aria-label="Navigation principale">
+        <ul class="nav-list">
+          <li class="nav-item"><a class="nav-link" href="a-propos.html">À propos</a></li><li class="nav-item"><a class="nav-link" href="nos-services.html" aria-haspopup="true" aria-expanded="false">Services<span class="nav-caret" aria-hidden="true"></span></a><ul class="nav-submenu"><li><a class="nav-link" href="chiens.html">Chiens</a></li><li><a class="nav-link" href="chats.html">Chats</a></li><li><a class="nav-link" href="petits-animaux.html">Petits animaux</a></li><li><a class="nav-link" href="guide.html">Votre guide toilettage</a></li></ul></li><li class="nav-item"><a class="nav-link" href="politique.html">Politique</a></li><li class="nav-item"><a class="nav-link" href="contactez-nous.html" aria-haspopup="true" aria-expanded="false">Contactez-nous<span class="nav-caret" aria-hidden="true"></span></a><ul class="nav-submenu"><li><a class="nav-link" href="fiche-informations.html">Fiche d'informations - Profil client</a></li></ul></li>
         </ul>
-        <a href="services.html" class="btn-reserve">Réserver</a>
-        <button class="menu-toggle" aria-label="Menu">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
+        <div class="nav-cta">
+          <a class="btn btn--filled btn--small" href="rendez-vous.html">Réserver</a>
+        </div>
       </nav>
     </div>
   </header>
 
-  <!-- Hero Slideshow -->
-  <main id="main-content">
-  <section class="hero">
-    <div class="hero-slides">
-      <div class="hero-slide active" style="background-image: url('images/Image 7.jpg');">
-        <div class="hero-overlay">
-          <div class="hero-text">
-            <h1>Plus qu'un toilettage, une expérience positive et rassurante.</h1>
+  <main id="contenu">
+    <section class="hero" data-carousel aria-roledescription="carrousel" aria-label="Nos services">
+      <div class="hero-slide" data-active="true" aria-hidden="false"
+           role="group" aria-roledescription="diapositive" aria-label="1 de 4">
+        <div class="hero-media" style="--scrim-opacity: 0.4;">
+          <img src="images/hero-printemps-1600.jpg" srcset="images/hero-printemps-800.jpg 800w, images/hero-printemps-1600.jpg 1600w" sizes="100vw" alt="Un chien et un chat blottis l'un contre l'autre dans un champ au soleil couchant" loading="eager" fetchpriority="high" decoding="async">
+        </div>
+        <div class="hero-content">
+          <div class="hero-copy">
+            <p class="hero-label">Bienvenue chez BOPOIL</p>
+            <h1 class="hero-title">Plus qu'un toilettage,<br>une expérience douce et rassurante.</h1>
+            <p class="hero-body">Salon de toilettage et boutique au cœur de Touraine, à Gatineau. Des soins adaptés au rythme de chaque animal, dans un espace calme, propre et à aire ouverte.</p>
+            <div class="btn-row"><a class="btn btn--filled" href="rendez-vous.html">Réserver en ligne</a><a class="btn btn--outline" href="contactez-nous.html">Écrivez-nous!</a></div>
           </div>
         </div>
       </div>
-      <div class="hero-slide" style="background-image: url('images/Image 8.jpg');">
-        <div class="hero-overlay">
-          <div class="hero-text">
-            <h1>Des soins adaptés à chaque compagnon, avec douceur et passion.</h1>
+      <div class="hero-slide" data-active="false" aria-hidden="true"
+           role="group" aria-roledescription="diapositive" aria-label="2 de 4">
+        <div class="hero-media" style="--scrim-opacity: 0.35;" data-focal-y="0.33">
+          <img src="images/hero-chiens-1600.jpg" srcset="images/hero-chiens-800.jpg 800w, images/hero-chiens-1600.jpg 1600w" sizes="100vw" alt="Chien qui s'ébroue joyeusement après son bain" loading="lazy" decoding="async">
+        </div>
+        <div class="hero-content">
+          <div class="hero-copy">
+            
+            <h2 class="hero-title hero-title--caps">Services pour chiens</h2>
+            <p class="hero-body">Nous offrons des services de toilettage pour chiens de petite, moyenne et grande taille à Gatineau. Il est important pour nous de bien comprendre les besoins spécifiques de votre compagnon et de déterminer les soins les mieux adaptés à sa condition et à son tempérament.</p>
+            <div class="btn-row"><a class="btn btn--filled" href="rendez-vous.html">Réserver</a><a class="btn btn--outline" href="chiens.html">Voir les services</a></div>
           </div>
         </div>
       </div>
-      <div class="hero-slide" style="background-image: url('images/Image 15.jpg');">
-        <div class="hero-overlay">
-          <div class="hero-text">
-            <h1>Un environnement calme et sécuritaire pour votre animal.</h1>
+      <div class="hero-slide" data-active="false" aria-hidden="true"
+           role="group" aria-roledescription="diapositive" aria-label="3 de 4">
+        <div class="hero-media" style="--scrim-opacity: 0.49;">
+          <img src="images/hero-chats-1600.jpg" srcset="images/hero-chats-800.jpg 800w, images/hero-chats-1600.jpg 1600w" sizes="100vw" alt="Chat noir et blanc étendu, détendu, sur le plancher du salon" loading="lazy" decoding="async">
+        </div>
+        <div class="hero-content">
+          <div class="hero-copy">
+            
+            <h2 class="hero-title hero-title--caps hero-title--plum">Services pour chats</h2>
+            <p class="hero-body">Un toilettage sans eau, tout en douceur, pensé pour le rythme et la sensibilité des chats. Shampooing sec, démêlage, griffes et soins des oreilles dans un environnement calme et sécurisé.</p>
+            <div class="btn-row"><a class="btn btn--filled" href="rendez-vous.html">Réserver</a><a class="btn btn--outline" href="chats.html">Voir les services</a></div>
           </div>
         </div>
       </div>
-    </div>
-    <button class="hero-arrow prev" aria-label="Précédent">&#8249;</button>
-    <button class="hero-arrow next" aria-label="Suivant">&#8250;</button>
-    <div class="hero-dots">
-      <button class="hero-dot active" data-slide="0"></button>
-      <button class="hero-dot" data-slide="1"></button>
-      <button class="hero-dot" data-slide="2"></button>
-    </div>
-  </section>
+      <div class="hero-slide" data-active="false" aria-hidden="true"
+           role="group" aria-roledescription="diapositive" aria-label="4 de 4">
+        <div class="hero-media" style="--scrim-opacity: 0.35;">
+          <img src="images/hero-petits-animaux-1600.jpg" srcset="images/hero-petits-animaux-800.jpg 800w, images/hero-petits-animaux-1600.jpg 1600w" sizes="100vw" alt="Lapin couché sur une couverture" loading="lazy" decoding="async">
+        </div>
+        <div class="hero-content">
+          <div class="hero-copy">
+            
+            <h2 class="hero-title hero-title--caps">Services pour petits animaux</h2>
+            <p class="hero-body">Nouveauté en Outaouais : lapins, furets, cochons d'Inde et autres petits compagnons ont eux aussi droit à un toilettage tout en douceur.</p>
+            <div class="btn-row"><a class="btn btn--filled" href="rendez-vous.html">Réserver</a><a class="btn btn--outline" href="petits-animaux.html">Voir les services</a></div>
+          </div>
+        </div>
+      </div>
+      <button class="hero-arrow hero-arrow--prev" type="button" data-carousel-prev
+              aria-label="Diapositive précédente">&#8249;</button>
+      <button class="hero-arrow hero-arrow--next" type="button" data-carousel-next
+              aria-label="Diapositive suivante">&#8250;</button>
+      <div class="hero-dots" role="tablist" aria-label="Choisir une diapositive">
+        <button class="hero-dot" type="button" role="tab" aria-selected="true" aria-label="Diapositive 1"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 2"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 3"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 4"></button>
+      </div>
+    </section>
 
-  <!-- Intro Section -->
-  <section class="intro section-padding">
-    <div class="container">
-      <h2>Patte dans la main avec vous, pawrents!</h2>
-      <p>Écoute, conseils et transparence pour des soins et services qui font vraiment la différence pour votre compagnon.</p>
-      <p>Notre salon est situé au <strong>38 avenue Gatineau</strong>, au cœur de l'Outaouais et à moins de 5 minutes d'Ottawa.</p>
-    </div>
-  </section>
+    <section class="testimonial profile-primary-bold">
+      <div class="container">
+        <figure class="mb-0">
+          <blockquote>« AAA+ Excellent service, une place de confiance, je recommande
+            à 110 %, toujours satisfait de la coupe de mon pitou. Merci encore une fois
+            pour le service hors pair !!! »</blockquote>
+          <figcaption>L.G. nous a recommandé en mars 2026</figcaption>
+        </figure>
+      </div>
+    </section>
 
-  <!-- Full-width Image Banner -->
-  <div class="image-banner" style="background-image: url('images/Image 9.jpg');"></div>
+    <section class="overlap profile-primary-dark-bold" aria-labelledby="heures-titre">
+      <div class="overlap__media">
+        <img src="images/chiots-endormis-1600.jpg" srcset="images/chiots-endormis-800.jpg 800w, images/chiots-endormis-1600.jpg 1600w" sizes="(max-width: 1023px) 100vw, 50vw" alt="Trois chiots endormis côte à côte sur un lit" loading="lazy" decoding="async">
+      </div>
+      <div class="overlap__field" aria-hidden="true"></div>
+      <div class="overlap__card">
+        <p class="overlap__callout" id="heures-titre">Heures d'ouverture</p>
+        <ul class="hours-list"><li>Lundi – Sur rendez-vous</li><li>Mardi – 9 h à 16 h</li><li>Mercredi – 9 h à 16 h</li><li>Jeudi – 9 h à 16 h</li><li>Vendredi – 9 h à 16 h</li><li>Samedi – Sur rendez-vous</li><li>Dimanche – Fermé</li></ul>
+        <p class="overlap__note"><strong>Notre salon est situé au 38 avenue Gatineau,
+          au cœur de l'Outaouais</strong> et à moins de 5 minutes d'Ottawa.</p>
+        <div class="btn-row">
+          <a class="btn btn--filled" href="rendez-vous.html">Prendre rendez-vous</a>
+        </div>
+      </div>
+    </section>
 
+    <section class="instagram section">
+      <div class="container">
+        <div class="instagram__head">
+          <h2 class="instagram__label">Follow</h2>
+          <a class="instagram__handle" href="https://www.instagram.com/bopoil.toilettageboutique/" target="_blank"
+             rel="noopener" data-instagram-link>@bopoil.toilettageboutique</a>
+        </div>
+        <div class="instagram__grid">
+          <a href="https://www.instagram.com/bopoil.toilettageboutique/" target="_blank" rel="noopener" data-instagram-link>
+            <img src="images/salon-photo-1-1600.jpg" srcset="images/salon-photo-1-800.jpg 800w, images/salon-photo-1-1600.jpg 1600w" sizes="(max-width: 767px) 50vw, 33vw" alt="Chat tigré sur la table de toilettage" loading="lazy" decoding="async">
+          </a>
+          <a href="https://www.instagram.com/bopoil.toilettageboutique/" target="_blank" rel="noopener" data-instagram-link>
+            <img src="images/salon-photo-2-1600.jpg" srcset="images/salon-photo-2-800.jpg 800w, images/salon-photo-2-1600.jpg 1600w" sizes="(max-width: 767px) 50vw, 33vw" alt="Deux petits compagnons au salon BOPOIL" loading="lazy" decoding="async">
+          </a>
+          <a href="https://www.instagram.com/bopoil.toilettageboutique/" target="_blank" rel="noopener" data-instagram-link>
+            <img src="images/salon-photo-3-1600.jpg" srcset="images/salon-photo-3-800.jpg 800w, images/salon-photo-3-1600.jpg 1600w" sizes="(max-width: 767px) 50vw, 33vw" alt="Chat câliné après son toilettage" loading="lazy" decoding="async">
+          </a>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <!-- Footer -->
-  <footer class="footer">
+  <footer class="site-footer profile-primary-bold">
     <div class="container">
-      <div class="logo">
-        <img src="images/IMG_8327.jpg" alt="Bopoil Toilettage &amp; Boutique" class="logo-img">
+      <div class="site-footer__logo">
+        <img src="images/logo-bopoil-blanc-720.png" width="230" height="103"
+             alt="BOPOIL Toilettage &amp; Boutique" loading="lazy">
       </div>
-      <div class="footer-links">
-        <a href="a-propos.html">À propos</a>
-        <a href="services.html">Nos services</a>
-        <a href="contact.html">Contactez-nous</a>
+      <hr class="site-footer__rule">
+      <div class="site-footer__body">
+        <div>
+          <form class="newsletter" data-formspree="newsletter"
+                data-success="Merci! Vous êtes inscrit à notre infolettre.">
+            <p class="newsletter__prompt">
+              Vous souhaitez être informé en priorité des nouveaux produits et services?<br>
+              Inscrivez-vous à notre infolettre
+            </p>
+            <label class="visually-hidden" for="newsletter-email">Adresse courriel</label>
+            <div class="newsletter__row">
+              <input class="field" id="newsletter-email" type="email" name="email"
+                     placeholder="Adresse courriel" autocomplete="email" required>
+              <button class="btn btn--filled" type="submit">S'inscrire</button>
+            </div>
+            <p class="form-status" hidden></p>
+          </form>
+          <ul class="footer-nav"><li><a href="index.html">Accueil</a></li><li><a href="a-propos.html">À propos</a></li><li><a href="nos-services.html">Notre approche</a></li><li><a href="chiens.html">Chiens</a></li><li><a href="chats.html">Chats</a></li><li><a href="petits-animaux.html">Petits animaux</a></li><li><a href="guide.html">Guide toilettage</a></li><li><a href="politique.html">Politique</a></li><li><a href="rendez-vous.html">Réserver</a></li><li><a href="contactez-nous.html">Contactez-nous</a></li><li><a href="fiche-informations.html">Fiche d'informations</a></li></ul>
+        </div>
+        <div class="payments" aria-label="Modes de paiement acceptés"><span>Square</span><span>Apple Pay</span><span>Google Pay</span><span>Visa</span><span>Mastercard</span><span>Amex</span><span>Discover</span><span>JCB</span><span>Interac</span></div>
       </div>
-      <div class="footer-social">
-        <a href="https://www.facebook.com/102437029347552/" target="_blank" rel="noopener" aria-label="Facebook">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg>
-        </a>
+      <div class="site-footer__meta">
+        <p class="mb-0">
+          <a href="tel:+18199682827">(819) 968-2827</a> &nbsp;·&nbsp;
+          <a href="mailto:info@bopoil.ca">info@bopoil.ca</a> &nbsp;·&nbsp;
+          38 Av Gatineau, Gatineau, Québec J8T 4J1 &nbsp;·&nbsp;
+          <a href="https://www.instagram.com/bopoil.toilettageboutique/" target="_blank" rel="noopener" data-instagram-link>@bopoil.toilettageboutique</a>
+        </p>
+        <p class="mb-0">&copy; <span data-year>2026</span> BOPOIL Toilettage &amp; Boutique</p>
       </div>
-      <p class="footer-copy">&copy; 2026 Toilettage Bo-Poil. Tous droits réservés.</p>
     </div>
   </footer>
 
-  <!-- Text Us Button -->
-  <a href="sms:8199682827" class="text-us-btn">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-    Textez-nous
+  <a class="sms-pill" href="sms:+18199682827">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.9-.9L3 21l1.9-4.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z"/>
+    </svg>
+    Contactez-nous par texto
   </a>
 
-  <script src="js/main.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/main.js" defer></script>
 </body>
 </html>
