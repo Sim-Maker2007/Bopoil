@@ -1,0 +1,20 @@
+{
+  "name": "bopoil",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/coat-care"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @bopoil/coat-care",
+    "build": "npm run build --workspace @bopoil/coat-care",
+    "start": "npm run start --workspace @bopoil/coat-care",
+    "lint": "npm run lint --workspace @bopoil/coat-care",
+    "typecheck": "npm run typecheck --workspace @bopoil/coat-care",
+    "test": "npm run test --workspace @bopoil/coat-care",
+    "db:migrate": "npm run db:migrate --workspace @bopoil/coat-care"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

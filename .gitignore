@@ -1,0 +1,22 @@
+node_modules/
+.vercel/
+.DS_Store
+*.tsbuildinfo
+
+apps/coat-care/.next/
+apps/coat-care/node_modules/
+apps/coat-care/local.db*
+apps/coat-care/.env*
+!apps/coat-care/.env.example
+
+# The public BOPOIL site is copied here from apps/web before dev/build.
+apps/coat-care/public/*.html
+apps/coat-care/public/apple-touch-icon.png
+apps/coat-care/public/favicon.ico
+apps/coat-care/public/robots.txt
+apps/coat-care/public/site.webmanifest
+apps/coat-care/public/sitemap.xml
+apps/coat-care/public/css/
+apps/coat-care/public/fonts/
+apps/coat-care/public/images/
+apps/coat-care/public/js/

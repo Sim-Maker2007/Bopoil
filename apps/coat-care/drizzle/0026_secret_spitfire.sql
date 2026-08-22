@@ -1,0 +1,1 @@
+ALTER TABLE `staff_locations` ADD `permissions_json` text;
