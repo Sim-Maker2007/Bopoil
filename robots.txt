@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://bopoil.ca/sitemap.xml
+Sitemap: https://www.bopoil.ca/sitemap.xml
