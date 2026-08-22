@@ -137,32 +137,94 @@
       el.href = bookingUrl(el.getAttribute('data-booking-link') || '');
     });
 
+    var embed = document.querySelector('[data-booking-embed]');
     var frame = document.querySelector('[data-booking-frame]');
-    if (!frame) return;
+    if (!embed || !frame) return;
 
-    var fallback = document.querySelector('[data-booking-fallback]');
-    var loaded = false;
+    // On ne charge le cadre que si l'URL est configurée. Sinon la page reste
+    // propre : la CTA "Réserver sur Square" fait tout le travail.
+    var url = bookingUrl('');
+    if (!url || url === '#') return;
 
-    frame.addEventListener('load', function () { loaded = true; });
-    frame.src = bookingUrl('');
+    var revealed = false;
+    // Le cadre reste masqué tant qu'il n'a pas répondu. Si Square refuse
+    // l'affichage en cadre (X-Frame-Options), on ne montre jamais un bloc
+    // gris vide : le bouton en haut reste la seule voie d'accès.
+    frame.addEventListener('load', function () {
+      if (revealed) return;
+      revealed = true;
+      embed.hidden = false;
+    });
+    frame.src = url;
 
-    // Square peut refuser l'affichage en cadre (X-Frame-Options). Si rien
-    // n'a chargé après 6 s, on montre le lien direct à la place.
+    // Filet de sécurité : après 8 s sans "load", on renonce et on garde le
+    // cadre caché.
     window.setTimeout(function () {
-      if (loaded || !fallback) return;
-      fallback.hidden = false;
-      frame.hidden = true;
-    }, 6000);
+      if (revealed) return;
+      frame.removeAttribute('src');
+    }, 8000);
   }
 
   /* ----------------------------------------------------------------------
-     Formulaires — envoi via Formspree sans quitter la page
+     Formulaires
+     --------------------------------------------------------------------
+     Deux voies d'envoi, dans cet ordre :
+
+     1. Si un identifiant Formspree est configuré pour ce formulaire, on
+        envoie en arrière-plan (fetch) : le visiteur ne quitte pas la page
+        et voit un message de confirmation.
+     2. Sinon, on ouvre le client courriel du visiteur avec le message
+        déjà rédigé (mailto:). C'est moins élégant qu'un envoi direct
+        mais ça FONCTIONNE dès la mise en ligne, sans aucun compte tiers.
      ---------------------------------------------------------------------- */
+
+  var MAILTO_LABEL = {
+    contact:    "Formulaire de contact — site bopoil.ca",
+    intake:     "Fiche d'informations — nouveau profil client",
+    newsletter: "Inscription à l'infolettre"
+  };
+
+  var FIELD_LABEL = {
+    nom: "Nom complet",
+    email: "Adresse courriel",
+    message: "Message",
+    proprietaire: "Prénom et nom du propriétaire",
+    telephone: "Numéro de téléphone",
+    nom_animal: "Nom de l'animal",
+    anniversaire: "Date d'anniversaire",
+    espece: "Type d'animal",
+    race: "Race",
+    taille: "Taille (poids)",
+    sante: "Santé",
+    comportement: "Comportement",
+    sterilise: "Stérilisé(e)",
+    gateries: "Gâteries autorisées",
+    photos: "Photos autorisées",
+    marketing: "Marketing"
+  };
+
+  function buildMailto(form, key) {
+    var to = (CONFIG.contact && CONFIG.contact.email) || 'info@bopoil.ca';
+    var subject = MAILTO_LABEL[key] || "Message du site bopoil.ca";
+    var lines = [];
+    var data = new FormData(form);
+    var seen = {};
+    data.forEach(function (value, name) {
+      if (!value || seen[name]) return;
+      seen[name] = true;
+      var label = FIELD_LABEL[name] || name;
+      lines.push(label + " : " + String(value).replace(/\r?\n/g, "\n  "));
+    });
+    return 'mailto:' + encodeURIComponent(to)
+      + '?subject=' + encodeURIComponent(subject)
+      + '&body=' + encodeURIComponent(lines.join('\n\n'));
+  }
 
   function initForms() {
     document.querySelectorAll('form[data-formspree]').forEach(function (form) {
       var key = form.getAttribute('data-formspree');
       var id = (CONFIG.formspree || {})[key];
+      var configured = id && id.indexOf('VOTRE_') !== 0;
       var status = form.querySelector('.form-status');
 
       function say(kind, message) {
@@ -173,16 +235,23 @@
         status.setAttribute('role', kind === 'err' ? 'alert' : 'status');
       }
 
-      if (id && id.indexOf('VOTRE_') !== 0) {
-        form.action = 'https://formspree.io/f/' + id;
-      }
+      if (configured) form.action = 'https://formspree.io/f/' + id;
 
       form.addEventListener('submit', function (e) {
         e.preventDefault();
 
-        if (!id || id.indexOf('VOTRE_') === 0) {
-          say('err', "Le formulaire n'est pas encore relié. Écrivez-nous à " +
-            (CONFIG.contact ? CONFIG.contact.email : 'info@bopoil.ca') + '.');
+        // Le HTML impose déjà required, mais on garde une ceinture pour
+        // les formulaires longs (fiche d'informations).
+        if (!form.reportValidity()) return;
+
+        if (!configured) {
+          // Voie de repli : on ouvre le client courriel prérempli. Le
+          // visiteur n'a plus qu'à appuyer sur "Envoyer".
+          window.location.href = buildMailto(form, key);
+          say('ok', "Votre client courriel s'ouvre avec le message prérempli. " +
+            "Il ne reste qu'à appuyer sur « Envoyer ». Vous pouvez aussi nous " +
+            "écrire directement à " +
+            ((CONFIG.contact && CONFIG.contact.email) || 'info@bopoil.ca') + '.');
           return;
         }
 
@@ -200,8 +269,11 @@
           say('ok', form.getAttribute('data-success') ||
             'Merci! Votre message a bien été envoyé. Nous vous répondrons sous peu.');
         }).catch(function () {
-          say('err', "L'envoi a échoué. Écrivez-nous directement à " +
-            (CONFIG.contact ? CONFIG.contact.email : 'info@bopoil.ca') + '.');
+          // L'envoi direct a échoué (réseau, quota, autre) : on bascule
+          // sur le mailto pour ne pas perdre le message.
+          window.location.href = buildMailto(form, key);
+          say('err', "L'envoi direct a échoué. Nous avons ouvert votre client " +
+            "courriel avec le message prérempli à la place.");
         }).then(function () {
           if (submit) { submit.disabled = false; submit.textContent = original; }
         });
@@ -218,12 +290,38 @@
     document.querySelectorAll('[data-year]').forEach(function (el) { el.textContent = year; });
 
     var c = CONFIG.contact || {};
+    var shopUrl = CONFIG.square && CONFIG.square.shopUrl;
     document.querySelectorAll('[data-shop-link]').forEach(function (el) {
-      if (CONFIG.square && CONFIG.square.shopUrl) el.href = CONFIG.square.shopUrl;
+      if (shopUrl) el.href = shopUrl;
+    });
+    // Le lien "Boutique" reste masqué tant qu'aucune URL n'est configurée,
+    // pour ne pas offrir un lien mort aux visiteurs.
+    document.querySelectorAll('[data-shop-item]').forEach(function (el) {
+      if (shopUrl) el.hidden = false;
     });
     document.querySelectorAll('[data-instagram-link]').forEach(function (el) {
       if (c.instagram) el.href = c.instagram;
     });
+  }
+
+  /* ----------------------------------------------------------------------
+     Instagram — remplace la grille par le vrai fil si un widget est
+     configuré (LightWidget ou autre embed en iframe).
+     ---------------------------------------------------------------------- */
+
+  function initInstagram() {
+    var url = CONFIG.instagram && CONFIG.instagram.embedUrl;
+    if (!url) return;
+    var grid = document.querySelector('[data-instagram-grid]');
+    if (!grid) return;
+    var frame = document.createElement('iframe');
+    frame.src = url;
+    frame.loading = 'lazy';
+    frame.title = 'Fil Instagram — @bopoil.toilettageboutique';
+    frame.scrolling = 'no';
+    frame.allowTransparency = true;
+    frame.className = 'instagram__frame';
+    grid.replaceWith(frame);
   }
 
   function init() {
@@ -233,6 +331,7 @@
     initBooking();
     initForms();
     initMisc();
+    initInstagram();
   }
 
   if (document.readyState === 'loading') {

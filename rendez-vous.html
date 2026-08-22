@@ -76,26 +76,18 @@
         <div class="booking-cta">
           <div>
             <h2 class="booking-cta__title">Réservation en ligne</h2>
-            <p class="mb-0">Le calendrier Square s'ouvre ci-dessous. Vous pouvez aussi
-              l'ouvrir dans un nouvel onglet.</p>
+            <p class="mb-0">Choisissez votre service et votre plage horaire dans le
+              calendrier Square, en un clic.</p>
           </div>
-          <a class="btn btn--filled" data-booking-link="" target="_blank" rel="noopener"
-             href="https://book.squareup.com/appointments/11ede6168f2fd6ccb800ac1f6bbbcc9c/location/LJVHDT6T6W3XM/services">Réserver sur Square</a>
+          <a class="btn btn--filled btn--large" data-booking-link="" target="_blank"
+             rel="noopener" href="https://book.squareup.com/appointments/11ede6168f2fd6ccb800ac1f6bbbcc9c/location/LJVHDT6T6W3XM/services">Réserver sur Square</a>
         </div>
 
-        <div class="booking-embed">
-          <p class="booking-embed__placeholder">Chargement du calendrier de réservation…</p>
+        <!-- Le cadre reste caché jusqu'à ce qu'il ait vraiment chargé, pour
+             ne pas afficher un bloc gris vide si Square refuse le cadre. -->
+        <div class="booking-embed" data-booking-embed hidden>
           <iframe data-booking-frame title="Réservation en ligne — Square Appointments"
                   loading="lazy"></iframe>
-          <div class="booking-fallback" data-booking-fallback hidden>
-            <h2 class="section-title" style="font-size: var(--font-step-1);">
-              Réservation en ligne</h2>
-            <p style="margin: 16px auto 24px; max-width: 52ch;">Le module de réservation ne
-              peut pas s'afficher directement dans cette page. Ouvrez-le dans un nouvel onglet
-              pour choisir votre service et votre plage horaire.</p>
-            <a class="btn btn--filled" data-booking-link="" target="_blank" rel="noopener"
-               href="https://book.squareup.com/appointments/11ede6168f2fd6ccb800ac1f6bbbcc9c/location/LJVHDT6T6W3XM/services">Ouvrir la réservation Square</a>
-          </div>
         </div>
 
         <div class="booking-links">
@@ -164,7 +156,7 @@
             </div>
             <p class="form-status" hidden></p>
           </form>
-          <ul class="footer-nav"><li><a href="index.html">Accueil</a></li><li><a href="a-propos.html">À propos</a></li><li><a href="nos-services.html">Notre approche</a></li><li><a href="chiens.html">Chiens</a></li><li><a href="chats.html">Chats</a></li><li><a href="petits-animaux.html">Petits animaux</a></li><li><a href="guide.html">Guide toilettage</a></li><li><a href="politique.html">Politique</a></li><li><a href="rendez-vous.html">Réserver</a></li><li><a href="contactez-nous.html">Contactez-nous</a></li><li><a href="fiche-informations.html">Fiche d'informations</a></li></ul>
+          <ul class="footer-nav"><li><a href="index.html">Accueil</a></li><li><a href="a-propos.html">À propos</a></li><li><a href="nos-services.html">Notre approche</a></li><li><a href="chiens.html">Chiens</a></li><li><a href="chats.html">Chats</a></li><li><a href="petits-animaux.html">Petits animaux</a></li><li><a href="guide.html">Guide toilettage</a></li><li><a href="politique.html">Politique</a></li><li><a href="rendez-vous.html">Réserver</a></li><li class="footer-nav__shop" hidden data-shop-item><a data-shop-link target="_blank" rel="noopener" href="#boutique">Boutique</a></li><li><a href="contactez-nous.html">Contactez-nous</a></li><li><a href="fiche-informations.html">Fiche d'informations</a></li></ul>
         </div>
         <div class="payments" aria-label="Modes de paiement acceptés"><span>Square</span><span>Apple Pay</span><span>Google Pay</span><span>Visa</span><span>Mastercard</span><span>Amex</span><span>Discover</span><span>JCB</span><span>Interac</span></div>
       </div>

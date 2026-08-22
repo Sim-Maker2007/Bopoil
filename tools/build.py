@@ -81,6 +81,7 @@ FOOTER_LINKS = [
     ("Guide toilettage", "guide.html"),
     ("Politique", "politique.html"),
     ("Réserver", "rendez-vous.html"),
+    ("Boutique", "#boutique", {"shop": True}),  # remplacé par js si shopUrl configuré
     ("Contactez-nous", "contactez-nous.html"),
     ("Fiche d'informations", "fiche-informations.html"),
 ]
@@ -159,7 +160,18 @@ def header_html(current):
 
 
 def footer_html():
-    links = "".join(f'<li><a href="{h}">{l}</a></li>' for l, h in FOOTER_LINKS)
+    parts = []
+    for entry in FOOTER_LINKS:
+        label, href, *rest = entry
+        opts = rest[0] if rest else {}
+        if opts.get("shop"):
+            parts.append(
+                f'<li class="footer-nav__shop" hidden data-shop-item>'
+                f'<a data-shop-link target="_blank" rel="noopener" href="{href}">{label}</a></li>'
+            )
+        else:
+            parts.append(f'<li><a href="{href}">{label}</a></li>')
+    links = "".join(parts)
     pays = "".join(f"<span>{p}</span>" for p in PAYMENTS)
     return f"""  <footer class="site-footer profile-primary-bold">
     <div class="container">
@@ -474,14 +486,14 @@ INDEX_BODY = f"""{hero_html()}
       </div>
     </section>
 
-    <section class="instagram section">
+    <section class="instagram section" data-instagram>
       <div class="container">
         <div class="instagram__head">
-          <h2 class="instagram__label">Follow</h2>
+          <h2 class="instagram__label">Notre salon en images</h2>
           <a class="instagram__handle" href="{INSTAGRAM}" target="_blank"
-             rel="noopener" data-instagram-link>@bopoil.toilettageboutique</a>
+             rel="noopener" data-instagram-link>Suivez-nous · @bopoil.toilettageboutique</a>
         </div>
-        <div class="instagram__grid">
+        <div class="instagram__grid" data-instagram-grid>
           <a href="{INSTAGRAM}" target="_blank" rel="noopener" data-instagram-link>
             {wide('salon-photo-1', "Chat tigré sur la table de toilettage", sizes='(max-width: 767px) 50vw, 33vw')}
           </a>
@@ -1324,26 +1336,18 @@ RDV_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .45;">
         <div class="booking-cta">
           <div>
             <h2 class="booking-cta__title">Réservation en ligne</h2>
-            <p class="mb-0">Le calendrier Square s'ouvre ci-dessous. Vous pouvez aussi
-              l'ouvrir dans un nouvel onglet.</p>
+            <p class="mb-0">Choisissez votre service et votre plage horaire dans le
+              calendrier Square, en un clic.</p>
           </div>
-          <a class="btn btn--filled" data-booking-link="" target="_blank" rel="noopener"
-             href="{{BOOKING_URL}}">Réserver sur Square</a>
+          <a class="btn btn--filled btn--large" data-booking-link="" target="_blank"
+             rel="noopener" href="{{BOOKING_URL}}">Réserver sur Square</a>
         </div>
 
-        <div class="booking-embed">
-          <p class="booking-embed__placeholder">Chargement du calendrier de réservation…</p>
+        <!-- Le cadre reste caché jusqu'à ce qu'il ait vraiment chargé, pour
+             ne pas afficher un bloc gris vide si Square refuse le cadre. -->
+        <div class="booking-embed" data-booking-embed hidden>
           <iframe data-booking-frame title="Réservation en ligne — Square Appointments"
                   loading="lazy"></iframe>
-          <div class="booking-fallback" data-booking-fallback hidden>
-            <h2 class="section-title" style="font-size: var(--font-step-1);">
-              Réservation en ligne</h2>
-            <p style="margin: 16px auto 24px; max-width: 52ch;">Le module de réservation ne
-              peut pas s'afficher directement dans cette page. Ouvrez-le dans un nouvel onglet
-              pour choisir votre service et votre plage horaire.</p>
-            <a class="btn btn--filled" data-booking-link="" target="_blank" rel="noopener"
-               href="{{BOOKING_URL}}">Ouvrir la réservation Square</a>
-          </div>
         </div>
 
         <div class="booking-links">

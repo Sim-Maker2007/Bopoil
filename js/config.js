@@ -62,5 +62,18 @@ window.BOPOIL_CONFIG = {
     phoneDisplay: '(819) 968-2827',
     email: 'info@bopoil.ca',
     instagram: 'https://www.instagram.com/bopoil.toilettageboutique/'
+  },
+
+  /* ----------------------------------------------------------------------
+     4. FIL INSTAGRAM (facultatif)
+     ----------------------------------------------------------------------
+     Par défaut, l'accueil montre trois photos du salon avec un lien vers
+     Instagram. Pour afficher le vrai fil en direct, créez un widget
+     gratuit sur https://lightwidget.com (aucun compte Instagram Business
+     requis, aucune clé d'API à obtenir) et collez l'URL de l'iframe
+     ci-dessous. La grille est automatiquement remplacée par le fil réel.
+     ---------------------------------------------------------------------- */
+  instagram: {
+    embedUrl: ''   // ex. 'https://cdn.lightwidget.com/widgets/xxxx.html'
   }
 };

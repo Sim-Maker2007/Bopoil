@@ -1031,19 +1031,19 @@ select.field { appearance: none; background-image: none; height: 48px; }
 
 .booking-embed {
   position: relative;
+  margin-top: 24px;
   border: 1px solid var(--color-gray-20);
   border-radius: var(--default-border-radius);
   overflow: hidden;
   background: var(--gray-light-one);
+}
+.booking-embed[hidden] { display: none; }
+.booking-embed iframe {
+  width: 100%;
   min-height: 720px;
+  border: 0;
+  display: block;
 }
-.booking-embed iframe { width: 100%; height: 100%; min-height: 720px; border: 0; display: block; }
-
-.booking-fallback {
-  padding: 32px;
-  text-align: center;
-}
-.booking-fallback[hidden] { display: none; }
 
 .booking-links {
   display: grid;
@@ -1247,16 +1247,13 @@ select.field {
   --btn-outline: var(--pure-white);
 }
 
-/* Message affiché derrière le cadre Square tant qu'il n'a rien peint */
-.booking-embed__placeholder {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  margin: 0;
-  padding: 24px;
-  text-align: center;
-  color: var(--color-gray-60);
-  font-size: var(--font-step--1);
+
+/* Iframe injectée quand un widget Instagram (LightWidget) est configuré. */
+.instagram__frame {
+  display: block;
+  width: 100%;
+  min-height: 340px;
+  border: 0;
+  border-radius: var(--image-border-radius);
 }
-.booking-embed iframe { position: relative; z-index: 1; }
+@media (min-width: 768px) { .instagram__frame { min-height: 380px; } }
