@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `online_payment_sessions_one_open_invoice_unique` ON `online_payment_sessions` (`invoice_id`) WHERE "online_payment_sessions"."status" = 'open';
