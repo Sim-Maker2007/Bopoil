@@ -638,15 +638,46 @@ body[data-nav-open="true"] { overflow: hidden; }
 .instagram__grid a { display: block; overflow: hidden; border-radius: var(--image-border-radius); }
 .instagram__grid img {
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   object-fit: cover;
   transition: transform .4s ease;
 }
 .instagram__grid a:hover img { transform: scale(1.04); }
 
+/* Diaporama « Notre salon en images »
+   ------------------------------------
+   Le JS répartit les diapos dans trois cases (deux sur mobile). Chaque
+   case empile ses diapos, [data-active] est visible, les autres
+   disparaissent en fondu. Tant que le JS n'a pas marqué [data-ready], on
+   tombe sur la version dégradée : les trois premières photos affichées
+   en grille normale, comme un rendu statique propre. */
+.instagram__slot {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--image-border-radius);
+  aspect-ratio: 1;
+}
+.instagram__slot .instagram__slide {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .7s ease;
+}
+.instagram__slot .instagram__slide[data-active] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.instagram__grid[data-slideshow]:not([data-ready]) .instagram__slide { aspect-ratio: 1; }
+.instagram__grid[data-slideshow]:not([data-ready]) .instagram__slide:nth-child(n+4) { display: none; }
+
 @media (max-width: 767px) {
   .instagram__grid { grid-template-columns: repeat(2, 1fr); }
-  .instagram__grid a:last-child { display: none; }
+  .instagram__grid[data-slideshow]:not([data-ready]) .instagram__slide:nth-child(n+3) {
+    display: none;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -1133,21 +1164,6 @@ select.field { appearance: none; background-image: none; height: 48px; }
 .footer-nav a { font-size: var(--font-step--1); text-decoration: none; opacity: .85; }
 .footer-nav a:hover { opacity: 1; text-decoration: underline; }
 
-.payments { display: flex; flex-wrap: wrap; gap: 8px; max-width: 260px; justify-content: flex-end; }
-.payments span {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 3px;
-  background: var(--pure-white);
-  color: var(--color-gray-80);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .3px;
-  text-transform: uppercase;
-}
-
 .site-footer__meta {
   display: flex;
   flex-wrap: wrap;
@@ -1161,7 +1177,6 @@ select.field { appearance: none; background-image: none; height: 48px; }
 
 @media (max-width: 767px) {
   .site-footer__body { grid-template-columns: 1fr; }
-  .payments { justify-content: flex-start; max-width: none; }
   .newsletter__row { max-width: none; }
 }
 
