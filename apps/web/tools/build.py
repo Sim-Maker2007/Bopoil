@@ -1518,9 +1518,6 @@ def write_redirects():
 LINKS_FILENAME = "liens.html"
 LINKS_URL = f"{SITE_URL}/{LINKS_FILENAME}"  # adresse encodée dans le code QR
 
-# Doit correspondre à square.shopUrl dans js/config.js (repli statique).
-SHOP_URL = "https://bopoil.square.site/"
-
 # Pictogrammes trait (mêmes conventions que la pastille texto : stroke 1.8).
 LINKS_ICONS = {
     "instagram": '<rect x="3" y="3" width="18" height="18" rx="5"/>'
@@ -1530,22 +1527,6 @@ LINKS_ICONS = {
                  ' 1-1h3z"/>',
     "tiktok":    '<path d="M14.5 3v11.2a4.3 4.3 0 1 1-3.6-4.24"/>'
                  '<path d="M14.5 3c.4 2.8 2.3 4.8 4.9 5.1"/>',
-    "calendar":  '<rect x="3" y="5" width="18" height="16" rx="2"/>'
-                 '<line x1="3" y1="10" x2="21" y2="10"/>'
-                 '<line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
-    "bag":       '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>'
-                 '<line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
-    "globe":     '<circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/>'
-                 '<path d="M12 3a13.6 13.6 0 0 1 0 18 13.6 13.6 0 0 1 0-18Z"/>',
-    "phone":     '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1'
-                 '-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6'
-                 ' 2.7a2 2 0 0 1-.4 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3'
-                 ' 1.8.5 2.7.6a2 2 0 0 1 1.9 2.2Z"/>',
-    "message":   '<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.9-.9L3 21l1.9-4.1A8.4 8.4'
-                 ' 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z"/>',
-    "mail":      '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6L22 7"/>',
-    "pin":       '<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/>'
-                 '<circle cx="12" cy="10" r="3"/>',
 }
 
 LINKS_CSS = """    :root { color-scheme: dark; }
@@ -1608,13 +1589,10 @@ LINKS_CSS = """    :root { color-scheme: dark; }
 # Reprend les valeurs de js/config.js si elles diffèrent des replis statiques.
 LINKS_SCRIPT = """  (function () {
     var CONFIG = window.BOPOIL_CONFIG || {};
-    var sq = CONFIG.square || {};
     var c = CONFIG.contact || {};
     function set(sel, href) {
       document.querySelectorAll(sel).forEach(function (el) { el.href = href; });
     }
-    if (sq.bookingUrl) set('[data-booking-link]', sq.bookingUrl);
-    if (sq.shopUrl) set('[data-shop-link]', sq.shopUrl);
     if (c.instagram) set('[data-instagram-link]', c.instagram);
     if (c.facebook) set('[data-facebook-link]', c.facebook);
     if (c.tiktok) set('[data-tiktok-link]', c.tiktok);
@@ -1632,16 +1610,6 @@ def write_links_page():
          FACEBOOK, 'target="_blank" rel="noopener" data-facebook-link'),
         ("tiktok", "TikTok", "@bopoil1",
          TIKTOK, 'target="_blank" rel="noopener" data-tiktok-link'),
-        ("calendar", "Prendre rendez-vous", "Réservation en ligne",
-         BOOKING_URL, 'target="_blank" rel="noopener" data-booking-link'),
-        ("bag", "Boutique en ligne", "bopoil.square.site",
-         SHOP_URL, 'target="_blank" rel="noopener" data-shop-link'),
-        ("globe", "Notre site web", "www.bopoil.ca", "index.html", ""),
-        ("phone", "Appelez-nous", PHONE, f"tel:{PHONE_TEL}", ""),
-        ("message", "Textez-nous", PHONE, f"sms:{PHONE_TEL}", ""),
-        ("mail", "Écrivez-nous", EMAIL, f"mailto:{EMAIL}", ""),
-        ("pin", "Nous trouver", "38 Av Gatineau, Gatineau", DIRECTIONS,
-         'target="_blank" rel="noopener"'),
     ]
     buttons = []
     for icon, label, sub, href, attrs in entries:
@@ -1662,8 +1630,8 @@ def write_links_page():
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Nos liens | {SITE_NAME_ESC}</title>
-  <meta name="description" content="Tous les liens de {SITE_NAME_ESC} : Instagram, réservation en ligne, boutique, téléphone et plus.">
+  <title>Nos réseaux sociaux | {SITE_NAME_ESC}</title>
+  <meta name="description" content="Suivez {SITE_NAME_ESC} sur les réseaux sociaux : Instagram, Facebook et TikTok.">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#000000">
 
@@ -1682,7 +1650,7 @@ def write_links_page():
     <img class="links__logo" src="images/logo-bopoil-blanc-720.png" width="230" height="103"
          alt="{SITE_NAME_ESC}" fetchpriority="high">
     <p class="links__tagline">Toilettage &amp; Boutique — Gatineau</p>
-    <nav class="links__list" aria-label="Nos liens">
+    <nav class="links__list" aria-label="Nos réseaux sociaux">
 {buttons_html}
     </nav>
     <p class="links__footer">&copy; <span data-year>2026</span> {SITE_NAME_ESC}</p>
