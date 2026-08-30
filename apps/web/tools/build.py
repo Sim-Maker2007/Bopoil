@@ -1506,6 +1506,187 @@ def write_redirects():
             fh.write(html)
 
 
+# ---------------------------------------------------------------------------
+# PAGE « NOS LIENS » (façon Linktree)
+# ---------------------------------------------------------------------------
+# Page volontairement cachée : absente de la navigation, du pied de page, du
+# plan de site, et marquée noindex. On y accède uniquement par le code QR
+# (images/qr-liens.png ou .svg) affiché en boutique ou imprimé.
+
+LINKS_FILENAME = "liens.html"
+LINKS_URL = f"{SITE_URL}/{LINKS_FILENAME}"  # adresse encodée dans le code QR
+
+# Doit correspondre à square.shopUrl dans js/config.js (repli statique).
+SHOP_URL = "https://bopoil.square.site/"
+
+# Pictogrammes trait (mêmes conventions que la pastille texto : stroke 1.8).
+LINKS_ICONS = {
+    "instagram": '<rect x="3" y="3" width="18" height="18" rx="5"/>'
+                 '<circle cx="12" cy="12" r="4"/>'
+                 '<line x1="17.2" y1="6.8" x2="17.2" y2="6.8"/>',
+    "calendar":  '<rect x="3" y="5" width="18" height="16" rx="2"/>'
+                 '<line x1="3" y1="10" x2="21" y2="10"/>'
+                 '<line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
+    "bag":       '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>'
+                 '<line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+    "globe":     '<circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/>'
+                 '<path d="M12 3a13.6 13.6 0 0 1 0 18 13.6 13.6 0 0 1 0-18Z"/>',
+    "phone":     '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1'
+                 '-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6'
+                 ' 2.7a2 2 0 0 1-.4 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3'
+                 ' 1.8.5 2.7.6a2 2 0 0 1 1.9 2.2Z"/>',
+    "message":   '<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.9-.9L3 21l1.9-4.1A8.4 8.4'
+                 ' 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z"/>',
+    "mail":      '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6L22 7"/>',
+    "pin":       '<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/>'
+                 '<circle cx="12" cy="10" r="3"/>',
+}
+
+LINKS_CSS = """    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--primary-color);
+      color: var(--primary-contrast-color);
+      font-family: var(--body-font);
+      -webkit-font-smoothing: antialiased;
+    }
+    .links {
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 56px 22px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .links__logo { width: 210px; height: auto; }
+    .links__tagline {
+      margin: 18px 0 34px;
+      font-size: 14px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity: .75;
+      text-align: center;
+    }
+    .links__list { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+    .links__btn {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 13px 22px;
+      border: 1px solid rgba(255, 255, 255, .45);
+      border-radius: 999px;
+      color: inherit;
+      text-decoration: none;
+      transition: background-color .18s ease, color .18s ease, border-color .18s ease;
+    }
+    .links__btn:hover,
+    .links__btn:focus-visible {
+      background: var(--pure-white);
+      color: var(--primary-color);
+      border-color: var(--pure-white);
+    }
+    .links__btn svg { flex: none; }
+    .links__btn-text { display: flex; flex-direction: column; text-align: left; min-width: 0; }
+    .links__btn-label { font-weight: 600; font-size: 16px; }
+    .links__btn-sub {
+      font-size: 13px;
+      opacity: .7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .links__footer { margin-top: 40px; font-size: 13px; opacity: .6; text-align: center; }"""
+
+# Reprend les valeurs de js/config.js si elles diffèrent des replis statiques.
+LINKS_SCRIPT = """  (function () {
+    var CONFIG = window.BOPOIL_CONFIG || {};
+    var sq = CONFIG.square || {};
+    var c = CONFIG.contact || {};
+    function set(sel, href) {
+      document.querySelectorAll(sel).forEach(function (el) { el.href = href; });
+    }
+    if (sq.bookingUrl) set('[data-booking-link]', sq.bookingUrl);
+    if (sq.shopUrl) set('[data-shop-link]', sq.shopUrl);
+    if (c.instagram) set('[data-instagram-link]', c.instagram);
+    document.querySelectorAll('[data-year]').forEach(function (el) {
+      el.textContent = String(new Date().getFullYear());
+    });
+  })();"""
+
+
+def write_links_page():
+    entries = [
+        ("instagram", "Instagram", "@bopoil.toilettageboutique",
+         INSTAGRAM, 'target="_blank" rel="noopener" data-instagram-link'),
+        ("calendar", "Prendre rendez-vous", "Réservation en ligne",
+         BOOKING_URL, 'target="_blank" rel="noopener" data-booking-link'),
+        ("bag", "Boutique en ligne", "bopoil.square.site",
+         SHOP_URL, 'target="_blank" rel="noopener" data-shop-link'),
+        ("globe", "Notre site web", "www.bopoil.ca", "index.html", ""),
+        ("phone", "Appelez-nous", PHONE, f"tel:{PHONE_TEL}", ""),
+        ("message", "Textez-nous", PHONE, f"sms:{PHONE_TEL}", ""),
+        ("mail", "Écrivez-nous", EMAIL, f"mailto:{EMAIL}", ""),
+        ("pin", "Nous trouver", "38 Av Gatineau, Gatineau", DIRECTIONS,
+         'target="_blank" rel="noopener"'),
+    ]
+    buttons = []
+    for icon, label, sub, href, attrs in entries:
+        attrs = f" {attrs}" if attrs else ""
+        buttons.append(f"""      <a class="links__btn" href="{href}"{attrs}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          {LINKS_ICONS[icon]}
+        </svg>
+        <span class="links__btn-text">
+          <span class="links__btn-label">{label}</span>
+          <span class="links__btn-sub">{sub}</span>
+        </span>
+      </a>""")
+    buttons_html = "\n".join(buttons)
+    html = f"""<!DOCTYPE html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nos liens | {SITE_NAME_ESC}</title>
+  <meta name="description" content="Tous les liens de {SITE_NAME_ESC} : Instagram, réservation en ligne, boutique, téléphone et plus.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <link rel="preload" href="fonts/libre-franklin-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/tokens.css">
+  <style>
+{LINKS_CSS}
+  </style>
+</head>
+<body>
+  <main class="links">
+    <img class="links__logo" src="images/logo-bopoil-blanc-720.png" width="230" height="103"
+         alt="{SITE_NAME_ESC}" fetchpriority="high">
+    <p class="links__tagline">Toilettage &amp; Boutique — Gatineau</p>
+    <nav class="links__list" aria-label="Nos liens">
+{buttons_html}
+    </nav>
+    <p class="links__footer">&copy; <span data-year>2026</span> {SITE_NAME_ESC}</p>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script>
+{LINKS_SCRIPT}
+  </script>
+</body>
+</html>
+"""
+    with open(os.path.join(ROOT, LINKS_FILENAME), "w", encoding="utf-8") as fh:
+        fh.write(html)
+
+
 def write_sitemap():
     urls = []
     for p in PAGES:
@@ -1524,11 +1705,13 @@ def write_sitemap():
 
 def main():
     written = [page(**p) for p in PAGES]
+    write_links_page()
     write_redirects()
     write_sitemap()
     print(f"{len(written)} pages générées :")
     for name in written:
         print("  ", name)
+    print(f"Page cachée {LINKS_FILENAME} générée (hors plan de site, noindex) — {LINKS_URL}")
     print(f"{len(REDIRECTS)} redirections, sitemap.xml et robots.txt mis à jour.")
 
 
