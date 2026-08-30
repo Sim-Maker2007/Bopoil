@@ -89,6 +89,26 @@
           <span class="links__btn-sub">@bopoil.toilettageboutique</span>
         </span>
       </a>
+      <a class="links__btn" href="https://www.facebook.com/share/19BA9jkFU2/" target="_blank" rel="noopener" data-facebook-link>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+        </svg>
+        <span class="links__btn-text">
+          <span class="links__btn-label">Facebook</span>
+          <span class="links__btn-sub">BOPOIL Toilettage &amp; Boutique</span>
+        </span>
+      </a>
+      <a class="links__btn" href="https://www.tiktok.com/@bopoil1" target="_blank" rel="noopener" data-tiktok-link>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14.5 3v11.2a4.3 4.3 0 1 1-3.6-4.24"/><path d="M14.5 3c.4 2.8 2.3 4.8 4.9 5.1"/>
+        </svg>
+        <span class="links__btn-text">
+          <span class="links__btn-label">TikTok</span>
+          <span class="links__btn-sub">@bopoil1</span>
+        </span>
+      </a>
       <a class="links__btn" href="https://book.squareup.com/appointments/11ede6168f2fd6ccb800ac1f6bbbcc9c/location/LJVHDT6T6W3XM/services" target="_blank" rel="noopener" data-booking-link>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -175,6 +195,8 @@
     if (sq.bookingUrl) set('[data-booking-link]', sq.bookingUrl);
     if (sq.shopUrl) set('[data-shop-link]', sq.shopUrl);
     if (c.instagram) set('[data-instagram-link]', c.instagram);
+    if (c.facebook) set('[data-facebook-link]', c.facebook);
+    if (c.tiktok) set('[data-tiktok-link]', c.tiktok);
     document.querySelectorAll('[data-year]').forEach(function (el) {
       el.textContent = String(new Date().getFullYear());
     });

@@ -27,6 +27,8 @@ PHONE_TEL = "+18199682827"
 EMAIL = "info@bopoil.ca"
 ADDRESS = "38 Av Gatineau, Gatineau, Québec J8T 4J1"
 INSTAGRAM = "https://www.instagram.com/bopoil.toilettageboutique/"
+FACEBOOK = "https://www.facebook.com/share/19BA9jkFU2/"
+TIKTOK = "https://www.tiktok.com/@bopoil1"
 NB = " "  # espace insécable
 
 # ---------------------------------------------------------------------------
@@ -1524,6 +1526,10 @@ LINKS_ICONS = {
     "instagram": '<rect x="3" y="3" width="18" height="18" rx="5"/>'
                  '<circle cx="12" cy="12" r="4"/>'
                  '<line x1="17.2" y1="6.8" x2="17.2" y2="6.8"/>',
+    "facebook":  '<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1'
+                 ' 1-1h3z"/>',
+    "tiktok":    '<path d="M14.5 3v11.2a4.3 4.3 0 1 1-3.6-4.24"/>'
+                 '<path d="M14.5 3c.4 2.8 2.3 4.8 4.9 5.1"/>',
     "calendar":  '<rect x="3" y="5" width="18" height="16" rx="2"/>'
                  '<line x1="3" y1="10" x2="21" y2="10"/>'
                  '<line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
@@ -1610,6 +1616,8 @@ LINKS_SCRIPT = """  (function () {
     if (sq.bookingUrl) set('[data-booking-link]', sq.bookingUrl);
     if (sq.shopUrl) set('[data-shop-link]', sq.shopUrl);
     if (c.instagram) set('[data-instagram-link]', c.instagram);
+    if (c.facebook) set('[data-facebook-link]', c.facebook);
+    if (c.tiktok) set('[data-tiktok-link]', c.tiktok);
     document.querySelectorAll('[data-year]').forEach(function (el) {
       el.textContent = String(new Date().getFullYear());
     });
@@ -1620,6 +1628,10 @@ def write_links_page():
     entries = [
         ("instagram", "Instagram", "@bopoil.toilettageboutique",
          INSTAGRAM, 'target="_blank" rel="noopener" data-instagram-link'),
+        ("facebook", "Facebook", "BOPOIL Toilettage &amp; Boutique",
+         FACEBOOK, 'target="_blank" rel="noopener" data-facebook-link'),
+        ("tiktok", "TikTok", "@bopoil1",
+         TIKTOK, 'target="_blank" rel="noopener" data-tiktok-link'),
         ("calendar", "Prendre rendez-vous", "Réservation en ligne",
          BOOKING_URL, 'target="_blank" rel="noopener" data-booking-link'),
         ("bag", "Boutique en ligne", "bopoil.square.site",
