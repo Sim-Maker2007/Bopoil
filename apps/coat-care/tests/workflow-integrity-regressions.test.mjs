@@ -98,7 +98,7 @@ test("settings uses Team as the canonical invitation flow and location clones co
 
   assert.match(settings, /function validTime/);
   assert.match(patch, /new Set\(hourValues\.map\(\(day\) => day\.weekday\)\)\.size !== 7/);
-  assert.match(patch, /const statements: \[BatchItem<"sqlite">/);
+  assert.match(patch, /const statements: \[DbBatchItem/);
   assert.match(patch, /await db\.batch\(statements\)/);
   assert.ok(patch.indexOf("hourValues = hours.map") < patch.indexOf("await db.batch(statements)"));
 

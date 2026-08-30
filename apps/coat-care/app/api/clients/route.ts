@@ -11,16 +11,16 @@ export async function GET(request: Request) {
     const query = new URL(request.url).searchParams.get("query")?.trim().slice(0, 80) ?? "";
     const needle = query.toLowerCase();
     const directClientMatch = query ? or(
-      sql`instr(lower(${clients.fullName}), ${needle}) > 0`,
-      sql`instr(lower(${clients.email}), ${needle}) > 0`,
-      sql`instr(lower(${clients.phone}), ${needle}) > 0`,
+      sql`strpos(lower(${clients.fullName}), ${needle}) > 0`,
+      sql`strpos(lower(${clients.email}), ${needle}) > 0`,
+      sql`strpos(lower(${clients.phone}), ${needle}) > 0`,
       sql`exists (
         select 1 from ${pets}
         where ${pets.clientId} = ${clients.id}
           and ${pets.organizationId} = ${membership.organizationId}
           and (
-            instr(lower(${pets.name}), ${needle}) > 0
-            or instr(lower(${pets.breed}), ${needle}) > 0
+            strpos(lower(${pets.name}), ${needle}) > 0
+            or strpos(lower(${pets.breed}), ${needle}) > 0
           )
       )`,
     ) : undefined;

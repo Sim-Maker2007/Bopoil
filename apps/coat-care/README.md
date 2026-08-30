@@ -138,6 +138,6 @@ The inventory workspace uses an immutable movement ledger so stock cannot silent
 
 ## Data changes
 
-Edit `db/schema.ts`, run `npm run db:generate`, inspect the generated SQL, then verify the entire migration chain against a fresh SQLite database before publishing.
+Edit `db/schema.ts`, run `npm run db:generate`, inspect the generated SQL, then verify the entire migration chain against a fresh Postgres database (`npm run db:migrate` with DATABASE_URL pointed at it) before publishing.
 
 `.openai/hosting.json` contains only the Sites project identifier and logical D1/R2 bindings. Runtime secrets are managed by Sites.

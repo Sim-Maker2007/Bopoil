@@ -27,6 +27,7 @@ import { dateKeyInZone, isValidDateKey } from "../../../lib/time-zone";
 import { addCalendarDays, validWaitlistWindow } from "../../../lib/waitlist";
 import { resolveStorefront, storefrontError } from "../../../db/public-storefront";
 
+import { databaseErrorMessage } from "../../../db";
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function clean(value: unknown, max = 120) { return String(value || "").trim().slice(0, max); }
@@ -41,7 +42,7 @@ function secureClientWaitlistRequired() {
   }, { status: 409, headers: { "cache-control": "no-store" } });
 }
 function clientIdentityConstraint(error: unknown) {
-  return error instanceof Error && /clients(?:_org_email_unique|\.(?:organization_id|email))/i.test(error.message);
+  return error instanceof Error && /clients(?:_org_email_unique|\.(?:organization_id|email))/i.test(databaseErrorMessage(error));
 }
 
 export async function POST(request: Request) {
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
     const attempts = await db.select({ id: portalAccessRequests.id }).from(portalAccessRequests).where(and(
       eq(portalAccessRequests.organizationId, organization.id),
       eq(portalAccessRequests.sourceHash, sourceHash),
-      sql`datetime(${portalAccessRequests.requestedAt}) >= datetime(${recent})`,
+      sql`(${portalAccessRequests.requestedAt})::timestamp >= (${recent})::timestamp`,
     )).limit(10);
     if (attempts.length >= 10) return Response.json({ error: "Too many waitlist requests were sent recently. Please try again later." }, { status: 429 });
     await db.insert(portalAccessRequests).values({
@@ -129,7 +130,7 @@ export async function POST(request: Request) {
       const phoneDigits = phone.replace(/\D/g, "");
       const comparablePhoneDigits = normalizedPhone ? normalizedPhone.slice(-10) : phoneDigits;
       const phoneConflict = normalizedPhone
-        ? eq(sql<string>`substr(${storedPhoneDigits()}, -10)`, comparablePhoneDigits)
+        ? eq(sql<string>`right(${storedPhoneDigits()}, 10)`, comparablePhoneDigits)
         : eq(storedPhoneDigits(), comparablePhoneDigits);
       const [contactConflict] = await db.select({ id: clients.id }).from(clients).where(and(
         eq(clients.organizationId, organization.id),
@@ -247,7 +248,7 @@ export async function POST(request: Request) {
               organizationId: organization.id,
               clientId,
               phoneE164: verifiedPhoneProof.phoneE164,
-              verifiedAt: sql<string>`(select ${now} from ${clientPhoneOtpChallenges} where ${clientPhoneOtpChallenges.id} = ${verifiedPhoneProof.id} and ${clientPhoneOtpChallenges.organizationId} = ${organization.id} and ${clientPhoneOtpChallenges.phoneE164} = ${verifiedPhoneProof.phoneE164} and ${clientPhoneOtpChallenges.verifiedAt} is not null and ${clientPhoneOtpChallenges.proofExpiresAt} > ${now} and ${clientPhoneOtpChallenges.proofConsumedAt} is null limit 1)`,
+              verifiedAt: sql<string>`(select ${now}::text from ${clientPhoneOtpChallenges} where ${clientPhoneOtpChallenges.id} = ${verifiedPhoneProof.id} and ${clientPhoneOtpChallenges.organizationId} = ${organization.id} and ${clientPhoneOtpChallenges.phoneE164} = ${verifiedPhoneProof.phoneE164} and ${clientPhoneOtpChallenges.verifiedAt} is not null and ${clientPhoneOtpChallenges.proofExpiresAt} > ${now} and ${clientPhoneOtpChallenges.proofConsumedAt} is null limit 1)`,
               lastUsedAt: now,
               createdAt: now,
               updatedAt: now,
@@ -283,8 +284,8 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         if (clientIdentityConstraint(error)) return secureClientWaitlistRequired();
-        if (verifiedPhoneProof && error instanceof Error && /unique|constraint|null/i.test(error.message)) return secureClientWaitlistRequired();
-        if (!authenticatedWaitlist || !(error instanceof Error) || !/unique|constraint/i.test(error.message)) throw error;
+        if (verifiedPhoneProof && error instanceof Error && /unique|constraint|null/i.test(databaseErrorMessage(error))) return secureClientWaitlistRequired();
+        if (!authenticatedWaitlist || !(error instanceof Error) || !/unique|constraint/i.test(databaseErrorMessage(error))) throw error;
         const [concurrent] = await db.select({ id: waitlistEntries.id }).from(waitlistEntries).where(and(
           eq(waitlistEntries.organizationId, organization.id),
           eq(waitlistEntries.locationId, location.id),

@@ -130,5 +130,5 @@ test("trusted cookie sessions slide within an absolute lifetime without elevatin
   assert.match(route, /portalCookie\(cookieToken, maxAgeSeconds\)/);
   assert.match(helper, /PORTAL_TRUSTED_SESSION_ABSOLUTE_TTL_MS = 90 \* 86400_000/);
   assert.match(helper, /Math\.min\(now\.getTime\(\) \+ PORTAL_TRUSTED_SESSION_TTL_MS, absoluteExpiry\)/);
-  assert.match(helper, /datetime\(\$\{clientPortalSessions\.createdAt\}, '\+90 days'\) > datetime\(\$\{nowIso\}\)/);
+  assert.match(helper, /\(\(\$\{clientPortalSessions\.createdAt\}\)::timestamp \+ interval '90 days'\) > \(\$\{nowIso\}\)::timestamp/);
 });

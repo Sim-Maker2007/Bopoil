@@ -41,7 +41,7 @@ test("the website intake endpoint stores no raw contact or care payload in its d
     source("../db/schema.ts"),
     source("../app/api/public/intake/route.ts"),
   ]);
-  const table = schema.slice(schema.indexOf('sqliteTable("public_intake_submissions"'), schema.indexOf('export const externalEntityLinks'));
+  const table = schema.slice(schema.indexOf('pgTable("public_intake_submissions"'), schema.indexOf('export const externalEntityLinks'));
   assert.doesNotMatch(table, /payload|health|behavior|email|phone/);
   assert.match(table, /sourceHash/);
   assert.match(table, /contactHash/);

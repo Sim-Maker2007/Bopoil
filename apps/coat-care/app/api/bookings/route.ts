@@ -12,6 +12,7 @@ import { portalCookieRequestIsSameOrigin, portalCookieTokenFromRequest, requestI
 import { portalAccessUrl } from "../../../lib/portal-links";
 import { stripeConfig, stripeRequest } from "../../../lib/stripe";
 
+import { databaseErrorMessage } from "../../../db";
 type BookingPayload = {
   salonSlug?: string;
   locationSlug?: string;
@@ -39,7 +40,7 @@ function secureClientBookingRequired() {
 }
 
 function clientIdentityConstraint(error: unknown) {
-  return error instanceof Error && /clients(?:_org_email_unique|\.(?:organization_id|email))/i.test(error.message);
+  return error instanceof Error && /clients(?:_org_email_unique|\.(?:organization_id|email))/i.test(databaseErrorMessage(error));
 }
 
 function storedPhoneDigits() {
@@ -152,7 +153,7 @@ export async function POST(request: Request) {
       }
       const requestedAt = new Date().toISOString();
       const cutoff = new Date(Date.now() - 10 * 60_000).toISOString();
-      const recentEnough = sql<boolean>`datetime(${portalAccessRequests.requestedAt}) >= datetime(${cutoff})`;
+      const recentEnough = sql<boolean>`(${portalAccessRequests.requestedAt})::timestamp >= (${cutoff})::timestamp`;
       const [emailHash, sourceHash] = await Promise.all([
         sha256Hex(`public-booking:${organization.id}:email:${email}`),
         sha256Hex(`public-booking:${organization.id}:source:${requestSource(request)}`),
@@ -166,7 +167,7 @@ export async function POST(request: Request) {
       const normalizedPhone = normalizeClientPhone(phone);
       const comparablePhoneDigits = normalizedPhone ? normalizedPhone.slice(-10) : phoneDigits;
       const phoneConflict = normalizedPhone
-        ? eq(sql<string>`substr(${storedPhoneDigits()}, -10)`, comparablePhoneDigits)
+        ? eq(sql<string>`right(${storedPhoneDigits()}, 10)`, comparablePhoneDigits)
         : eq(storedPhoneDigits(), comparablePhoneDigits);
       const [contactConflict] = await db.select({ id: clients.id, email: clients.email, phone: clients.phone }).from(clients).where(and(
         eq(clients.organizationId, organization.id),
@@ -287,7 +288,7 @@ export async function POST(request: Request) {
             organizationId: organization.id,
             clientId,
             phoneE164: verifiedPhoneProof.phoneE164,
-            verifiedAt: sql<string>`(select ${committedAt} from ${clientPhoneOtpChallenges} where ${clientPhoneOtpChallenges.id} = ${verifiedPhoneProof.id} and ${clientPhoneOtpChallenges.organizationId} = ${organization.id} and ${clientPhoneOtpChallenges.phoneE164} = ${verifiedPhoneProof.phoneE164} and ${clientPhoneOtpChallenges.verifiedAt} is not null and ${clientPhoneOtpChallenges.proofExpiresAt} > ${committedAt} and ${clientPhoneOtpChallenges.proofConsumedAt} is null limit 1)`,
+            verifiedAt: sql<string>`(select ${committedAt}::text from ${clientPhoneOtpChallenges} where ${clientPhoneOtpChallenges.id} = ${verifiedPhoneProof.id} and ${clientPhoneOtpChallenges.organizationId} = ${organization.id} and ${clientPhoneOtpChallenges.phoneE164} = ${verifiedPhoneProof.phoneE164} and ${clientPhoneOtpChallenges.verifiedAt} is not null and ${clientPhoneOtpChallenges.proofExpiresAt} > ${committedAt} and ${clientPhoneOtpChallenges.proofConsumedAt} is null limit 1)`,
             lastUsedAt: committedAt,
             createdAt: committedAt,
             updatedAt: committedAt,
@@ -324,7 +325,7 @@ export async function POST(request: Request) {
         });
         return secureClientBookingRequired();
       }
-      if (verifiedPhoneProof && error instanceof Error && /unique|constraint|null/i.test(error.message)) {
+      if (verifiedPhoneProof && error instanceof Error && /unique|constraint|null/i.test(databaseErrorMessage(error))) {
         const [raceIdentity] = await db.select({ clientId: clientPhoneIdentities.clientId }).from(clientPhoneIdentities).where(and(
           eq(clientPhoneIdentities.organizationId, organization.id),
           eq(clientPhoneIdentities.phoneE164, verifiedPhoneProof.phoneE164),
@@ -337,7 +338,7 @@ export async function POST(request: Request) {
         });
         return secureClientBookingRequired();
       }
-      if (error instanceof Error && /unique|constraint/i.test(error.message)) return Response.json({ error: "That time was just reserved. Please choose another live opening." }, { status: 409 });
+      if (error instanceof Error && /unique|constraint/i.test(databaseErrorMessage(error))) return Response.json({ error: "That time was just reserved. Please choose another live opening." }, { status: 409 });
       throw error;
     }
 

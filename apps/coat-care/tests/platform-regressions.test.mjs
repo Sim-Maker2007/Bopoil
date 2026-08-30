@@ -51,7 +51,7 @@ test("directory search is applied by the database before its result limit", asyn
   const queryIndex = source.indexOf("directClientMatch");
   const limitIndex = source.indexOf(".limit(100)");
   assert.ok(queryIndex > -1 && limitIndex > queryIndex);
-  assert.match(source, /instr\(lower\(/);
+  assert.match(source, /strpos\(lower\(/);
   assert.match(source, /exists \(/);
   assert.doesNotMatch(source, /\.limit\(500\)/);
   assert.doesNotMatch(source, /\}\)\.filter\(\(client\)/);
@@ -117,7 +117,7 @@ test("the merged app develops locally and deploys on Vercel with Turso", async (
   assert.match(scripts.test, /tests\/\*\.test\.mjs/);
   assert.match(nextConfig, /source: "\/"/);
   assert.match(nextConfig, /destination: "\/index\.html"/);
-  assert.match(drizzle, /dialect: "turso"/);
+  assert.match(drizzle, /dialect: "postgresql"/);
   assert.match(rootPackage, /"workspaces"/);
   assert.match(vercel, /"framework": "nextjs"/);
   assert.match(catalog, /delivery: publicDeliveryConfig\(\)/);

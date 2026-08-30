@@ -4,8 +4,9 @@ import { calculateInvoice } from "../../../../lib/financial-ledger";
 import { stripeConfig, stripeRequest } from "../../../../lib/stripe";
 import { requireSalonAccess, requireSalonManager, requireWorkspacePermission, salonApiError, SalonAccessError } from "../../../salon-access";
 
+import { databaseErrorMessage } from "../../../../db";
 function isConstraintError(error: unknown) {
-  return error instanceof Error && /unique|constraint/i.test(error.message);
+  return error instanceof Error && /unique|constraint/i.test(databaseErrorMessage(error));
 }
 
 export async function POST(request: Request) {

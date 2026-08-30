@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 const source = (path) => readFile(new URL(path, import.meta.url), "utf8");
@@ -75,7 +74,7 @@ test("manager approval materializes PIN sheets once and payroll merges tips and 
 test("timesheets persist stable location identity and reject every cross-location punch overlap", async () => {
   const [schema, migration, employeeSheet, managerSheet, employeePortal, managerPortal] = await Promise.all([
     source("../db/schema.ts"),
-    source("../drizzle/0030_marvelous_jack_murdock.sql"),
+    source("../drizzle/0000_ambiguous_moondragon.sql"),
     source("../app/api/employee/timesheet/route.ts"),
     source("../app/api/timesheets/route.ts"),
     source("../app/employee/employee-portal.tsx"),
@@ -83,8 +82,7 @@ test("timesheets persist stable location identity and reject every cross-locatio
   ]);
 
   assert.match(schema, /locationId: text\("location_id"\)\.references\(\(\) => locations\.id\)/);
-  assert.match(migration, /ADD `location_id` text REFERENCES locations\(id\)/);
-  assert.match(migration, /SELECT count\(\*\)[\s\S]*`locations`\.`name` = `timesheet_shifts`\.`location_name`[\s\S]*\) = 1/);
+  assert.match(migration, /"timesheet_shifts_location_id_locations_id_fk" FOREIGN KEY \("location_id"\) REFERENCES "public"\."locations"\("id"\)/);
   assert.match(employeeSheet, /locationId: item\.locationId/);
   assert.match(employeeSheet, /locationOptions: allowedLocations/);
   assert.match(managerSheet, /function resolveLocation/);
@@ -98,41 +96,15 @@ test("timesheets persist stable location identity and reject every cross-locatio
   assert.match(managerPortal, /locationOptions\?: LocationOption\[\]/);
 });
 
-test("timesheet location migration backfills only organization-unique legacy names", async () => {
-  const db = new DatabaseSync(":memory:");
-  db.exec(`
-    create table locations (id text primary key, organization_id text not null, name text not null);
-    create table timesheet_shifts (id text primary key, organization_id text not null, location_name text not null, work_date text not null);
-    insert into locations values
-      ('loc-a', 'org-1', 'Downtown'),
-      ('loc-b-1', 'org-1', 'Uptown'),
-      ('loc-b-2', 'org-1', 'Uptown'),
-      ('loc-c', 'org-2', 'Downtown');
-    insert into timesheet_shifts values
-      ('shift-a', 'org-1', 'Downtown', '2026-07-20'),
-      ('shift-b', 'org-1', 'Uptown', '2026-07-20'),
-      ('shift-c', 'org-2', 'Downtown', '2026-07-20');
-  `);
-  const migration = (await source("../drizzle/0030_marvelous_jack_murdock.sql")).replaceAll("--> statement-breakpoint", "");
-  assert.doesNotThrow(() => db.exec(migration));
-  const rows = db.prepare("select id, location_id from timesheet_shifts order by id").all().map((row) => ({ ...row }));
-  assert.deepEqual(rows, [
-    { id: "shift-a", location_id: "loc-a" },
-    { id: "shift-b", location_id: null },
-    { id: "shift-c", location_id: "loc-c" },
-  ]);
-  db.close();
-});
-
 test("payroll atomically validates exact approved punch and timesheet snapshots", async () => {
   const payrollRoute = await source("../app/api/payroll/route.ts");
 
   assert.match(payrollRoute, /approvedTime: snapshotComponent\(effectiveEntries\.map/);
   assert.match(payrollRoute, /approvedReportedTips: snapshotComponent\(approvedReportedTips\.map/);
-  assert.match(payrollRoute, /select group_concat\(work_row, '\|'\)/);
-  assert.match(payrollRoute, /select group_concat\(tip_row, '\|'\)/);
-  assert.match(payrollRoute, /json_extract\(expected\.snapshot_json, '\$\.approvedTime\.signature'\)/);
-  assert.match(payrollRoute, /json_extract\(expected\.snapshot_json, '\$\.approvedReportedTips\.signature'\)/);
+  assert.match(payrollRoute, /select string_agg\(work_row, '\|' order by work_sort collate \"C\"\)/);
+  assert.match(payrollRoute, /select string_agg\(tip_row, '\|' order by tip_sort collate \"C\"\)/);
+  assert.match(payrollRoute, /snapshot_json::json #>> '\{approvedTime,signature\}'/);
+  assert.match(payrollRoute, /snapshot_json::json #>> '\{approvedReportedTips,signature\}'/);
   assert.match(payrollRoute, /const effectiveClockInSql = sql<string>/);
   assert.match(payrollRoute, /order by candidate_adjustment\.created_at desc, candidate_adjustment\.id desc/);
   assert.match(payrollRoute, /approved_shift\.location_id = expected\.location_id/);

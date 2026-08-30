@@ -31,8 +31,8 @@ test("declares tenant-safe Vercel persistence and auditable booking records", as
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/bookings/route.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(database, /TURSO_DATABASE_URL/);
-  assert.match(database, /drizzle\(client/);
+  assert.match(database, /DATABASE_URL/);
+  assert.match(database, /drizzle\(routeToActiveBatch\(client\)/);
   assert.match(blob, /@vercel\/blob/);
   assert.match(blob, /access: "private"/);
   for (const entity of ["organizations", "locations", "staff", "staff_locations", "staff_invitations", "salon_settings", "location_hours", "clients", "client_portal_sessions", "portal_access_requests", "pets", "vaccination_records", "pet_warnings", "services", "staff_availability", "staff_service_skills", "appointments", "appointment_change_claims", "appointment_care_records", "waitlist_entries", "waitlist_conversion_claims", "media_assets", "approval_requests", "invoices", "invoice_line_items", "payment_events", "communication_templates", "messages", "message_events", "consent_records", "audit_events"]) {
@@ -682,12 +682,12 @@ test("ships an integrated multi-location bookkeeping planner with Quebec tax and
     readFile(new URL("../app/api/accounting/accounts/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/salon/accounting-view.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../drizzle/0027_sturdy_goblin_queen.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0000_ambiguous_moondragon.sql", import.meta.url), "utf8"),
   ]);
   assert.match(accounting, /scope === "all"/); assert.match(accounting, /gstCollectedCents/); assert.match(accounting, /qstCollectedCents/); assert.match(accounting, /byLocation/); assert.match(accounting, /timeline/);
   assert.match(accounts, /Banque Desjardins/); assert.match(accounts, /Square/); assert.match(accounts, /financial_transactions\.imported/); assert.match(accounts, /onConflictDoNothing/); assert.match(accounts, /rows\.length > 2_000/);
   assert.match(schema, /financial_accounts_org_name_unique/); assert.match(schema, /financial_transactions_account_hash_unique/); assert.match(schema, /gstAmountCents/); assert.match(schema, /qstAmountCents/);
-  assert.match(migration, /CREATE TABLE `financial_accounts`/); assert.match(migration, /ALTER TABLE `expenses` ADD `gst_amount_cents`/);
+  assert.match(migration, /CREATE TABLE "financial_accounts"/); assert.match(migration, /"gst_amount_cents" integer DEFAULT 0 NOT NULL/);
   assert.match(view, /Planificateur comptable/); assert.match(view, /Tous les emplacements/); assert.match(view, /Importer un CSV/); assert.match(view, /TPS \/ TVQ/); assert.match(view, /capture="environment"/);
 });
 
@@ -811,12 +811,12 @@ test("creates each operational role and administrators with server-enforced work
     readFile(new URL("../lib/salon-permissions.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/salon/salon-workspace.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../drizzle/0026_secret_spitfire.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0000_ambiguous_moondragon.sql", import.meta.url), "utf8"),
   ]);
   assert.match(teamApi, /\["manager", "receptionist", "groomer", "bather", "accountant"\]/); assert.match(teamApi, /role === "manager" && membership\.role !== "owner"/); assert.match(teamApi, /employeePortalInvitations/); assert.match(teamApi, /permissionsJson: JSON\.stringify\(permissions\)/);
   assert.match(teamView, /Add a team member/); assert.match(teamView, /Groomer/); assert.match(teamView, /Bather/); assert.match(teamView, /Receptionist/); assert.match(teamView, /Administrator/); assert.match(teamView, /Create and send invitation/);
   assert.match(access, /requireWorkspacePermission/); assert.match(access, /parsePermissions/); assert.match(permissions, /WORKSPACE_PERMISSIONS/); assert.match(permissions, /Appointments & calendar/);
-  assert.match(schema, /permissionsJson: text\("permissions_json"\)/); assert.match(migration, /ADD `permissions_json` text/); assert.match(workspace, /hasAccess\("team"\)/);
+  assert.match(schema, /permissionsJson: text\("permissions_json"\)/); assert.match(migration, /"permissions_json" text/); assert.match(workspace, /hasAccess\("team"\)/);
 });
 
 test("derives owner metrics from signed ledgers, capacity, client history, and recorded costs", async () => {
