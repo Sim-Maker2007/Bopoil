@@ -71,21 +71,6 @@ NAV = [
     ]},
 ]
 
-FOOTER_LINKS = [
-    ("Accueil", "index.html"),
-    ("À propos", "a-propos.html"),
-    ("Notre approche", "nos-services.html"),
-    ("Chiens", "chiens.html"),
-    ("Chats", "chats.html"),
-    ("Petits animaux", "petits-animaux.html"),
-    ("Guide toilettage", "guide.html"),
-    ("Politique", "politique.html"),
-    ("Réserver", "rendez-vous.html"),
-    ("Boutique", "#boutique", {"shop": True}),  # remplacé par js si shopUrl configuré
-    ("Contactez-nous", "contactez-nous.html"),
-    ("Fiche d'informations", "fiche-informations.html"),
-]
-
 # ---------------------------------------------------------------------------
 # Aides
 # ---------------------------------------------------------------------------
@@ -156,18 +141,6 @@ def header_html(current):
 
 
 def footer_html():
-    parts = []
-    for entry in FOOTER_LINKS:
-        label, href, *rest = entry
-        opts = rest[0] if rest else {}
-        if opts.get("shop"):
-            parts.append(
-                f'<li class="footer-nav__shop" hidden data-shop-item>'
-                f'<a data-shop-link target="_blank" rel="noopener" href="{href}">{label}</a></li>'
-            )
-        else:
-            parts.append(f'<li><a href="{href}">{label}</a></li>')
-    links = "".join(parts)
     return f"""  <footer class="site-footer profile-primary-bold">
     <div class="container">
       <div class="site-footer__logo">
@@ -191,7 +164,6 @@ def footer_html():
             </div>
             <p class="form-status" hidden></p>
           </form>
-          <ul class="footer-nav">{links}</ul>
         </div>
       </div>
       <div class="site-footer__meta">
