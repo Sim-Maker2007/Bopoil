@@ -75,7 +75,9 @@ window.BOPOIL_CONFIG = {
     phone: '+18199682827',
     phoneDisplay: '(819) 968-2827',
     email: 'info@bopoil.ca',
-    instagram: 'https://www.instagram.com/bopoil.toilettageboutique/'
+    instagram: 'https://www.instagram.com/bopoil.toilettageboutique/',
+    facebook: 'https://www.facebook.com/share/19BA9jkFU2/',
+    tiktok: 'https://www.tiktok.com/@bopoil1'
   },
 
   /* ----------------------------------------------------------------------

@@ -1154,16 +1154,6 @@ select.field { appearance: none; background-image: none; height: 48px; }
   flex: none;
 }
 
-.footer-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  list-style: none;
-  margin: 28px 0 0;
-}
-.footer-nav a { font-size: var(--font-step--1); text-decoration: none; opacity: .85; }
-.footer-nav a:hover { opacity: 1; text-decoration: underline; }
-
 .site-footer__meta {
   display: flex;
   flex-wrap: wrap;
