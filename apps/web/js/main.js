@@ -338,23 +338,95 @@
   }
 
   /* ----------------------------------------------------------------------
-     Instagram — remplace la grille par le vrai fil si un widget est
-     configuré (LightWidget ou autre embed en iframe).
+     Instagram — deux modes :
+       1. Si un widget est configuré (CONFIG.instagram.embedUrl), on
+          remplace la grille par l'iframe LightWidget.
+       2. Sinon, on transforme la grille en diaporama : trois cases (deux
+          sur mobile), toutes les photos du salon défilent en fondu à
+          travers ces cases. Chaque case avance décalée dans le temps.
      ---------------------------------------------------------------------- */
 
   function initInstagram() {
-    var url = CONFIG.instagram && CONFIG.instagram.embedUrl;
-    if (!url) return;
     var grid = document.querySelector('[data-instagram-grid]');
     if (!grid) return;
-    var frame = document.createElement('iframe');
-    frame.src = url;
-    frame.loading = 'lazy';
-    frame.title = 'Fil Instagram — @bopoil.toilettageboutique';
-    frame.scrolling = 'no';
-    frame.allowTransparency = true;
-    frame.className = 'instagram__frame';
-    grid.replaceWith(frame);
+
+    var url = CONFIG.instagram && CONFIG.instagram.embedUrl;
+    if (url) {
+      var frame = document.createElement('iframe');
+      frame.src = url;
+      frame.loading = 'lazy';
+      frame.title = 'Fil Instagram — @bopoil.toilettageboutique';
+      frame.scrolling = 'no';
+      frame.allowTransparency = true;
+      frame.className = 'instagram__frame';
+      grid.replaceWith(frame);
+      return;
+    }
+
+    initSalonSlideshow(grid);
+  }
+
+  function initSalonSlideshow(grid) {
+    var originalHTML = grid.innerHTML;
+
+    function slotCount() {
+      return window.matchMedia('(max-width: 767px)').matches ? 2 : 3;
+    }
+
+    function layout() {
+      grid.innerHTML = originalHTML;
+      var slides = Array.prototype.slice.call(
+        grid.querySelectorAll('.instagram__slide')
+      );
+      if (slides.length < 2) return;
+
+      var count = slotCount();
+      grid.innerHTML = '';
+      var slots = [];
+      for (var i = 0; i < count; i++) {
+        var slot = document.createElement('div');
+        slot.className = 'instagram__slot';
+        slots.push(slot);
+        grid.appendChild(slot);
+      }
+      slides.forEach(function (slide, i) {
+        slots[i % count].appendChild(slide);
+      });
+      slots.forEach(function (slot) {
+        if (slot.firstElementChild) {
+          slot.firstElementChild.setAttribute('data-active', '');
+        }
+      });
+      grid.setAttribute('data-ready', '');
+    }
+
+    layout();
+
+    var current = slotCount();
+    window.addEventListener('resize', function () {
+      var now = slotCount();
+      if (now !== current) { current = now; layout(); }
+    });
+
+    if (reduceMotion) return;
+
+    window.setInterval(function () {
+      var slots = grid.querySelectorAll('.instagram__slot');
+      slots.forEach(function (slot, idx) {
+        // Léger décalage entre les cases pour un rendu plus vivant.
+        window.setTimeout(function () {
+          var kids = Array.prototype.slice.call(slot.children);
+          if (kids.length < 2) return;
+          var i = 0;
+          for (var k = 0; k < kids.length; k++) {
+            if (kids[k].hasAttribute('data-active')) { i = k; break; }
+          }
+          var next = (i + 1) % kids.length;
+          kids[i].removeAttribute('data-active');
+          kids[next].setAttribute('data-active', '');
+        }, idx * 350);
+      });
+    }, 4500);
   }
 
   function init() {

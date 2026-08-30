@@ -86,10 +86,6 @@ FOOTER_LINKS = [
     ("Fiche d'informations", "fiche-informations.html"),
 ]
 
-PAYMENTS = ["Square", "Apple Pay", "Google Pay", "Visa", "Mastercard",
-            "Amex", "Discover", "JCB", "Interac"]
-
-
 # ---------------------------------------------------------------------------
 # Aides
 # ---------------------------------------------------------------------------
@@ -172,7 +168,6 @@ def footer_html():
         else:
             parts.append(f'<li><a href="{href}">{label}</a></li>')
     links = "".join(parts)
-    pays = "".join(f"<span>{p}</span>" for p in PAYMENTS)
     return f"""  <footer class="site-footer profile-primary-bold">
     <div class="container">
       <div class="site-footer__logo">
@@ -198,7 +193,6 @@ def footer_html():
           </form>
           <ul class="footer-nav">{links}</ul>
         </div>
-        <div class="payments" aria-label="Modes de paiement acceptés">{pays}</div>
       </div>
       <div class="site-footer__meta">
         <p class="mb-0">
@@ -343,6 +337,37 @@ def hours_dl_html():
 
 
 # ---------------------------------------------------------------------------
+# ACCUEIL — diaporama « Notre salon en images »
+# ---------------------------------------------------------------------------
+#
+# Toutes les vraies photos du salon défilent dans trois cases qui se
+# fondent enchaînées. Ajouter une nouvelle photo : mettre son slug ici,
+# le JS s'occupe du reste.
+SALON_PHOTOS = [
+    ("salon-photo-1",         "Chat tigré sur la table de toilettage"),
+    ("salon-photo-2",         "Deux petits compagnons au salon BOPOIL"),
+    ("salon-photo-3",         "Chat câliné après son toilettage"),
+    ("salon-photo-4",         "Chat blanc sur la table de toilettage"),
+    ("galerie-spitz",         "Spitz japonais sur la table de toilettage"),
+    ("galerie-caniche",       "Toiletteuse avec un caniche roux"),
+    ("galerie-border-collie", "Border collie après son toilettage"),
+    ("boutique-interieur",    "Rayons de la boutique BOPOIL"),
+]
+
+
+def _slide_html(slug, alt):
+    return (
+        f'          <a class="instagram__slide" href="{INSTAGRAM}" target="_blank" '
+        f'rel="noopener" data-instagram-link>\n'
+        f'            {wide(slug, alt, sizes="(max-width: 767px) 50vw, 33vw")}\n'
+        f'          </a>'
+    )
+
+
+SALON_SLIDES = "\n".join(_slide_html(slug, alt) for slug, alt in SALON_PHOTOS)
+
+
+# ---------------------------------------------------------------------------
 # ACCUEIL
 # ---------------------------------------------------------------------------
 
@@ -384,7 +409,6 @@ HERO_SLIDES = [
         "scrim": "0.49",
         "title": "Services pour chats",
         "caps": True,
-        "plum": True,
         "body": ("Un toilettage sans eau, tout en douceur, pensé pour le rythme et la "
                  "sensibilité des chats. Shampooing sec, démêlage, griffes et soins des "
                  "oreilles dans un environnement calme et sécurisé."),
@@ -493,16 +517,8 @@ INDEX_BODY = f"""{hero_html()}
           <a class="instagram__handle" href="{INSTAGRAM}" target="_blank"
              rel="noopener" data-instagram-link>Suivez-nous · @bopoil.toilettageboutique</a>
         </div>
-        <div class="instagram__grid" data-instagram-grid>
-          <a href="{INSTAGRAM}" target="_blank" rel="noopener" data-instagram-link>
-            {wide('salon-photo-1', "Chat tigré sur la table de toilettage", sizes='(max-width: 767px) 50vw, 33vw')}
-          </a>
-          <a href="{INSTAGRAM}" target="_blank" rel="noopener" data-instagram-link>
-            {wide('salon-photo-2', "Deux petits compagnons au salon BOPOIL", sizes='(max-width: 767px) 50vw, 33vw')}
-          </a>
-          <a href="{INSTAGRAM}" target="_blank" rel="noopener" data-instagram-link>
-            {wide('salon-photo-3', "Chat câliné après son toilettage", sizes='(max-width: 767px) 50vw, 33vw')}
-          </a>
+        <div class="instagram__grid" data-instagram-grid data-slideshow>
+{SALON_SLIDES}
         </div>
       </div>
     </section>"""
