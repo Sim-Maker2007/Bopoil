@@ -72,38 +72,27 @@ function chunks<T>(values: T[], size = 8) {
   return Array.from({ length: Math.ceil(values.length / size) }, (_, index) => values.slice(index * size, (index + 1) * size));
 }
 
-async function seedPilotData() {
-  const db = getDb();
-  await db.insert(organizations).values({
-    id: PILOT.organizationId,
-    slug: "bopoil",
-    name: "BOPOIL Toilettage & Boutique",
-    country: "CA",
-    currency: "CAD",
-    timezone: "America/Toronto",
-    contactEmail: "info@bopoil.ca",
-    contactPhone: "+1 819 968-2827",
-    website: "https://bopoil.ca",
-    onboardingCompleted: true,
-  }).onConflictDoNothing();
+// Demo groomers, services, availability and skills exist so a fresh local
+// database has something to book against. They are never inserted into a
+// deployed tenant unless SEED_DEMO_DATA=true is set explicitly.
+export function demoSeedEnabled(values: NodeJS.ProcessEnv = process.env) {
+  return values.SEED_DEMO_DATA === "true";
+}
 
-  await db.insert(locations).values({
-    id: PILOT.locationId,
-    organizationId: PILOT.organizationId,
-    slug: PILOT.locationSlug,
-    name: "Gatineau",
-    addressLine1: "38 Av Gatineau",
-    city: "Gatineau",
-    region: "QC",
-    postalCode: "J8T 4J1",
-    contactEmail: "info@bopoil.ca",
-    contactPhone: "+1 819 968-2827",
-    currency: "CAD",
-    timezone: "America/Toronto",
-    taxLabel: "GST/QST",
-    taxRateBps: 1498,
-  }).onConflictDoNothing();
+// BOPOIL's published schedule: Tuesday to Friday 9 h to 16 h, Monday and
+// Saturday by appointment only, closed Sunday. Square owns the actual booking
+// calendar; these hours only frame the CRM's own day views.
+const bopoilHours = Array.from({ length: 7 }, (_, weekday) => ({
+  id: `hours_queen_west_${weekday}`,
+  organizationId: PILOT.organizationId,
+  locationId: PILOT.locationId,
+  weekday,
+  open: weekday !== 0,
+  opensAt: "09:00",
+  closesAt: "16:00",
+}));
 
+async function seedDemoData(db: ReturnType<typeof getDb>) {
   const pilotStaff = [
     { id: "staff_maya", organizationId: PILOT.organizationId, locationId: PILOT.locationId, displayName: "Maya", role: "groomer" },
     { id: "staff_nadia", organizationId: PILOT.organizationId, locationId: PILOT.locationId, displayName: "Nadia", role: "groomer" },
@@ -117,10 +106,6 @@ async function seedPilotData() {
     { id: "membership_jonah_queen_west", organizationId: PILOT.organizationId, staffId: "staff_jonah", locationId: PILOT.locationId, role: "bather" },
   ] as const;
   for (const values of chunks([...pilotMemberships])) await db.insert(staffLocations).values(values).onConflictDoNothing();
-
-  await db.insert(salonSettings).values({ id: "settings_queen_west", organizationId: PILOT.organizationId, locationId: PILOT.locationId, bookingMode: "automatic", cancellationHours: 24, minimumLeadMinutes: 120, bookingWindowDays: 120, maxConcurrentPets: 4, bathStations: 2, groomingTables: 3, dryers: 2, kennels: 6 }).onConflictDoNothing();
-  const pilotHours = Array.from({ length: 7 }, (_, weekday) => ({ id: `hours_queen_west_${weekday}`, organizationId: PILOT.organizationId, locationId: PILOT.locationId, weekday, open: weekday !== 0, opensAt: weekday === 6 ? "09:00" : "08:00", closesAt: weekday === 6 ? "16:00" : "18:00" }));
-  for (const values of chunks(pilotHours)) await db.insert(locationHours).values(values).onConflictDoNothing();
 
   const serviceRows = pilotServices.map((service) => ({
     ...service,
@@ -152,6 +137,46 @@ async function seedPilotData() {
       serviceId: service.id,
     })));
   for (const values of chunks(skillRows)) await db.insert(staffServiceSkills).values(values).onConflictDoNothing();
+}
+
+async function seedPilotData() {
+  const db = getDb();
+  await db.insert(organizations).values({
+    id: PILOT.organizationId,
+    slug: "bopoil",
+    name: "BOPOIL Toilettage & Boutique",
+    country: "CA",
+    currency: "CAD",
+    timezone: "America/Toronto",
+    contactEmail: "info@bopoil.ca",
+    contactPhone: "+1 819 968-2827",
+    website: "https://www.bopoil.ca",
+    onboardingCompleted: true,
+  }).onConflictDoNothing();
+
+  await db.insert(locations).values({
+    id: PILOT.locationId,
+    organizationId: PILOT.organizationId,
+    slug: PILOT.locationSlug,
+    name: "Gatineau",
+    addressLine1: "38 Av Gatineau",
+    city: "Gatineau",
+    region: "QC",
+    postalCode: "J8T 4J1",
+    contactEmail: "info@bopoil.ca",
+    contactPhone: "+1 819 968-2827",
+    currency: "CAD",
+    timezone: "America/Toronto",
+    taxLabel: "GST/QST",
+    taxRateBps: 1498,
+  }).onConflictDoNothing();
+
+  // Online booking stays off: Square Appointments is the scheduling source of
+  // truth for BOPOIL, and the CRM's own storefront must not take bookings.
+  await db.insert(salonSettings).values({ id: "settings_queen_west", organizationId: PILOT.organizationId, locationId: PILOT.locationId, bookingMode: "automatic", cancellationHours: 24, minimumLeadMinutes: 120, bookingWindowDays: 120, maxConcurrentPets: 4, bathStations: 2, groomingTables: 3, dryers: 2, kennels: 6, allowOnlineBooking: false, requireOnlineDeposit: false }).onConflictDoNothing();
+  for (const values of chunks(bopoilHours)) await db.insert(locationHours).values(values).onConflictDoNothing();
+
+  if (demoSeedEnabled()) await seedDemoData(db);
 
   const templateRows = pilotTemplates.map((template) => ({
     ...template,

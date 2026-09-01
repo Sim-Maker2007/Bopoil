@@ -18,40 +18,41 @@ the email-link or guest paths.
 
 ## Platform
 
-- Vinext/React on Cloudflare Workers
-- Cloudflare D1 for relational, tenant-scoped records
-- Cloudflare R2 for protected grooming and vaccination documents
-- Dispatch-owned Sign in with ChatGPT for salon staff
-- Rotating, hashed magic-link sessions for pet parents
+- Next.js (App Router) on Vercel, sharing the bopoil.ca domain with the static public website
+- Supabase Postgres, reached through the pooled Supavisor connection string
+- Vercel Blob for protected grooming and vaccination documents and receipts
+- Email magic links for salon staff; rotating, hashed magic-link sessions for pet parents
 - Drizzle schema and ordered migrations under `drizzle/`
+
+Every Coat & Care route is served with `robots: noindex`; only the public
+website is meant to appear in search results.
 
 The application is designed around explicit organization and location ownership, role-based staff authorization, immutable financial events, audit records, and atomic capacity reservations.
 
 ## Local development
 
-Requires Node.js `>=22.13.0`.
+Requires Node.js `>=22.13.0` and a reachable Postgres database.
 
 ```bash
-npm install
+npm install                                   # from the repository root
+cp apps/coat-care/.env.example apps/coat-care/.env.local
+npm run db:migrate                            # applies drizzle/ to DATABASE_URL
 npm run dev
 ```
 
-`npm run dev` applies every pending D1 migration to the project-local
-Wrangler database before the server starts. Local state is kept under
-`.wrangler/`; no production data is read or changed.
+`npm run dev` first copies the public BOPOIL website from `apps/web` into
+`public/`, then starts Next.js. Set `SEED_DEMO_DATA=true` in `.env.local` to
+seed demo groomers and services for the local booking flow; deployed
+environments never seed them, and online booking stays off because Square
+Appointments owns the calendar.
 
 Useful checks:
 
 ```bash
-npm run check
-npm start
+npm run check          # lint, typecheck, tests
+npm run build
 npm run db:generate
 ```
-
-`npm start` builds the application, applies local migrations, and previews the
-production bundle in Cloudflare's Workers runtime. This is intentionally
-different from Vinext's Node-only server because the application uses D1, R2,
-and Workers runtime imports.
 
 ## Communication providers
 
@@ -140,4 +141,9 @@ The inventory workspace uses an immutable movement ledger so stock cannot silent
 
 Edit `db/schema.ts`, run `npm run db:generate`, inspect the generated SQL, then verify the entire migration chain against a fresh Postgres database (`npm run db:migrate` with DATABASE_URL pointed at it) before publishing.
 
-`.openai/hosting.json` contains only the Sites project identifier and logical D1/R2 bindings. Runtime secrets are managed by Sites.
+Migrations are not applied by the Vercel build. After deploying a change that
+adds one, run `npm run db:migrate` with the production `DATABASE_URL` (the
+direct, non-pooled connection string is fine for this). Migration
+`0001_bopoil_production_cleanup` retires the demo data that the first
+deployment seeded into the BOPOIL tenant and pauses the CRM's own online
+booking; it only touches rows that still carry the seed's original values.

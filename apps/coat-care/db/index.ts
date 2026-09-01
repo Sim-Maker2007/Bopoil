@@ -56,6 +56,10 @@ export function getDb() {
   // app does money math in integer cents — well within Number's safe range.
   const client = postgres(url, {
     prepare: false,
+    // Serverless functions come and go; release idle pooled connections quickly
+    // and fail fast when Supavisor is unreachable instead of hanging a request.
+    idle_timeout: 20,
+    connect_timeout: 10,
     types: {
       bigint: { to: 20, from: [20], serialize: (value: unknown) => String(value), parse: (value: string) => Number(value) },
       numeric: { to: 1700, from: [1700], serialize: (value: unknown) => String(value), parse: (value: string) => Number(value) },

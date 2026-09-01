@@ -49,7 +49,15 @@ export async function squareRequest<T>(path: string, options: { query?: URLSearc
     accept: "application/json",
   };
   if (config.apiVersion) headers["Square-Version"] = config.apiVersion;
-  const response = await (options.fetcher || fetch)(url, { headers });
+  const fetcher = options.fetcher || fetch;
+  let response = await fetcher(url, { headers });
+  // Square rate-limits bursts with 429 and occasionally answers 5xx; a short
+  // back-off keeps an hourly reconciliation from failing on a single blip.
+  for (let attempt = 0; attempt < 2 && (response.status === 429 || response.status >= 500); attempt += 1) {
+    const retryAfter = Number(response.headers.get("retry-after") || 0);
+    await new Promise((resolve) => setTimeout(resolve, Math.min(5_000, retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt)));
+    response = await fetcher(url, { headers });
+  }
   const body = await response.json() as T & { errors?: Array<{ detail?: string }> };
   if (!response.ok) throw new Error(body.errors?.[0]?.detail || `Square request failed (${response.status}).`);
   return body;

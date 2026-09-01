@@ -519,7 +519,7 @@ test("reconciles signed provider outcomes and sweeps due communications unattend
   assert.match(payloads, /StatusCallback/);
   assert.match(operationsCron, /sweepDueMessages/);
   assert.match(operationsCron, /Bearer \$\{secret\}/);
-  assert.match(vercel, /\*\/5 \* \* \* \*/);
+  assert.match(vercel, /\*\/15 \* \* \* \*/);
   assert.match(schema, /deliveryProviderEvents/);
   assert.match(schema, /emailDeliverability/);
   assert.match(schema, /deliveredAt/);

@@ -79,9 +79,9 @@ export async function OPTIONS(request: Request) {
 
 export async function POST(request: Request) {
   const origin = request.headers.get("origin");
-  if (!intakeOriginAllowed(origin)) return response(origin, { error: "This form origin is not allowed." }, 403);
+  if (!intakeOriginAllowed(origin)) return response(origin, { error: "Ce formulaire n'est pas autorisé depuis cette adresse." }, 403);
   const contentLength = Number(request.headers.get("content-length") || 0);
-  if (contentLength > 24_000) return response(origin, { error: "The information form is too large." }, 413);
+  if (contentLength > 24_000) return response(origin, { error: "La fiche est trop volumineuse." }, 413);
   try {
     const payload = await request.json() as IntakePayload;
     if (clean(payload.website, 100)) return response(origin, { received: true });
@@ -101,11 +101,12 @@ export async function POST(request: Request) {
     const breed = clean(payload.race, 80) || "Not specified";
     const healthNotes = clean(payload.sante, 2500);
     const behaviorNotes = clean(payload.comportement, 2500);
-    if (ownerName.length < 2 || petName.length < 1 || !healthNotes) return response(origin, { error: "Please complete the owner, pet, and health information." }, 400);
-    if (!email && !digits) return response(origin, { error: "Please provide an email address or phone number." }, 400);
-    if (email && !emailPattern.test(email)) return response(origin, { error: "Please check the email address." }, 400);
-    if (digits && (digits.length < 10 || digits.length > 15)) return response(origin, { error: "Please check the phone number." }, 400);
-    if (birthday && !isValidDateKey(birthday)) return response(origin, { error: "Please check the pet's birthday." }, 400);
+    // Messages are shown verbatim on the French website form.
+    if (ownerName.length < 2 || petName.length < 1 || !healthNotes) return response(origin, { error: "Veuillez remplir les renseignements sur le propriétaire, l'animal et sa santé." }, 400);
+    if (!email && !digits) return response(origin, { error: "Veuillez indiquer une adresse courriel ou un numéro de téléphone." }, 400);
+    if (email && !emailPattern.test(email)) return response(origin, { error: "Veuillez vérifier l'adresse courriel." }, 400);
+    if (digits && (digits.length < 10 || digits.length > 15)) return response(origin, { error: "Veuillez vérifier le numéro de téléphone." }, 400);
+    if (birthday && !isValidDateKey(birthday)) return response(origin, { error: "Veuillez vérifier la date d'anniversaire de l'animal." }, 400);
     const submissionKey = clean(payload.submissionId, 100) || crypto.randomUUID();
     const [sourceHash, contactHash] = await Promise.all([
       sha256Hex(`public-intake:${organization.id}:source:${requestSource(request)}`),
@@ -122,7 +123,7 @@ export async function POST(request: Request) {
       eq(publicIntakeSubmissions.sourceHash, sourceHash),
       sql`(${publicIntakeSubmissions.createdAt})::timestamp >= (${cutoff})::timestamp`,
     )).limit(8);
-    if (recent.length >= 8) return response(origin, { error: "Please wait before sending another information form." }, 429);
+    if (recent.length >= 8) return response(origin, { error: "Veuillez patienter avant d'envoyer une autre fiche." }, 429);
     const phoneSuffix = digits.slice(-10);
     const matches = await db.select().from(clients).where(and(
       eq(clients.organizationId, organization.id),
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
       ),
     )).limit(3);
     const uniqueMatches = [...new Map(matches.map((client) => [client.id, client])).values()];
-    if (uniqueMatches.length > 1) return response(origin, { error: "We found conflicting contact information. Please contact the salon so we can update the correct profile." }, 409);
+    if (uniqueMatches.length > 1) return response(origin, { error: "Ces coordonnées correspondent à plus d'un dossier. Veuillez communiquer avec le salon pour que nous mettions à jour le bon profil." }, 409);
     const existingClient = uniqueMatches[0];
     const clientId = existingClient?.id || crypto.randomUUID();
     const [existingPet] = existingClient ? await db.select().from(pets).where(and(
@@ -148,10 +149,19 @@ export async function POST(request: Request) {
     const treatsAllowed = booleanAnswer(clean(payload.gateries, 120), ["oui"]);
     const marketingPhotosAllowed = booleanAnswer(clean(payload.photos, 120), ["oui"]);
     const statements: DbBatchItem[] = [];
+    // An unauthenticated form must never rewrite an existing client's identity:
+    // a matching profile only gains missing details, and anything that differs
+    // is flagged for staff review in the submission ledger and audit trail.
+    const contactChanges = existingClient ? {
+      ...(ownerName && ownerName !== existingClient.fullName ? { submittedName: ownerName } : {}),
+      ...(email && email !== existingClient.email.toLowerCase() ? { submittedEmail: email } : {}),
+      ...(phone && phone !== existingClient.phone ? { submittedPhone: phone } : {}),
+    } : {};
+    const needsReview = Object.keys(contactChanges).length > 0;
     if (existingClient) statements.push(db.update(clients).set({
-      fullName: ownerName,
-      ...(email ? { email } : {}),
-      ...(phone ? { phone } : {}),
+      ...(existingClient.fullName.trim() ? {} : { fullName: ownerName }),
+      ...(email && !existingClient.email ? { email } : {}),
+      ...(phone && !existingClient.phone ? { phone } : {}),
       marketingConsent: existingClient.marketingConsent || marketingConsent,
       updatedAt: now,
     }).where(and(eq(clients.id, clientId), eq(clients.organizationId, organization.id))));
@@ -186,13 +196,13 @@ export async function POST(request: Request) {
       }}),
       db.insert(publicIntakeSubmissions).values({
         id: crypto.randomUUID(), organizationId: organization.id, locationId: location.id,
-        clientId, petId, submissionKey, sourceHash, contactHash, status: "processed",
+        clientId, petId, submissionKey, sourceHash, contactHash, status: needsReview ? "review" : "processed",
       }),
       db.insert(auditEvents).values({
         id: crypto.randomUUID(), organizationId: organization.id, actorType: "client", actorId: clientId,
         action: existingPet ? "intake.pet_profile_updated" : "intake.pet_profile_created",
         entityType: "pet", entityId: petId,
-        detailsJson: JSON.stringify({ source: "bopoil.ca", locationId: location.id, marketingConsent, treatsAllowed, marketingPhotosAllowed }),
+        detailsJson: JSON.stringify({ source: "bopoil.ca", locationId: location.id, marketingConsent, treatsAllowed, marketingPhotosAllowed, ...(needsReview ? { contactChanges } : {}) }),
       }),
       db.insert(consentRecords).values({ id: crypto.randomUUID(), organizationId: organization.id, clientId, type: "marketing", policyVersion: "bopoil-website-2026-08", accepted: marketingConsent, source: "bopoil_website_intake" }),
     );
@@ -203,8 +213,8 @@ export async function POST(request: Request) {
     if (reassigned) await db.insert(auditEvents).values({ id: crypto.randomUUID(), organizationId: organization.id, actorType: "system", action: "integration.square_pet_assigned_from_intake", entityType: "pet", entityId: petId, detailsJson: JSON.stringify({ appointments: reassigned }) });
     return response(origin, { received: true });
   } catch (error) {
-    if (error instanceof SyntaxError) return response(origin, { error: "The information form could not be read." }, 400);
-    const handled = storefrontError(error, "The information form could not be saved.");
+    if (error instanceof SyntaxError) return response(origin, { error: "La fiche n'a pas pu être lue." }, 400);
+    const handled = storefrontError(error, "La fiche n'a pas pu être enregistrée. Veuillez réessayer ou nous appeler.");
     const body = await handled.json() as Record<string, unknown>;
     return response(origin, body, handled.status);
   }

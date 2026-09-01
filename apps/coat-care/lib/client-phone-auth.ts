@@ -112,9 +112,12 @@ export function cookieValue(request: Request, name: string) {
 }
 
 export function requestSource(request: Request) {
+  // Vercel sets x-forwarded-for from the connecting address. Client-supplied
+  // headers such as cf-connecting-ip are ignored so a caller cannot pick its
+  // own rate-limit bucket.
   return (
-    request.headers.get("cf-connecting-ip")
-    || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || request.headers.get("x-real-ip")?.trim()
     || "unknown"
   ).slice(0, 200);
 }
