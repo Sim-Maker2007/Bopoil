@@ -16,7 +16,7 @@ test("quick booking resolves tenant-owned clients and pets without silently merg
   assert.match(post, /eq\(pets\.clientId, requestedClientId\)/);
   assert.match(post, /eq\(pets\.organizationId, membership\.organizationId\)/);
   assert.match(post, /eq\(sql<string>`lower\(\$\{clients\.email\}\)`, email\)/);
-  assert.match(post, /substr\(replace\(replace\(replace\(replace\(replace\(replace\(\$\{clients\.phone\}/);
+  assert.match(post, /right\(replace\(replace\(replace\(replace\(replace\(replace\(\$\{clients\.phone\}/);
   assert.match(post, /existing_client_selection_required/);
   assert.match(post, /addingPetToExisting/);
   assert.match(post, /newPetForExistingClient: addingPetToExisting/);

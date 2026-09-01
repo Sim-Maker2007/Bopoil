@@ -132,7 +132,7 @@ async function resolveClient(db: Db, organizationId: string, locationId: string,
         eq(clients.organizationId, organizationId),
         or(
           email ? eq(sql<string>`lower(${clients.email})`, email) : undefined,
-          digits ? eq(sql<string>`substr(replace(replace(replace(replace(replace(replace(${clients.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''), -10)`, digits) : undefined,
+          digits ? eq(sql<string>`right(replace(replace(replace(replace(replace(replace(${clients.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''), 10)`, digits) : undefined,
         ),
       )).limit(1);
     }

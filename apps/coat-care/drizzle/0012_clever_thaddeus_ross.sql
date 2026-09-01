@@ -1,2 +1,0 @@
-DROP INDEX `waitlist_open_preference_unique`;--> statement-breakpoint
-CREATE UNIQUE INDEX `waitlist_active_pet_service_unique` ON `waitlist_entries` (`location_id`,`pet_id`,`service_id`) WHERE "waitlist_entries"."status" in ('waiting','contacted');

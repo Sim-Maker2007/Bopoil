@@ -40,7 +40,7 @@ export async function resolvePortalSession(token: string) {
   const [row] = await db.select({ session: clientPortalSessions, client: clients }).from(clientPortalSessions).innerJoin(clients, eq(clientPortalSessions.clientId, clients.id)).where(and(
     eq(clientPortalSessions.tokenHash, await sha256(token)),
     gt(clientPortalSessions.expiresAt, nowIso),
-    sql`datetime(${clientPortalSessions.createdAt}, '+90 days') > datetime(${nowIso})`,
+    sql`((${clientPortalSessions.createdAt})::timestamp + interval '90 days') > (${nowIso})::timestamp`,
     isNull(clientPortalSessions.revokedAt),
   )).limit(1);
   if (!row) return { db, session: null, client: null };

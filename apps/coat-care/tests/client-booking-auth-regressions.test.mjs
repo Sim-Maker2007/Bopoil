@@ -52,7 +52,7 @@ test("anonymous bookings never reuse an existing CRM client or pet", async () =>
   const source = await readFile(new URL("../app/api/bookings/route.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /publicRecordId|existingPet/);
   assert.match(source, /or\(eq\(sql<string>`lower\(\$\{clients\.email\}\)`/);
-  assert.match(source, /substr\(\$\{storedPhoneDigits\(\)\}, -10\)/);
+  assert.match(source, /right\(\$\{storedPhoneDigits\(\)\}, 10\)/);
   assert.match(source, /if \(contactConflict\) \{[\s\S]*prepareSecureBookingRecovery\(db,[\s\S]*return secureClientBookingRequired\(\)/);
   assert.match(source, /clientId = crypto\.randomUUID\(\)/);
   assert.match(source, /petId = crypto\.randomUUID\(\)/);
@@ -62,13 +62,13 @@ test("anonymous bookings never reuse an existing CRM client or pet", async () =>
   assert.match(source, /\.limit\(20\)/);
 });
 
-test("public identity throttles normalize SQLite timestamps and record explicit ISO instants", async () => {
+test("public identity throttles compare stored timestamps as instants and record explicit ISO instants", async () => {
   const [booking, portalLink] = await Promise.all([
     readFile(new URL("../app/api/bookings/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/portal/request-link/route.ts", import.meta.url), "utf8"),
   ]);
   for (const source of [booking, portalLink]) {
-    assert.match(source, /datetime\(\$\{portalAccessRequests\.requestedAt\}\) >= datetime\(\$\{cutoff\}\)/);
+    assert.match(source, /\(\$\{portalAccessRequests\.requestedAt\}\)::timestamp >= \(\$\{cutoff\}\)::timestamp/);
     assert.match(source, /requestedAt\s*\}/);
     assert.doesNotMatch(source, /gte\(portalAccessRequests\.requestedAt, cutoff\)/);
   }
@@ -119,7 +119,7 @@ test("waitlist uses the same secure identity boundary as booking", async () => {
   assert.match(route, /clientId = crypto\.randomUUID\(\)/);
   assert.match(route, /petId = crypto\.randomUUID\(\)/);
   assert.doesNotMatch(route, /existingClient|existingPet|publicRecordId/);
-  assert.match(route, /datetime\(\$\{portalAccessRequests\.requestedAt\}\) >= datetime\(\$\{recent\}\)/);
+  assert.match(route, /\(\$\{portalAccessRequests\.requestedAt\}\)::timestamp >= \(\$\{recent\}\)::timestamp/);
   assert.match(route, /readVerifiedPhoneProof\(request, db, organization\.id\)/);
   assert.match(route, /db\.batch\(\[[\s\S]*clientInsert,[\s\S]*petInsert,[\s\S]*phoneIdentityInsert,[\s\S]*phoneProofClaim,[\s\S]*waitlistInsert/);
   assert.match(route, /trustedSession: Boolean\(trustedPortalCookie\)/);
@@ -130,14 +130,13 @@ test("waitlist uses the same secure identity boundary as booking", async () => {
 });
 
 test("emailed portal links expire in 15 minutes while exchanged cookies last 30 days", async () => {
-  const [helper, requestLink, booking, webhook, access, pilot, migration] = await Promise.all([
+  const [helper, requestLink, booking, webhook, access, pilot] = await Promise.all([
     readFile(new URL("../db/client-portal.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/portal/request-link/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/bookings/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/stripe/webhook/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/portal/access/[token]/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/pilot.ts", import.meta.url), "utf8"),
-    readFile(new URL("../drizzle/0029_client_phone_auth.sql", import.meta.url), "utf8"),
   ]);
   assert.match(helper, /PORTAL_EMAIL_LINK_TTL_MS = 15 \* 60_000/);
   assert.match(helper, /PORTAL_TRUSTED_SESSION_TTL_MS = 30 \* 86400_000/);
@@ -147,7 +146,6 @@ test("emailed portal links expire in 15 minutes while exchanged cookies last 30 
   assert.match(access, /Max-Age=2592000/);
   assert.match(pilot, /This link expires in 15 minutes\. After you open it, this browser stays trusted for 30 days\./);
   assert.doesNotMatch(pilot, /This link expires in 30 days\./);
-  assert.match(migration, /UPDATE `communication_templates`/);
 });
 
 test("unsafe portal actions and access exchange require same-origin POSTs", async () => {

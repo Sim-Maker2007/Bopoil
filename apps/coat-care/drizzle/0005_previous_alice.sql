@@ -1,2 +1,0 @@
-ALTER TABLE `message_events` ADD `location_id` text NOT NULL REFERENCES locations(id);--> statement-breakpoint
-CREATE INDEX `message_events_location_idx` ON `message_events` (`location_id`,`created_at`);

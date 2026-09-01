@@ -1,5 +1,5 @@
 import { and, eq, or, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
+import type { DbBatchItem } from "../../../../db";
 import {
   auditEvents,
   clients,
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
     const recent = await db.select({ id: publicIntakeSubmissions.id }).from(publicIntakeSubmissions).where(and(
       eq(publicIntakeSubmissions.organizationId, organization.id),
       eq(publicIntakeSubmissions.sourceHash, sourceHash),
-      sql`datetime(${publicIntakeSubmissions.createdAt}) >= datetime(${cutoff})`,
+      sql`(${publicIntakeSubmissions.createdAt})::timestamp >= (${cutoff})::timestamp`,
     )).limit(8);
     if (recent.length >= 8) return response(origin, { error: "Please wait before sending another information form." }, 429);
     const phoneSuffix = digits.slice(-10);
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       eq(clients.organizationId, organization.id),
       or(
         email ? eq(sql<string>`lower(${clients.email})`, email) : undefined,
-        phoneSuffix ? eq(sql<string>`substr(replace(replace(replace(replace(replace(replace(${clients.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''), -10)`, phoneSuffix) : undefined,
+        phoneSuffix ? eq(sql<string>`right(replace(replace(replace(replace(replace(replace(${clients.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''), 10)`, phoneSuffix) : undefined,
       ),
     )).limit(3);
     const uniqueMatches = [...new Map(matches.map((client) => [client.id, client])).values()];
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     const sterilized = sterilizedRaw.startsWith("oui") ? "yes" as const : sterilizedRaw.startsWith("non") ? "no" as const : "unknown" as const;
     const treatsAllowed = booleanAnswer(clean(payload.gateries, 120), ["oui"]);
     const marketingPhotosAllowed = booleanAnswer(clean(payload.photos, 120), ["oui"]);
-    const statements: BatchItem<"sqlite">[] = [];
+    const statements: DbBatchItem[] = [];
     if (existingClient) statements.push(db.update(clients).set({
       fullName: ownerName,
       ...(email ? { email } : {}),
@@ -198,7 +198,7 @@ export async function POST(request: Request) {
     );
     if (treatsAllowed !== null) statements.push(db.insert(consentRecords).values({ id: crypto.randomUUID(), organizationId: organization.id, clientId, type: "pet_treats", policyVersion: "bopoil-website-2026-08", accepted: treatsAllowed, source: "bopoil_website_intake" }));
     if (marketingPhotosAllowed !== null) statements.push(db.insert(consentRecords).values({ id: crypto.randomUUID(), organizationId: organization.id, clientId, type: "pet_marketing_photos", policyVersion: "bopoil-website-2026-08", accepted: marketingPhotosAllowed, source: "bopoil_website_intake" }));
-    await db.batch(statements as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+    await db.batch(statements as [DbBatchItem, ...DbBatchItem[]]);
     const reassigned = await attachSolePetToSquareAppointments(db, organization.id, clientId, petId);
     if (reassigned) await db.insert(auditEvents).values({ id: crypto.randomUUID(), organizationId: organization.id, actorType: "system", action: "integration.square_pet_assigned_from_intake", entityType: "pet", entityId: petId, detailsJson: JSON.stringify({ appointments: reassigned }) });
     return response(origin, { received: true });

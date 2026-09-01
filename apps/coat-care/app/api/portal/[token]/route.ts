@@ -10,6 +10,7 @@ import { portalCookieTokenFromRequest, portalTokenFromRequest, requestIsSameOrig
 import { portalAccessUrl } from "../../../../lib/portal-links";
 import { squareManagedAppointmentIds } from "../../../../lib/square-sync";
 
+import { databaseErrorMessage } from "../../../../db";
 function clean(value: unknown, max = 120) { return String(value || "").trim().slice(0, max); }
 function validDate(value: string, optional = false) { return (optional && !value) || isValidDateKey(value); }
 
@@ -130,7 +131,7 @@ export async function PATCH(request: Request) {
       const appointmentId = clean(body.appointmentId, 80); const appointment = result.payload.appointments.find((item) => item.id === appointmentId); if (!appointment) return Response.json({ error: "Appointment not found." }, { status: 404 }); if (!appointment.canCancel) return Response.json({ error: `Online cancellation closed ${appointment.cancellationHours} hours before this visit. Please contact the salon.` }, { status: 409 });
       const now = new Date().toISOString(); const claimId = crypto.randomUUID(); let updated: { id: string } | undefined;
       try { const results = await db.batch([db.insert(appointmentChangeClaims).values({ id: claimId, organizationId: client.organizationId, appointmentId, expectedUpdatedAt: sql`(select updated_at from appointments where id = ${appointmentId} and updated_at = ${appointment.updatedAt})`, actorType: "client", actorId: client.id }), db.update(appointments).set({ status: "cancelled", updatedAt: now }).where(and(eq(appointments.id, appointmentId), eq(appointments.clientId, client.id), eq(appointments.status, appointment.status), eq(appointments.updatedAt, appointment.updatedAt))).returning(), db.delete(appointmentReservations).where(eq(appointmentReservations.appointmentId, appointmentId)), db.insert(auditEvents).values({ id: crypto.randomUUID(), organizationId: client.organizationId, actorType: "client", actorId: client.id, action: "appointment.cancelled_by_client", entityType: "appointment", entityId: appointmentId })]); updated = results[1][0]; }
-      catch (error) { if (error instanceof Error && /unique|constraint|null/i.test(error.message)) return Response.json({ error: "This appointment changed. Refresh and try again." }, { status: 409 }); throw error; }
+      catch (error) { if (error instanceof Error && /unique|constraint|null/i.test(databaseErrorMessage(error))) return Response.json({ error: "This appointment changed. Refresh and try again." }, { status: 409 }); throw error; }
       if (!updated) return Response.json({ error: "This appointment changed. Refresh and try again." }, { status: 409 });
       await cancelPendingAppointmentMessages(db, appointmentId, client.id, "client").catch((error) => console.error("Appointment was cancelled, but pending messages could not all be cancelled", error));
     } else if (action === "reschedule") {
@@ -140,7 +141,7 @@ export async function PATCH(request: Request) {
       const changedAt = new Date().toISOString();
       const claimId = crypto.randomUUID();
       try { await db.batch([db.insert(appointmentChangeClaims).values({ id: claimId, organizationId: client.organizationId, appointmentId, expectedUpdatedAt: sql`(select updated_at from appointments where id = ${appointmentId} and updated_at = ${appointment.updatedAt})`, actorType: "client", actorId: client.id }), db.delete(appointmentReservations).where(eq(appointmentReservations.appointmentId, appointmentId)), db.update(appointments).set({ startsAt: slot.startsAt, endsAt: slot.endsAt, staffId: staffMember.id, updatedAt: changedAt }).where(and(eq(appointments.id, appointmentId), eq(appointments.clientId, client.id), eq(appointments.updatedAt, appointment.updatedAt))), ...reservationInsertStatements(db, reservations), db.insert(auditEvents).values({ id: crypto.randomUUID(), organizationId: client.organizationId, actorType: "client", actorId: client.id, action: "appointment.rescheduled_by_client", entityType: "appointment", entityId: appointmentId, detailsJson: JSON.stringify({ from: appointment.startsAt, to: slot.startsAt, staffId: staffMember.id }) })]); }
-      catch (error) { if (error instanceof Error && /unique|constraint/i.test(error.message)) return Response.json({ error: "That opening was just reserved." }, { status: 409 }); throw error; }
+      catch (error) { if (error instanceof Error && /unique|constraint/i.test(databaseErrorMessage(error))) return Response.json({ error: "That opening was just reserved." }, { status: 409 }); throw error; }
       await cancelPendingAppointmentMessages(db, appointmentId, client.id, "client").catch((error) => console.error("Appointment was rescheduled, but old messages could not all be cancelled", error));
       try {
         const emailSession = await issuePortalEmailSession(db, client.id);
