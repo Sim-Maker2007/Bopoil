@@ -14,19 +14,17 @@ window.BOPOIL_CONFIG = {
        Tableau de bord Square → Rendez-vous → Site de réservation en ligne
        → « Partager le lien ». Collez le lien complet dans bookingUrl.
 
-     Le lien ci-dessous a été reconstruit à partir des identifiants trouvés
-     dans l'ancien site Square Online :
-       identifiant du site de réservation : 11ede6168f2fd6ccb800ac1f6bbbcc9c
+     Lien vérifié (copié depuis Rendez-vous → Réservation en ligne → View
+     du tableau de bord Square) :
+       identifiant du site de réservation : cxp2nq7jmuh54t
        identifiant du commerce (location) : LJVHDT6T6W3XM
-     VÉRIFIEZ-LE et remplacez-le au besoin par le lien exact de votre
-     tableau de bord Square.
      ---------------------------------------------------------------------- */
   square: {
-    bookingSiteId: '11ede6168f2fd6ccb800ac1f6bbbcc9c',
+    bookingSiteId: 'cxp2nq7jmuh54t',
     locationId: 'LJVHDT6T6W3XM',
 
     // Lien principal vers la page de réservation Square.
-    bookingUrl: 'https://book.squareup.com/appointments/11ede6168f2fd6ccb800ac1f6bbbcc9c/location/LJVHDT6T6W3XM/services',
+    bookingUrl: 'https://book.squareup.com/appointments/cxp2nq7jmuh54t/location/LJVHDT6T6W3XM/services',
 
     // Liens directs par catégorie de service (facultatif).
     // Laissez la valeur nulle pour utiliser bookingUrl.

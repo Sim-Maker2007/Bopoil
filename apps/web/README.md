@@ -67,7 +67,7 @@ trouvés dans l'ancien site Square Online :
 
 | | |
 |---|---|
-| Identifiant du site de réservation | `11ede6168f2fd6ccb800ac1f6bbbcc9c` |
+| Identifiant du site de réservation | `cxp2nq7jmuh54t` |
 | Identifiant du commerce (location) | `LJVHDT6T6W3XM` |
 
 ⚠️ **Il n'a pas pu être vérifié automatiquement.** Récupérez le lien exact dans
