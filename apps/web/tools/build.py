@@ -1390,7 +1390,7 @@ RDV_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .45;">
 # Doit correspondre à square.bookingUrl dans js/config.js. Utilisé uniquement
 # comme repli statique (href écrit dans le HTML) si JavaScript est désactivé.
 BOOKING_URL = ("https://book.squareup.com/appointments/"
-               "11ede6168f2fd6ccb800ac1f6bbbcc9c/location/LJVHDT6T6W3XM/services")
+               "cxp2nq7jmuh54t/location/LJVHDT6T6W3XM/services")
 
 PAGES = [
     dict(filename="index.html",
