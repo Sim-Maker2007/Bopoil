@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nos réseaux sociaux | BOPOIL Toilettage &amp; Boutique</title>
+  <meta name="description" content="Suivez BOPOIL Toilettage &amp; Boutique sur les réseaux sociaux : Instagram, Facebook et TikTok.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <link rel="preload" href="fonts/libre-franklin-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/tokens.css">
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--primary-color);
+      color: var(--primary-contrast-color);
+      font-family: var(--body-font);
+      -webkit-font-smoothing: antialiased;
+    }
+    .links {
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 56px 22px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .links__logo { width: 210px; height: auto; }
+    .links__intro {
+      margin: 18px 0 30px;
+      font-size: 14px;
+      line-height: 1.55;
+      opacity: .8;
+      text-align: center;
+    }
+    .links__intro p { margin: 0; }
+    .links__intro p + p { margin-top: 14px; }
+    .links__list { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+    .links__btn {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 13px 22px;
+      border: 1px solid rgba(255, 255, 255, .45);
+      border-radius: 999px;
+      color: inherit;
+      text-decoration: none;
+      transition: background-color .18s ease, color .18s ease, border-color .18s ease;
+    }
+    .links__btn:hover,
+    .links__btn:focus-visible {
+      background: var(--pure-white);
+      color: var(--primary-color);
+      border-color: var(--pure-white);
+    }
+    .links__btn svg { flex: none; }
+    .links__btn-text { display: flex; flex-direction: column; text-align: left; min-width: 0; }
+    .links__btn-label { font-weight: 600; font-size: 16px; }
+    .links__btn-sub {
+      font-size: 13px;
+      opacity: .7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .links__footer { margin-top: 40px; font-size: 13px; opacity: .6; text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="links">
+    <img class="links__logo" src="images/logo-bopoil-blanc-720.png" width="230" height="103"
+         alt="BOPOIL Toilettage &amp; Boutique" fetchpriority="high">
+    <div class="links__intro">
+      <p>Services de toilettage professionnels et soins de qualité en Outaouais!</p>
+      <p>Boutique pensée pour les besoins de vos animaux de compagnie! Produits québécois et canadiens visant bien-être, santé et confort.</p>
+    </div>
+    <nav class="links__list" aria-label="Nos réseaux sociaux">
+      <a class="links__btn" href="https://www.instagram.com/bopoil.toilettageboutique/" target="_blank" rel="noopener" data-instagram-link>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.2" y1="6.8" x2="17.2" y2="6.8"/>
+        </svg>
+        <span class="links__btn-text">
+          <span class="links__btn-label">Instagram</span>
+          <span class="links__btn-sub">@bopoil.toilettageboutique</span>
+        </span>
+      </a>
+      <a class="links__btn" href="https://www.facebook.com/share/19BA9jkFU2/" target="_blank" rel="noopener" data-facebook-link>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+        </svg>
+        <span class="links__btn-text">
+          <span class="links__btn-label">Facebook</span>
+          <span class="links__btn-sub">BOPOIL Toilettage &amp; Boutique</span>
+        </span>
+      </a>
+      <a class="links__btn" href="https://www.tiktok.com/@bopoil1" target="_blank" rel="noopener" data-tiktok-link>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14.5 3v11.2a4.3 4.3 0 1 1-3.6-4.24"/><path d="M14.5 3c.4 2.8 2.3 4.8 4.9 5.1"/>
+        </svg>
+        <span class="links__btn-text">
+          <span class="links__btn-label">TikTok</span>
+          <span class="links__btn-sub">@bopoil1</span>
+        </span>
+      </a>
+    </nav>
+    <p class="links__footer">&copy; <span data-year>2026</span> BOPOIL Toilettage &amp; Boutique</p>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script>
+  (function () {
+    var CONFIG = window.BOPOIL_CONFIG || {};
+    var c = CONFIG.contact || {};
+    function set(sel, href) {
+      document.querySelectorAll(sel).forEach(function (el) { el.href = href; });
+    }
+    if (c.instagram) set('[data-instagram-link]', c.instagram);
+    if (c.facebook) set('[data-facebook-link]', c.facebook);
+    if (c.tiktok) set('[data-tiktok-link]', c.tiktok);
+    document.querySelectorAll('[data-year]').forEach(function (el) {
+      el.textContent = String(new Date().getFullYear());
+    });
+  })();
+  </script>
+</body>
+</html>
