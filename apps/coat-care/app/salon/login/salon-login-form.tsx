@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { CrmLanguageSwitch } from "../../crm-language-boundary";
 
 export function SalonLoginForm({ expired, returnTo }: { expired: boolean; returnTo: string }) {
   const [email, setEmail] = useState("");
@@ -14,6 +15,7 @@ export function SalonLoginForm({ expired, returnTo }: { expired: boolean; return
   }
   return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f5f1eb", color: "#171717" }}>
     <section style={{ width: "min(440px, 100%)", background: "white", borderRadius: 24, padding: 36, boxShadow: "0 24px 80px rgba(0,0,0,.1)" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}><CrmLanguageSwitch /></div>
       <p style={{ letterSpacing: ".14em", textTransform: "uppercase", fontSize: 12, fontWeight: 700 }}>BOPOIL</p>
       <h1 style={{ margin: "10px 0", fontSize: 34 }}>Coat & Care</h1>
       <p style={{ color: "#666", lineHeight: 1.6 }}>Enter your authorized salon email. We’ll send you a private, one-time sign-in link.</p>

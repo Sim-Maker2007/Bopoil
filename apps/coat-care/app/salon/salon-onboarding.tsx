@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { CrmLanguageSwitch } from "../crm-language-boundary";
 
 export function SalonOnboarding({ signedInName, onCancel }: { signedInName: string; onCancel?: () => void }) {
   const [country, setCountry] = useState<"CA" | "US">("CA");
@@ -21,7 +22,7 @@ export function SalonOnboarding({ signedInName, onCancel }: { signedInName: stri
 
   return <main className="onboarding-page">
     <section className="onboarding-story">
-      <Link className="brand" href="/"><span>CC</span><strong>Coat &amp; Care</strong></Link>
+      <div className="onboarding-brand-row"><Link className="brand" href="/"><span>CC</span><strong>Coat &amp; Care</strong></Link><CrmLanguageSwitch /></div>
       <div><span className="eyebrow">Your salon operating system</span><h1>Let’s open the doors, {signedInName.split(" ")[0]}.</h1><p>Create the home for your bookings, care records, team, payments, and client relationships. You can fine-tune every detail after setup.</p></div>
       <ul><li><span>01</span>Salon and location created</li><li><span>02</span>Starter services added</li><li><span>03</span>Booking workspace ready</li></ul>
     </section>

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { CRM_LOCALE_STORAGE_KEY } from "../../../crm-language";
 
 type Locale = "en" | "fr";
 
@@ -29,12 +30,12 @@ export function EmployeeSetup({ token }: { token: string }) {
   const t = text[locale];
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const saved = window.localStorage.getItem("employee-locale");
+      const saved = window.localStorage.getItem(CRM_LOCALE_STORAGE_KEY) || window.localStorage.getItem("employee-locale");
       setLocale(saved === "fr" || (!saved && navigator.language.toLowerCase().startsWith("fr")) ? "fr" : "en");
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
-  function choose(next: Locale) { setLocale(next); window.localStorage.setItem("employee-locale", next); }
+  function choose(next: Locale) { setLocale(next); window.localStorage.setItem(CRM_LOCALE_STORAGE_KEY, next); }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
