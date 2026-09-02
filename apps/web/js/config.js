@@ -99,7 +99,7 @@ window.BOPOIL_CONFIG = {
      ---------------------------------------------------------------------- */
   analytics: {
     plausibleDomain: '',   // ex. 'bopoil.ca'
-    gtagId: ''             // ex. 'G-XXXXXXXXXX'
+    gtagId: 'G-WP5LELX275' // Google Analytics 4
   },
 
   /* ----------------------------------------------------------------------
