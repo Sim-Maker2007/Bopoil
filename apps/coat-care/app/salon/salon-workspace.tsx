@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { CrmLanguageSwitch } from "../crm-language-boundary";
 import { ReportsView, ServicesView, TeamView } from "./business-views";
 import { CheckoutModal, FinanceView } from "./financial-views";
 import { CommunicationsView } from "./communications-view";
@@ -1035,6 +1036,7 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
               <p>{viewDescription}</p>
             </div>
             <div className="dashboard-actions">
+              <CrmLanguageSwitch />
               <Link
                 className="secondary-button salon-link"
                 href={storefrontUrl}

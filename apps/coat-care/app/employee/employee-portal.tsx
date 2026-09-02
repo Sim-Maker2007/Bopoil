@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { CRM_LOCALE_STORAGE_KEY } from "../crm-language";
 
 type Locale = "en" | "fr";
 type LocationOption = { id: string; name: string; label?: string };
@@ -141,12 +142,12 @@ export function EmployeePortal({ initiallySignedIn }: { initiallySignedIn: boole
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const saved = window.localStorage.getItem("employee-locale");
+      const saved = window.localStorage.getItem(CRM_LOCALE_STORAGE_KEY) || window.localStorage.getItem("employee-locale");
       setLocale(saved === "fr" || (!saved && navigator.language.toLowerCase().startsWith("fr")) ? "fr" : "en");
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
-  function chooseLocale(next: Locale) { setLocale(next); window.localStorage.setItem("employee-locale", next); }
+  function chooseLocale(next: Locale) { setLocale(next); window.localStorage.setItem(CRM_LOCALE_STORAGE_KEY, next); }
 
   const loadSheet = useCallback(async () => {
     const response = await fetch(`/api/employee/timesheet?week=${weekStart}`, { cache: "no-store" });
