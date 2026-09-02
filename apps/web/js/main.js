@@ -132,6 +132,56 @@
     return byCat || sq.bookingUrl || '#';
   }
 
+  /* ----------------------------------------------------------------------
+     Mesure d'audience — rien n'est chargé tant que config.js est vide.
+     ---------------------------------------------------------------------- */
+
+  function track(name, props) {
+    try {
+      if (typeof window.plausible === 'function') window.plausible(name, { props: props || {} });
+      if (typeof window.gtag === 'function') window.gtag('event', name, props || {});
+    } catch (e) { /* la mesure ne doit jamais casser le site */ }
+  }
+
+  function initAnalytics() {
+    var a = CONFIG.analytics || {};
+    if (a.plausibleDomain) {
+      var p = document.createElement('script');
+      p.defer = true;
+      p.setAttribute('data-domain', a.plausibleDomain);
+      p.src = 'https://plausible.io/js/script.outbound-links.js';
+      document.head.appendChild(p);
+    }
+    if (a.gtagId) {
+      var g = document.createElement('script');
+      g.async = true;
+      g.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(a.gtagId);
+      document.head.appendChild(g);
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag('js', new Date());
+      window.gtag('config', a.gtagId, { anonymize_ip: true });
+    }
+    // Chaque clic « Réserver » qui part vers Square est un objectif.
+    document.querySelectorAll('[data-booking-link]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        track('Reservation', {
+          categorie: el.getAttribute('data-booking-link') || 'general',
+          page: window.location.pathname
+        });
+      });
+    });
+  }
+
+  /* Point d'entrée CRM (Coat & Care) pour un formulaire donné, ou ''. */
+  function crmEndpoint(key) {
+    var cc = CONFIG.coatCare || {};
+    if (key === 'intake') return cc.intakeUrl || '';
+    if (key === 'contact') return cc.contactUrl || '';
+    if (key === 'newsletter') return cc.newsletterUrl || '';
+    return '';
+  }
+
   function initBooking() {
     document.querySelectorAll('[data-booking-link]').forEach(function (el) {
       el.href = bookingUrl(el.getAttribute('data-booking-link') || '');
@@ -225,8 +275,9 @@
       var key = form.getAttribute('data-formspree');
       var id = (CONFIG.formspree || {})[key];
       var coatCare = CONFIG.coatCare || {};
-      var crmIntake = key === 'intake' && coatCare.intakeUrl;
-      var configured = crmIntake || (id && id.indexOf('VOTRE_') !== 0);
+      var crmUrl = crmEndpoint(key);
+      var crmIntake = key === 'intake' && crmUrl;
+      var configured = crmUrl || (id && id.indexOf('VOTRE_') !== 0);
       var status = form.querySelector('.form-status');
 
       function say(kind, message) {
@@ -237,7 +288,7 @@
         status.setAttribute('role', kind === 'err' ? 'alert' : 'status');
       }
 
-      if (crmIntake) form.action = coatCare.intakeUrl;
+      if (crmUrl) form.action = crmUrl;
       else if (configured) form.action = 'https://formspree.io/f/' + id;
 
       form.addEventListener('submit', function (e) {
@@ -263,18 +314,18 @@
         if (submit) { submit.disabled = true; submit.textContent = 'Envoi…'; }
 
         var request;
-        if (crmIntake) {
+        if (crmUrl) {
           var values = {};
           new FormData(form).forEach(function (value, name) {
             values[name] = String(value);
           });
-          values.marketing = values.marketing === 'oui';
+          if (key === 'intake') values.marketing = values.marketing === 'oui';
           values.salonSlug = coatCare.salonSlug || '';
           values.locationSlug = coatCare.locationSlug || '';
           values.submissionId = window.crypto && window.crypto.randomUUID
             ? window.crypto.randomUUID()
             : String(Date.now()) + '-' + Math.random().toString(36).slice(2);
-          request = fetch(coatCare.intakeUrl, {
+          request = fetch(crmUrl, {
             method: 'POST',
             headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
             body: JSON.stringify(values)
@@ -289,14 +340,25 @@
 
         request.then(function (res) {
           return res.json().catch(function () { return {}; }).then(function (result) {
-            if (!res.ok) throw new Error(result.error || 'HTTP ' + res.status);
+            if (!res.ok) {
+              var failure = new Error(result.error || 'HTTP ' + res.status);
+              failure.status = res.status;
+              throw failure;
+            }
           });
         }).then(function () {
           form.reset();
+          track('Formulaire', { type: key, page: window.location.pathname });
           say('ok', form.getAttribute('data-success') ||
             'Merci! Votre message a bien été envoyé. Nous vous répondrons sous peu.');
         }).catch(function (error) {
-          if (crmIntake) {
+          var status = (error && error.status) || 0;
+          // La fiche n'a pas de repli courriel (trop longue). Pour les autres
+          // formulaires, une erreur de saisie (4xx) est affichée telle quelle;
+          // seul un service indisponible ou une panne réseau bascule vers le
+          // client courriel.
+          var inputError = status >= 400 && status < 500 && status !== 403 && status !== 429;
+          if (crmIntake || inputError) {
             say('err', error && error.message
               ? error.message
               : "La fiche n'a pas pu être enregistrée. Vos réponses sont toujours dans le formulaire; veuillez réessayer ou nous appeler.");
@@ -334,6 +396,10 @@
     });
     document.querySelectorAll('[data-instagram-link]').forEach(function (el) {
       if (c.instagram) el.href = c.instagram;
+    });
+    // « Laisser un avis Google » n'apparaît qu'une fois le lien renseigné.
+    document.querySelectorAll('[data-review-link]').forEach(function (el) {
+      if (c.googleReviewUrl) { el.href = c.googleReviewUrl; el.hidden = false; }
     });
   }
 
@@ -437,6 +503,7 @@
     initForms();
     initMisc();
     initInstagram();
+    initAnalytics();
   }
 
   if (document.readyState === 'loading') {

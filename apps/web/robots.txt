@@ -1,4 +1,11 @@
 User-agent: *
 Allow: /
+Disallow: /salon
+Disallow: /employee
+Disallow: /portal
+Disallow: /book
+Disallow: /booking
+Disallow: /approval
+Disallow: /api
 
 Sitemap: https://www.bopoil.ca/sitemap.xml

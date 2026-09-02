@@ -10,16 +10,22 @@ réservation en ligne **Square Appointments**.
 
 ## Mise en ligne
 
-Aucun outil n'est requis. Copiez le contenu du dépôt sur n'importe quel
-hébergement statique — GitHub Pages, Netlify, Cloudflare Pages, ou un simple
-serveur web.
+Le site est déployé sur Vercel avec le CRM Coat & Care, à partir du dépôt
+complet : au moment du `npm run build`, le script
+`scripts/sync-public-site.mjs` copie ce dossier tel quel dans
+`apps/coat-care/public/`. Les en-têtes de cache, les redirections des
+anciennes adresses (`home.html`, `contact.html`, `services.html`,
+`fichedinformations.html`) et les en-têtes de sécurité sont définis dans
+`apps/coat-care/next.config.ts`.
+
+Le dossier reste du HTML statique pur : il peut aussi être copié tel quel sur
+n'importe quel hébergement statique pour un aperçu.
 
 ### Prévisualiser sur votre ordinateur
 
 ```bash
-git clone -b claude/website-redesign-square-tqt1jj \
-  https://github.com/Sim-Maker2007/Bopoil.git
-cd Bopoil
+git clone https://github.com/Sim-Maker2007/Bopoil.git
+cd Bopoil/apps/web
 python3 -m http.server 8000
 ```
 
@@ -92,37 +98,39 @@ categories: {
 
 ### 2. Coat & Care CRM
 
-La fiche d'informations peut enregistrer directement les profils client et
-animal dans Coat & Care sans modifier sa mise en page. Configurez l'adresse du
-CRM et les identifiants du salon dans `js/config.js` sous `coatCare`. Tant que
-`intakeUrl` est vide, aucune donnée n'est transmise au CRM. Les formulaires de
-contact et d'infolettre restent indépendants.
+Les trois formulaires du site parlent au CRM, sans changer leur apparence :
 
-### 3. Formulaires
+| Formulaire | Point d'entrée | Ce que fait le CRM |
+|---|---|---|
+| Fiche d'informations | `intakeUrl` (`/api/public/intake`) | Crée ou met à jour le client, l'animal, son profil de soins et ses consentements. Une fiche dont le nom, le courriel ou le téléphone diffère d'un dossier existant est marquée « à réviser » plutôt qu'écrasée. |
+| Contact | `contactUrl` (`/api/public/contact`) | Transmet le message par courriel au salon (Resend), avec le visiteur en réponse. Le message n'est pas conservé. |
+| Infolettre | `newsletterUrl` (`/api/public/newsletter`) | Crée ou met à jour le client avec son consentement marketing et une preuve de consentement datée. |
 
-Les formulaires (contact, fiche d'informations, infolettre) sont envoyés via
-[Formspree](https://formspree.io) — offre gratuite suffisante pour ce volume.
+Les adresses et les identifiants du salon sont dans `js/config.js` sous
+`coatCare`. Laissez une adresse vide pour désactiver le CRM pour ce formulaire.
+Chaque formulaire contient un champ piège invisible pour les robots.
 
-1. Créez un compte, puis un formulaire par usage.
-2. Copiez l'identifiant de chaque formulaire (par exemple `xbjnqlpz`).
-3. Collez-les dans `js/config.js` :
+### 3. Formulaires — repli
 
-```js
-formspree: {
-  contact:    'xbjnqlpz',
-  intake:     '…',
-  newsletter: '…'
-}
-```
+Si un point d'entrée CRM est vide ou que le service ne répond pas, le site
+essaie [Formspree](https://formspree.io) (identifiants dans `js/config.js`
+sous `formspree`), puis ouvre le client courriel du visiteur avec le message
+prérempli. Tant qu'un identifiant Formspree commence par `VOTRE_`, il est
+ignoré.
 
-Tant qu'une valeur commence par `VOTRE_`, le formulaire affiche un message
-clair invitant à écrire à `info@bopoil.ca` plutôt que d'envoyer dans le vide.
+### 4. Coordonnées, avis Google et mesure d'audience
 
-### 4. Coordonnées
-
-Téléphone, courriel et Instagram sont également dans `js/config.js`. Les
-mêmes valeurs sont écrites en dur dans les pages (afin de fonctionner sans
+Téléphone, courriel et réseaux sociaux sont dans `js/config.js`. Les mêmes
+valeurs sont écrites en dur dans les pages (afin de fonctionner sans
 JavaScript) — voir la section suivante pour les modifier partout d'un coup.
+
+- `contact.googleReviewUrl` : collez le lien « Demander des avis » de la fiche
+  d'établissement Google; un lien « Laisser un avis Google » apparaît alors
+  dans le pied de page.
+- `analytics.plausibleDomain` ou `analytics.gtagId` : aucun script n'est
+  chargé tant que rien n'est renseigné. Une fois configuré, les clics
+  « Réserver » (vers Square) et les envois de formulaire sont comptés comme
+  événements.
 
 ---
 
@@ -144,6 +152,24 @@ seulement pour *modifier*.
 > Si vous préférez éditer directement un fichier `.html`, c'est possible — mais
 > pensez à reporter la modification dans `tools/build.py`, sinon la prochaine
 > exécution du script l'écrasera.
+
+Le générateur écrit aussi les données structurées schema.org de chaque page
+(salon, fil d'Ariane, services avec fourchette de prix, FAQ du guide), le
+plan de site avec les dates de modification et le fichier `robots.txt`.
+
+### Images
+
+Déposez les photos en JPEG dans `images/` en deux largeurs (`-800` et `-1600`,
+ou `-480` et `-900` pour les vignettes de services), puis générez les
+variantes WebP et les vignettes de grille :
+
+```bash
+node tools/optimize-images.mjs   # utilise « sharp », installé par npm install à la racine
+python3 tools/build.py
+```
+
+Le générateur lit les dimensions dans chaque fichier et n'utilise que les
+variantes présentes : sans WebP, il émet un simple `<img>`.
 
 ### Heures d'ouverture
 
@@ -171,16 +197,15 @@ politique.html            politique de rendez-vous, annulation et retard
 rendez-vous.html          réservation Square Appointments
 contactez-nous.html       formulaire, carte, coordonnées, heures
 fiche-informations.html   fiche client (nouveau ou mise à jour)
-
-home.html, contact.html, services.html, fichedinformations.html
-                          redirections depuis les anciennes adresses
+liens.html                page cachée « Nos liens » (code QR), hors plan de site
 
 css/tokens.css            jetons de design extraits de l'ancien site
 css/style.css             mise en page et composants
-js/config.js              ⚙️ configuration — Square, Formspree, coordonnées
+js/config.js              ⚙️ configuration — Square, CRM, coordonnées, mesure d'audience
 js/main.js                carrousel, navigation, formulaires, repli réservation
-images/                   photos en deux largeurs (srcset) + logo
-tools/build.py            générateur de pages
+images/                   photos JPEG + WebP en plusieurs largeurs (srcset) + logo
+tools/build.py            générateur de pages, données structurées, sitemap, robots
+tools/optimize-images.mjs variantes WebP et vignettes 400 px
 ```
 
 ---

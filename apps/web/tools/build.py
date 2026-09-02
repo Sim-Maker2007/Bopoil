@@ -14,8 +14,13 @@ Modifier le contenu : éditez les données ci-dessous, puis relancez le script.
 Modifier la configuration (Square, Formspree, coordonnées) : js/config.js.
 """
 
+import datetime as _dt
 import html as _html
+import json
 import os
+import re
+import struct
+import subprocess
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -77,19 +82,82 @@ NAV = [
 # Aides
 # ---------------------------------------------------------------------------
 
-def img(slug, alt, small, large, cls="", loading="lazy", sizes=None, extra=""):
-    """<img> avec srcset sur les deux largeurs générées."""
+IMAGES_DIR = os.path.join(ROOT, "images")
+_SIZE_CACHE = {}
+_JPEG_SOF = {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}
+
+
+def image_size(path):
+    """(largeur, hauteur) d'un JPEG ou PNG, lue dans l'en-tête du fichier —
+    aucune dépendance externe."""
+    if path in _SIZE_CACHE:
+        return _SIZE_CACHE[path]
+    size = None
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(24)
+            if head[:8] == b"\x89PNG\r\n\x1a\n":
+                size = struct.unpack(">II", head[16:24])
+            elif head[:2] == b"\xff\xd8":
+                fh.seek(2)
+                while True:
+                    byte = fh.read(1)
+                    while byte and byte != b"\xff":
+                        byte = fh.read(1)
+                    while byte == b"\xff":
+                        byte = fh.read(1)
+                    if not byte:
+                        break
+                    marker = byte[0]
+                    if marker in (0x01, 0xD8, 0xD9) or 0xD0 <= marker <= 0xD7:
+                        continue
+                    (length,) = struct.unpack(">H", fh.read(2))
+                    if marker in _JPEG_SOF:
+                        height, width = struct.unpack(">xHH", fh.read(5))
+                        size = (width, height)
+                        break
+                    fh.seek(length - 2, 1)
+    except (OSError, struct.error):
+        size = None
+    _SIZE_CACHE[path] = size
+    return size
+
+
+def _image_exists(slug, width, ext):
+    return os.path.exists(os.path.join(IMAGES_DIR, f"{slug}-{width}.{ext}"))
+
+
+def img(slug, alt, small, large, cls="", loading="lazy", sizes=None, extra="", xs=None):
+    """<img> avec srcset sur toutes les largeurs présentes sur disque, les
+    dimensions intrinsèques (pas de saut de mise en page pendant le
+    chargement) et, quand tools/optimize-images.mjs a produit les variantes,
+    un <picture> qui sert le WebP aux navigateurs qui le lisent."""
     sizes = sizes or "100vw"
     cls = f' class="{cls}"' if cls else ""
-    return (
+    widths = [w for w in (xs, small, large) if w and _image_exists(slug, w, "jpg")]
+    if not widths:
+        widths = [small, large]
+
+    def srcset(ext):
+        return ", ".join(f"images/{slug}-{w}.{ext} {w}w" for w in widths)
+
+    dims = image_size(os.path.join(IMAGES_DIR, f"{slug}-{large}.jpg"))
+    dim_attr = f' width="{dims[0]}" height="{dims[1]}"' if dims else ""
+    tag = (
         f'<img src="images/{slug}-{large}.jpg" '
-        f'srcset="images/{slug}-{small}.jpg {small}w, images/{slug}-{large}.jpg {large}w" '
-        f'sizes="{sizes}" alt="{alt}" loading="{loading}" decoding="async"{cls}{extra}>'
+        f'srcset="{srcset("jpg")}" '
+        f'sizes="{sizes}"{dim_attr} alt="{alt}" loading="{loading}" decoding="async"{cls}{extra}>'
     )
+    if all(_image_exists(slug, w, "webp") for w in widths):
+        return (f'<picture><source type="image/webp" srcset="{srcset("webp")}" sizes="{sizes}">'
+                f'{tag}</picture>')
+    return tag
 
 
 def wide(slug, alt, **kw):
-    return img(slug, alt, 800, 1600, **kw)
+    # La vignette de 400 px (grilles de l'accueil et des galeries) est ajoutée
+    # automatiquement lorsqu'elle existe.
+    return img(slug, alt, 800, 1600, xs=400, **kw)
 
 
 def thumb(slug, alt, **kw):
@@ -164,6 +232,9 @@ def footer_html():
                      placeholder="Adresse courriel" autocomplete="email" required>
               <button class="btn btn--filled" type="submit">S'inscrire</button>
             </div>
+            {HONEYPOT}
+            <p class="newsletter__note">En vous inscrivant, vous consentez à recevoir les
+              courriels de {SITE_NAME_ESC}. Désabonnement possible en tout temps.</p>
             <p class="form-status" hidden></p>
           </form>
         </div>
@@ -172,14 +243,24 @@ def footer_html():
         <p class="mb-0">
           <a href="tel:{PHONE_TEL}">{PHONE}</a> &nbsp;·&nbsp;
           <a href="mailto:{EMAIL}">{EMAIL}</a> &nbsp;·&nbsp;
-          {ADDRESS} &nbsp;·&nbsp;
-          <a href="{INSTAGRAM}" target="_blank" rel="noopener" data-instagram-link>@bopoil.toilettageboutique</a>
+          {ADDRESS}
+        </p>
+        <p class="mb-0">
+          <a href="{INSTAGRAM}" target="_blank" rel="noopener" data-instagram-link>Instagram</a> &nbsp;·&nbsp;
+          <a href="{FACEBOOK}" target="_blank" rel="noopener">Facebook</a> &nbsp;·&nbsp;
+          <a href="{TIKTOK}" target="_blank" rel="noopener">TikTok</a>
+          <a href="#" target="_blank" rel="noopener" data-review-link hidden>&nbsp;·&nbsp; Laisser un avis Google</a>
         </p>
         <p class="mb-0">&copy; <span data-year>2026</span> {SITE_NAME_ESC}</p>
       </div>
     </div>
   </footer>"""
 
+
+# Champ piège pour les robots : invisible et hors tabulation. Un envoi qui le
+# remplit est accepté silencieusement par le CRM et jamais traité.
+HONEYPOT = ('<input class="hp" type="text" name="website" tabindex="-1" '
+            'autocomplete="off" aria-hidden="true">')
 
 SMS_PILL = f"""  <a class="sms-pill" href="sms:{PHONE_TEL}">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -195,42 +276,137 @@ def indent(html, spaces):
     return "\n".join(pad + line for line in html.split("\n"))
 
 
-def jsonld(page):
-    if page != "index.html":
-        return ""
-    spec = ",".join(
-        '{"@type":"OpeningHoursSpecification","dayOfWeek":"%s",'
-        '"opens":"%s","closes":"%s"}' % d for d in HOURS_SCHEMA
-    )
-    return f"""
-  <script type="application/ld+json">
-  {{
-    "@context": "https://schema.org",
-    "@type": "PetGroomer",
-    "name": "{SITE_NAME}",
-    "url": "{SITE_URL}/",
-    "image": "{SITE_URL}/images/salon-photo-1-1600.jpg",
-    "telephone": "{PHONE_TEL}",
-    "email": "{EMAIL}",
-    "priceRange": "$$",
-    "address": {{
-      "@type": "PostalAddress",
-      "streetAddress": "38 Av Gatineau",
-      "addressLocality": "Gatineau",
-      "addressRegion": "QC",
-      "postalCode": "J8T 4J1",
-      "addressCountry": "CA"
-    }},
-    "sameAs": ["{INSTAGRAM}"],
-    "openingHoursSpecification": [{spec}]
-  }}
-  </script>"""
+# ---------------------------------------------------------------------------
+# DONNÉES STRUCTURÉES (schema.org, JSON-LD)
+# ---------------------------------------------------------------------------
+# Chaque page décrit le salon (PetGroomer). Les sous-pages ajoutent un fil
+# d'Ariane; les pages de services listent chaque soin avec sa fourchette de
+# prix; le guide devient une FAQ. Google s'en sert pour la fiche locale et les
+# extraits enrichis.
+
+_PRICE = re.compile(r"(\d+)(?:\s*à\s*(\d+))?\s*\$")
+
+
+def _strip_tags(text):
+    return re.sub(r"<[^>]+>", "", text).replace(" ", " ").strip()
+
+
+def _json_script(data):
+    text = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    return f'\n  <script type="application/ld+json">{text}</script>'
+
+
+def business_entity():
+    return {
+        "@type": "PetGroomer",
+        "@id": f"{SITE_URL}/#salon",
+        "name": SITE_NAME,
+        "url": f"{SITE_URL}/",
+        "image": [f"{SITE_URL}/images/salon-photo-1-1600.jpg",
+                  f"{SITE_URL}/images/boutique-interieur-1600.jpg"],
+        "logo": f"{SITE_URL}/images/logo-bopoil-blanc-720.png",
+        "telephone": PHONE_TEL,
+        "email": EMAIL,
+        "priceRange": "$$",
+        "currenciesAccepted": "CAD",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "38 Av Gatineau",
+            "addressLocality": "Gatineau",
+            "addressRegion": "QC",
+            "postalCode": "J8T 4J1",
+            "addressCountry": "CA",
+        },
+        "areaServed": [{"@type": "City", "name": "Gatineau"},
+                       {"@type": "AdministrativeArea", "name": "Outaouais"}],
+        "hasMap": "https://www.google.com/maps?q=38+Av+Gatineau,+Gatineau,+QC+J8T+4J1",
+        "sameAs": [INSTAGRAM, FACEBOOK, TIKTOK],
+        "openingHoursSpecification": [
+            {"@type": "OpeningHoursSpecification", "dayOfWeek": day, "opens": opens, "closes": closes}
+            for day, opens, closes in HOURS_SCHEMA
+        ],
+    }
+
+
+def breadcrumb_entity(filename, title):
+    short = _strip_tags(title.split("|")[0].split("–")[0])
+    return {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Accueil", "item": f"{SITE_URL}/"},
+            {"@type": "ListItem", "position": 2, "name": short, "item": f"{SITE_URL}/{filename}"},
+        ],
+    }
+
+
+def service_entities(services, audience):
+    items = []
+    for s in services:
+        if not isinstance(s, dict) or "title" not in s:
+            continue
+        raw = _strip_tags(s["title"])
+        name = re.split(r"\s[–-]\s", raw, maxsplit=1)[0].strip()
+        entity = {
+            "@type": "Service",
+            "name": f"{name} – {audience}",
+            "serviceType": name,
+            "provider": {"@id": f"{SITE_URL}/#salon"},
+            "areaServed": {"@type": "City", "name": "Gatineau"},
+        }
+        intro = s.get("intro") or []
+        if intro:
+            entity["description"] = _strip_tags(intro[0])
+        prices = [int(n) for pair in _PRICE.findall(raw) for n in pair if n]
+        if prices:
+            entity["offers"] = {
+                "@type": "Offer",
+                "priceCurrency": "CAD",
+                "priceSpecification": {
+                    "@type": "PriceSpecification",
+                    "priceCurrency": "CAD",
+                    "minPrice": min(prices),
+                    "maxPrice": max(prices),
+                },
+            }
+        items.append(entity)
+    return items
+
+
+def guide_faq_entity():
+    questions = []
+    for cat in GUIDE_CATEGORIES:
+        label, desc, reco, freq, breeds = cat[0], cat[1], cat[2], cat[3], cat[4]
+        questions.append({
+            "@type": "Question",
+            "name": f"À quelle fréquence toiletter un chien au poil « {_strip_tags(label)} »?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": _strip_tags(f"{desc}. {reco} {freq}. Exemples de races : {breeds}."),
+            },
+        })
+    return {"@type": "FAQPage", "mainEntity": questions}
+
+
+def jsonld(filename, title=""):
+    graph = [business_entity()]
+    if filename != "index.html":
+        graph.append(breadcrumb_entity(filename, title))
+    if filename == "chiens.html":
+        graph.extend(service_entities(CHIENS_SERVICES, "chiens"))
+    elif filename == "chats.html":
+        graph.extend(service_entities(CHATS_SERVICES, "chats"))
+    elif filename == "petits-animaux.html":
+        graph.extend(service_entities(PETITS_SERVICES, "petits animaux"))
+    elif filename == "guide.html":
+        graph.append(guide_faq_entity())
+    return _json_script({"@context": "https://schema.org", "@graph": graph})
 
 
 def page(filename, title, description, body, og_image="salon-photo-1-1600.jpg",
          extra_head=""):
     """Assemble une page complète."""
     canonical = f"{SITE_URL}/" if filename == "index.html" else f"{SITE_URL}/{filename}"
+    raw_title = title
     title = _html.escape(title, quote=True)
     description = _html.escape(description, quote=True)
     html = f"""<!DOCTYPE html>
@@ -260,7 +436,7 @@ def page(filename, title, description, body, og_image="salon-photo-1-1600.jpg",
   <link rel="preload" href="fonts/libre-franklin-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/tokens.css">
-  <link rel="stylesheet" href="css/style.css">{extra_head}{jsonld(filename)}
+  <link rel="stylesheet" href="css/style.css">{extra_head}{jsonld(filename, raw_title)}
 </head>
 <body>
   <a class="skip-link" href="#contenu">Passer au contenu principal</a>
@@ -781,15 +957,21 @@ CHATS_SERVICES = [
 
 def service_rows_html(services):
     rows = []
-    for s in services:
+    for index, s in enumerate(services):
         includes = ""
         if s["includes"]:
             items = "".join(f"<li>{i}</li>" for i in s["includes"])
             includes = f'<ul class="service-includes">{items}</ul>'
         duration = f'<p class="service-duration">{s["duration"]}</p>' if s["duration"] else ""
+        # La première photo de service est l'élément le plus grand au-dessus
+        # de la ligne de flottaison (LCP) : on la charge tout de suite.
+        first = index == 0
+        media = thumb(s['slug'], s['alt'], sizes='(max-width: 767px) 100vw, 260px',
+                      loading='eager' if first else 'lazy',
+                      extra=' fetchpriority="high"' if first else '')
         rows.append(f"""          <article class="service-row">
             <div class="service-row__media">
-              {thumb(s['slug'], s['alt'], sizes='(max-width: 767px) 100vw, 260px')}
+              {media}
             </div>
             <div class="service-row__body">
               <h2 class="service-row__title">{s['title']}</h2>
@@ -844,7 +1026,7 @@ def services_page_body(hero_slug, hero_alt, title, services, gallery_bg, photos)
 
 CHIENS_BODY = services_page_body(
     "banniere-chiens", "Gros plan sur l'œil et le museau d'un chien",
-    "Services pour chiens", CHIENS_SERVICES, "galerie-fond-salon",
+    "Toilettage pour chiens à Gatineau", CHIENS_SERVICES, "galerie-fond-salon",
     [("galerie-spitz", "Spitz japonais sur la table de toilettage"),
      ("galerie-caniche", "Toiletteuse avec un caniche roux"),
      ("galerie-border-collie", "Border collie fraîchement toiletté")],
@@ -852,7 +1034,7 @@ CHIENS_BODY = services_page_body(
 
 CHATS_BODY = services_page_body(
     "banniere-chats", "Portrait d'un chat roux",
-    "Services pour chats", CHATS_SERVICES, "galerie-fond-guide",
+    "Toilettage pour chats à Gatineau", CHATS_SERVICES, "galerie-fond-guide",
     [("salon-photo-1", "Chat tigré sur la table de toilettage"),
      ("salon-photo-3", "Chat pris dans les bras après son toilettage"),
      ("salon-photo-4", "Chat blanc sur la table de toilettage")],
@@ -1120,6 +1302,7 @@ CONTACT_BODY = f"""    <section class="contact-hero profile-primary-dark-bold">
 
         <form class="form form--narrow" data-formspree="contact"
               data-success="Merci! Votre message a bien été envoyé. Nous vous répondrons sous peu.">
+          {HONEYPOT}
           <div class="form-field">
             <label class="form-label" for="contact-nom">Nom complet
               <span class="req" aria-hidden="true">*</span></label>
@@ -1236,6 +1419,7 @@ FICHE_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .45;">
 
           <form class="form" data-formspree="intake"
                 data-success="Merci! Votre fiche a bien été reçue. Nous l'ajoutons à votre dossier.">
+            {HONEYPOT}
             <div class="form-field">
               <label class="form-label" for="fiche-proprietaire">Prénom et nom du propriétaire
                 <span class="req" aria-hidden="true">*</span></label>
@@ -1394,7 +1578,7 @@ BOOKING_URL = ("https://book.squareup.com/appointments/"
 
 PAGES = [
     dict(filename="index.html",
-         title="Salon chien & chat | BOPOIL Toilettage & Boutique",
+         title="Toilettage chien, chat et lapin à Gatineau | BOPOIL",
          description="BOPOIL Toilettage & Boutique à Gatineau : salon professionnel pour "
                      "toilettage chien, chat et lapin. Soins doux, produits premium et "
                      "réservation en ligne.",
@@ -1402,7 +1586,7 @@ PAGES = [
          og_image="hero-printemps-1600.jpg"),
 
     dict(filename="a-propos.html",
-         title="À propos | BOPOIL Toilettage & Boutique",
+         title="À propos du salon | BOPOIL Toilettage Gatineau",
          description="Salon de toilettage et boutique dans le quartier Touraine à Gatineau "
                      "depuis 2022. Un espace calme, propre et à aire ouverte, pensé pour le "
                      "confort de vos animaux.",
@@ -1410,7 +1594,7 @@ PAGES = [
          og_image="boutique-interieur-1600.jpg"),
 
     dict(filename="nos-services.html",
-         title="Notre approche | BOPOIL Toilettage & Boutique",
+         title="Notre approche du toilettage | BOPOIL Gatineau",
          description="Bien-être, respect, passion, écoute, transparence et rigueur : "
                      "l'approche de BOPOIL pour le toilettage des chiens, des chats et des "
                      "petits animaux à Gatineau.",
@@ -1418,7 +1602,7 @@ PAGES = [
          og_image="approche-chat-chien-1600.jpg"),
 
     dict(filename="chiens.html",
-         title="Services pour chiens | BOPOIL Toilettage & Boutique",
+         title="Toilettage pour chiens à Gatineau – tarifs | BOPOIL",
          description="Toilettage complet, traitement de la mue, toilettage de base, brossage "
                      "et taille de griffes pour chiens de toutes tailles à Gatineau. Tarifs "
                      "clairs, réservation en ligne.",
@@ -1426,7 +1610,7 @@ PAGES = [
          og_image="banniere-chiens-1600.jpg"),
 
     dict(filename="chats.html",
-         title="Services pour chats | BOPOIL Toilettage & Boutique",
+         title="Toilettage pour chats à Gatineau – tarifs | BOPOIL",
          description="Toilettage pour chats à Gatineau : shampooing sec sans rinçage, "
                      "brossage et démêlage, pose de cache-griffes et taille de griffes, dans "
                      "un environnement calme.",
@@ -1434,7 +1618,7 @@ PAGES = [
          og_image="banniere-chats-1600.jpg"),
 
     dict(filename="petits-animaux.html",
-         title="Petits animaux | BOPOIL Toilettage & Boutique",
+         title="Toilettage lapin et petits animaux à Gatineau | BOPOIL",
          description="Nouveauté en Outaouais : toilettage pour lapins, furets et autres "
                      "petits animaux de compagnie à Gatineau. Brossage, griffes et soins "
                      "adaptés.",
@@ -1442,7 +1626,7 @@ PAGES = [
          og_image="lapin-900.jpg"),
 
     dict(filename="guide.html",
-         title="Votre guide toilettage | BOPOIL Toilettage & Boutique",
+         title="Guide toilettage par type de poil | BOPOIL Gatineau",
          description="Notre tarification est basée sur le type de poil plutôt que sur la "
                      "race ou le poids. Six catégories, la fréquence recommandée et des "
                      "exemples de races.",
@@ -1450,62 +1634,57 @@ PAGES = [
          og_image="banniere-guide-1600.jpg"),
 
     dict(filename="politique.html",
-         title="Notre politique | BOPOIL Toilettage & Boutique",
+         title="Politique de rendez-vous et d'annulation | BOPOIL Gatineau",
          description="Politique de rendez-vous, d'annulation et de retard de BOPOIL "
                      "Toilettage & Boutique, à Gatineau.",
          body=POLITIQUE_BODY,
          og_image="banniere-politique-1600.jpg"),
 
     dict(filename="rendez-vous.html",
-         title="Prendre rendez-vous | BOPOIL Toilettage & Boutique",
+         title="Prendre rendez-vous – toilettage à Gatineau | BOPOIL",
          description="Réservez en ligne votre rendez-vous de toilettage chez BOPOIL à "
                      "Gatineau, ou joignez-nous par téléphone, texto ou courriel.",
          body=RDV_BODY.replace("{BOOKING_URL}", BOOKING_URL),
          og_image="galerie-fond-corgi-1600.jpg"),
 
     dict(filename="contactez-nous.html",
-         title="Nous contacter | BOPOIL Toilettage & Boutique",
+         title="Nous contacter – salon de toilettage à Gatineau | BOPOIL",
          description="38 Av Gatineau, Gatineau (Québec) J8T 4J1. Téléphone (819) 968-2827, "
                      "info@bopoil.ca. Formulaire de contact, carte et heures d'ouverture.",
          body=CONTACT_BODY,
          og_image="banniere-contact-1600.jpg"),
 
     dict(filename="fiche-informations.html",
-         title="Fiche d'informations | BOPOIL Toilettage & Boutique",
+         title="Fiche d'informations client | BOPOIL Toilettage Gatineau",
          description="Fiche d'informations client BOPOIL : santé, comportement, taille et "
                      "préférences de votre animal, afin d'adapter les soins offerts.",
          body=FICHE_BODY,
          og_image="chiots-endormis-1600.jpg"),
 ]
 
-# Anciennes adresses de l'ancien site Square Online → nouvelles pages.
-REDIRECTS = {
-    "home.html": "index.html",
-    "contact.html": "contactez-nous.html",
-    "services.html": "nos-services.html",
-    "fichedinformations.html": "fiche-informations.html",
-}
+# Les anciennes adresses de l'ancien site Square Online (home.html, contact.html,
+# services.html, fichedinformations.html) sont redirigées en 308 par
+# apps/coat-care/next.config.ts — une vraie redirection transmet le référencement,
+# contrairement aux anciennes pages « meta refresh ».
+
+# Chemins de Coat & Care (CRM) servis sur le même domaine : jamais indexés.
+ROBOTS_DISALLOW = ["/salon", "/employee", "/portal", "/book", "/booking", "/approval", "/api"]
 
 
-def write_redirects():
-    for old, new in REDIRECTS.items():
-        html = f"""<!DOCTYPE html>
-<html lang="fr-CA">
-<head>
-  <meta charset="utf-8">
-  <title>Redirection…</title>
-  <link rel="canonical" href="{SITE_URL}/{new}">
-  <meta http-equiv="refresh" content="0; url={new}">
-  <meta name="robots" content="noindex">
-</head>
-<body>
-  <p>Cette page a déménagé. <a href="{new}">Continuer vers la nouvelle page</a>.</p>
-  <script>location.replace('{new}');</script>
-</body>
-</html>
-"""
-        with open(os.path.join(ROOT, old), "w", encoding="utf-8") as fh:
-            fh.write(html)
+def page_lastmod(filename):
+    """Date de dernière modification (ISO) : le dernier commit qui touche la
+    page, ou aujourd'hui si la copie de travail diffère de git."""
+    today = _dt.date.today().isoformat()
+    try:
+        changed = subprocess.run(["git", "diff", "--quiet", "HEAD", "--", filename],
+                                 cwd=ROOT, capture_output=True).returncode != 0
+        if changed:
+            return today
+        out = subprocess.run(["git", "log", "-1", "--format=%cs", "--", filename],
+                             cwd=ROOT, capture_output=True, text=True).stdout.strip()
+        return out or today
+    except (OSError, subprocess.SubprocessError):
+        return today
 
 
 # ---------------------------------------------------------------------------
@@ -1671,28 +1850,29 @@ def write_sitemap():
     urls = []
     for p in PAGES:
         loc = f"{SITE_URL}/" if p["filename"] == "index.html" else f"{SITE_URL}/{p['filename']}"
-        priority = "1.0" if p["filename"] == "index.html" else "0.8"
-        urls.append(f"  <url><loc>{loc}</loc><priority>{priority}</priority></url>")
+        # Google ignore <priority> mais se sert de <lastmod> pour décider quoi
+        # réexplorer.
+        urls.append(f"  <url><loc>{loc}</loc><lastmod>{page_lastmod(p['filename'])}</lastmod></url>")
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
     with open(os.path.join(ROOT, "sitemap.xml"), "w", encoding="utf-8") as fh:
         fh.write(xml)
 
+    disallow = "".join(f"Disallow: {path}\n" for path in ROBOTS_DISALLOW)
     with open(os.path.join(ROOT, "robots.txt"), "w", encoding="utf-8") as fh:
-        fh.write(f"User-agent: *\nAllow: /\n\nSitemap: {SITE_URL}/sitemap.xml\n")
+        fh.write(f"User-agent: *\nAllow: /\n{disallow}\nSitemap: {SITE_URL}/sitemap.xml\n")
 
 
 def main():
     written = [page(**p) for p in PAGES]
     write_links_page()
-    write_redirects()
     write_sitemap()
     print(f"{len(written)} pages générées :")
     for name in written:
         print("  ", name)
     print(f"Page cachée {LINKS_FILENAME} générée (hors plan de site, noindex) — {LINKS_URL}")
-    print(f"{len(REDIRECTS)} redirections, sitemap.xml et robots.txt mis à jour.")
+    print("sitemap.xml et robots.txt mis à jour.")
 
 
 if __name__ == "__main__":

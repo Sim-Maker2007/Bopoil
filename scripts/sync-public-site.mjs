@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = join(root, "apps", "web");
 const destination = join(root, "apps", "coat-care", "public");
-const excluded = new Set([".vercelignore", "README.md", "tools", "vercel.json"]);
+const excluded = new Set(["README.md", "tools"]);
 
 await mkdir(destination, { recursive: true });
 for (const entry of await readdir(source, { withFileTypes: true })) {

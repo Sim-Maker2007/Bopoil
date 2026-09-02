@@ -48,6 +48,11 @@ window.BOPOIL_CONFIG = {
      ---------------------------------------------------------------------- */
   coatCare: {
     intakeUrl: '/api/public/intake',
+    // Formulaire de contact : transmis par courriel au salon via le CRM
+    // (Resend). Infolettre : crée ou met à jour la fiche client avec son
+    // consentement marketing. Laissez vide pour revenir à Formspree/courriel.
+    contactUrl: '/api/public/contact',
+    newsletterUrl: '/api/public/newsletter',
     salonSlug: 'bopoil',
     locationSlug: 'gatineau'
   },
@@ -75,7 +80,26 @@ window.BOPOIL_CONFIG = {
     email: 'info@bopoil.ca',
     instagram: 'https://www.instagram.com/bopoil.toilettageboutique/',
     facebook: 'https://www.facebook.com/share/19BA9jkFU2/',
-    tiktok: 'https://www.tiktok.com/@bopoil1'
+    tiktok: 'https://www.tiktok.com/@bopoil1',
+
+    // Lien « Laisser un avis » de la fiche Google (Fiche d'établissement →
+    // Demander des avis → copier le lien). Le lien du pied de page apparaît
+    // dès qu'une valeur est renseignée.
+    googleReviewUrl: ''
+  },
+
+  /* ----------------------------------------------------------------------
+     4b. MESURE D'AUDIENCE (facultatif)
+     ----------------------------------------------------------------------
+     Aucun script n'est chargé tant que rien n'est renseigné. Renseignez UN
+     des deux : le domaine Plausible (respectueux de la vie privée, sans
+     bandeau de témoins) ou l'identifiant Google Analytics 4 (G-XXXXXXX).
+     Les clics « Réserver » et les envois de formulaire sont comptés comme
+     événements dans les deux cas.
+     ---------------------------------------------------------------------- */
+  analytics: {
+    plausibleDomain: '',   // ex. 'bopoil.ca'
+    gtagId: ''             // ex. 'G-XXXXXXXXXX'
   },
 
   /* ----------------------------------------------------------------------
