@@ -74,8 +74,9 @@
 
     <section class="section profile-primary-light-neutral">
       <div class="container">
+        <p class="form-status" data-order-status hidden></p>
         <div class="shop-toolbar">
-          <ul class="shop-filters" role="group" aria-label="Filtrer par catégorie">
+          <ul class="shop-filters" data-shop-filters role="group" aria-label="Filtrer par catégorie">
             <li><button class="shop-filter" type="button" data-filter="tous" aria-pressed="true">Tous</button></li>
             <li><button class="shop-filter" type="button" data-filter="soins" aria-pressed="false">Soins &amp; shampooings</button></li>
             <li><button class="shop-filter" type="button" data-filter="outils" aria-pressed="false">Brosses &amp; outils</button></li>
@@ -319,7 +320,7 @@
         <dt>Sous-total</dt>
         <dd data-cart-subtotal>0,00&nbsp;$</dd>
       </dl>
-      <p class="cart-drawer__note">Taxes calculées à la cueillette. Le paiement se fait au salon.</p>
+      <p class="cart-drawer__note" data-cart-note>Taxes calculées à la cueillette. Le paiement se fait au salon.</p>
       <button class="btn btn--filled cart-drawer__checkout" type="button" data-cart-checkout>Passer la commande</button>
       <button class="cart-drawer__continue" type="button" data-cart-close>Continuer mes achats</button>
     </div>

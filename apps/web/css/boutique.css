@@ -160,6 +160,15 @@
   color: var(--tint-ink, var(--primary-color));
   opacity: .9;
 }
+/* Product photos from the Square catalog fill the media tile. */
+.product-card__media img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.product-card__media--photo::after { content: none; }
 /* Motif discret en filigrane */
 .product-card__media::after {
   content: "";
@@ -359,6 +368,7 @@
   background: var(--tint, var(--accent-cream));
 }
 .cart-line__thumb svg { width: 30px; height: 30px; color: var(--tint-ink, var(--primary-color)); }
+.cart-line__thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
 .cart-line__info { min-width: 0; }
 .cart-line__name {
@@ -443,6 +453,10 @@
   border: 1px solid var(--accent-green);
   font-size: var(--font-step--1);
   line-height: 1.55;
+}
+.cart-confirm--error {
+  background: rgba(217, 43, 43, .10);
+  border-color: var(--color-urgent);
 }
 .cart-confirm[hidden] { display: none; }
 

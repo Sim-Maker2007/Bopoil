@@ -1,5 +1,5 @@
-import { verifySquareWebhookSignature } from "./square-webhooks";
-export { squareWebhookSignature } from "./square-webhooks";
+import { verifySquareWebhookSignature } from "./square-webhooks.ts";
+export { squareWebhookSignature } from "./square-webhooks.ts";
 
 type RuntimeValues = Record<string, string | undefined>;
 
@@ -39,24 +39,29 @@ export async function verifySquareWebhook(payload: string, signature: string, co
   return verifySquareWebhookSignature(payload, signature, config.webhookNotificationUrl, config.webhookSignatureKey);
 }
 
-export async function squareRequest<T>(path: string, options: { query?: URLSearchParams; fetcher?: typeof fetch } = {}) {
+export async function squareRequest<T>(path: string, options: { query?: URLSearchParams; fetcher?: typeof fetch; method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown } = {}) {
   const config = squareConfig();
   if (!config.accessToken) throw new Error("Square synchronization is not configured.");
   const url = new URL(`https://connect.squareup.com/v2/${path.replace(/^\//, "")}`);
   options.query?.forEach((value, key) => url.searchParams.append(key, value));
+  const method = options.method || "GET";
   const headers: Record<string, string> = {
     authorization: `Bearer ${config.accessToken}`,
     accept: "application/json",
   };
   if (config.apiVersion) headers["Square-Version"] = config.apiVersion;
+  const sendsBody = options.body !== undefined && method !== "GET";
+  if (sendsBody) headers["content-type"] = "application/json";
+  const init: RequestInit = { method, headers };
+  if (sendsBody) init.body = JSON.stringify(options.body);
   const fetcher = options.fetcher || fetch;
-  let response = await fetcher(url, { headers });
+  let response = await fetcher(url, init);
   // Square rate-limits bursts with 429 and occasionally answers 5xx; a short
   // back-off keeps an hourly reconciliation from failing on a single blip.
   for (let attempt = 0; attempt < 2 && (response.status === 429 || response.status >= 500); attempt += 1) {
     const retryAfter = Number(response.headers.get("retry-after") || 0);
     await new Promise((resolve) => setTimeout(resolve, Math.min(5_000, retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt)));
-    response = await fetcher(url, { headers });
+    response = await fetcher(url, init);
   }
   const body = await response.json() as T & { errors?: Array<{ detail?: string }> };
   if (!response.ok) throw new Error(body.errors?.[0]?.detail || `Square request failed (${response.status}).`);
