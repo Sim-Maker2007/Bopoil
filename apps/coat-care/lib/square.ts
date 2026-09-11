@@ -17,6 +17,7 @@ export function squareConfig(runtime: RuntimeValues = runtimeValues()) {
     || (publicOrigin ? `${publicOrigin}/api/webhooks/square` : "");
   const accessToken = trim(runtime.SQUARE_ACCESS_TOKEN);
   const webhookSignatureKey = trim(runtime.SQUARE_WEBHOOK_SIGNATURE_KEY);
+  const bookingMode = trim(runtime.SQUARE_BOOKING_MODE).toLowerCase();
   const allowedOrigins = [publicOrigin, ...trim(runtime.PUBLIC_INTAKE_ALLOWED_ORIGINS)
     .split(",")
     .map((origin) => origin.trim().replace(/\/$/, ""))
@@ -32,6 +33,7 @@ export function squareConfig(runtime: RuntimeValues = runtimeValues()) {
     allowedOrigins,
     syncConfigured: Boolean(accessToken),
     webhookConfigured: Boolean(accessToken && webhookSignatureKey && webhookNotificationUrl),
+    publicBookingConfigured: Boolean(accessToken && trim(runtime.SQUARE_LOCATION_ID) && bookingMode === "api"),
   };
 }
 
@@ -39,7 +41,12 @@ export async function verifySquareWebhook(payload: string, signature: string, co
   return verifySquareWebhookSignature(payload, signature, config.webhookNotificationUrl, config.webhookSignatureKey);
 }
 
-export async function squareRequest<T>(path: string, options: { query?: URLSearchParams; fetcher?: typeof fetch } = {}) {
+export async function squareRequest<T>(path: string, options: {
+  query?: URLSearchParams;
+  fetcher?: typeof fetch;
+  method?: "GET" | "POST" | "PUT";
+  body?: Record<string, unknown>;
+} = {}) {
   const config = squareConfig();
   if (!config.accessToken) throw new Error("Square synchronization is not configured.");
   const url = new URL(`https://connect.squareup.com/v2/${path.replace(/^\//, "")}`);
@@ -48,8 +55,13 @@ export async function squareRequest<T>(path: string, options: { query?: URLSearc
     authorization: `Bearer ${config.accessToken}`,
     accept: "application/json",
   };
+  if (options.body) headers["content-type"] = "application/json";
   if (config.apiVersion) headers["Square-Version"] = config.apiVersion;
-  const response = await (options.fetcher || fetch)(url, { headers });
+  const response = await (options.fetcher || fetch)(url, {
+    method: options.method || (options.body ? "POST" : "GET"),
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
   const body = await response.json() as T & { errors?: Array<{ detail?: string }> };
   if (!response.ok) throw new Error(body.errors?.[0]?.detail || `Square request failed (${response.status}).`);
   return body;

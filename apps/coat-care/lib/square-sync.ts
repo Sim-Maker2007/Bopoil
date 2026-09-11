@@ -68,7 +68,7 @@ function squareStatus(status: string) {
   return "confirmed" as const;
 }
 
-async function linkedLocalId(db: Db, organizationId: string, entityType: EntityType, externalEntityId: string) {
+export async function linkedLocalId(db: Db, organizationId: string, entityType: EntityType, externalEntityId: string) {
   if (!externalEntityId) return "";
   const [link] = await db.select({ localEntityId: externalEntityLinks.localEntityId }).from(externalEntityLinks).where(and(
     eq(externalEntityLinks.organizationId, organizationId),
@@ -79,7 +79,7 @@ async function linkedLocalId(db: Db, organizationId: string, entityType: EntityT
   return link?.localEntityId || "";
 }
 
-async function linkEntity(db: Db, input: {
+export async function linkEntity(db: Db, input: {
   organizationId: string;
   locationId?: string | null;
   entityType: EntityType;
@@ -128,23 +128,23 @@ async function resolveClient(db: Db, organizationId: string, locationId: string,
     const digits = phoneDigits(phone);
     let matched: { id: string } | undefined;
     if (email || digits) {
-      [matched] = await db.select({ id: clients.id }).from(clients).where(and(
+      const matches = await db.select({ id: clients.id }).from(clients).where(and(
         eq(clients.organizationId, organizationId),
         or(
           email ? eq(sql<string>`lower(${clients.email})`, email) : undefined,
           digits ? eq(sql<string>`substr(replace(replace(replace(replace(replace(replace(${clients.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''), -10)`, digits) : undefined,
         ),
-      )).limit(1);
+      )).limit(3);
+      const uniqueMatches = [...new Map(matches.map((item) => [item.id, item])).values()];
+      if (uniqueMatches.length > 1) throw new Error("Square customer contact details match more than one Coat & Care client. Staff review is required before synchronization.");
+      [matched] = uniqueMatches;
     }
     clientId = matched?.id || crypto.randomUUID();
     if (!matched) await db.insert(clients).values({ id: clientId, organizationId, fullName: name, email, phone });
   }
-  await db.update(clients).set({
-    fullName: name,
-    ...(email ? { email } : {}),
-    ...(phone ? { phone } : {}),
-    updatedAt: new Date().toISOString(),
-  }).where(and(eq(clients.id, clientId), eq(clients.organizationId, organizationId)));
+  // Coat & Care is authoritative for identity and contact data. Square is
+  // allowed to seed an unrecognized profile, but later appointment syncs must
+  // never replace the salon's verified client record with Square's copy.
   await linkEntity(db, { organizationId, locationId, entityType: "client", localEntityId: clientId, externalEntityId: externalCustomerId });
   return clientId;
 }
@@ -236,7 +236,7 @@ async function resolveStaff(db: Db, organizationId: string, locationId: string, 
   return matched.id;
 }
 
-export async function syncSquareBooking(db: Db, booking: SquareBooking) {
+export async function syncSquareBooking(db: Db, booking: SquareBooking, preferred: { clientId?: string; petId?: string } = {}) {
   const config = squareConfig();
   const externalBookingId = clean(booking.id, 100);
   const externalCustomerId = clean(booking.customer_id, 100);
@@ -252,11 +252,11 @@ export async function syncSquareBooking(db: Db, booking: SquareBooking) {
   const durationMinutes = Math.max(1, segments.reduce((total, segment) => total + Number(segment.duration_minutes || 0) + Number(segment.intermission_minutes || 0), 0));
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
   const [clientId, serviceId, staffId] = await Promise.all([
-    resolveClient(db, organization.id, location.id, externalCustomerId),
+    preferred.clientId || resolveClient(db, organization.id, location.id, externalCustomerId),
     resolveService(db, organization.id, location.id, externalServiceId, durationMinutes),
     resolveStaff(db, organization.id, location.id, clean(firstSegment?.team_member_id, 100)),
   ]);
-  const petId = await resolvePet(db, organization.id, clientId);
+  const petId = preferred.petId || await resolvePet(db, organization.id, clientId);
   const localStatus = squareStatus(clean(booking.status, 40));
   const existingId = await linkedLocalId(db, organization.id, "appointment", externalBookingId);
   const [existing] = existingId ? await db.select().from(appointments).where(and(eq(appointments.id, existingId), eq(appointments.organizationId, organization.id))).limit(1) : [undefined];

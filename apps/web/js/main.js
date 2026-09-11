@@ -140,6 +140,7 @@
     var embed = document.querySelector('[data-booking-embed]');
     var frame = document.querySelector('[data-booking-frame]');
     if (!embed || !frame) return;
+    if (CONFIG.square && CONFIG.square.embedBooking === false) return;
 
     // On ne charge le cadre que si l'URL est configurée. Sinon la page reste
     // propre : la CTA "Réserver sur Square" fait tout le travail.
@@ -271,6 +272,7 @@
           values.marketing = values.marketing === 'oui';
           values.salonSlug = coatCare.salonSlug || '';
           values.locationSlug = coatCare.locationSlug || '';
+          values.returnTo = new URLSearchParams(window.location.search).get('continue') || '';
           values.submissionId = window.crypto && window.crypto.randomUUID
             ? window.crypto.randomUUID()
             : String(Date.now()) + '-' + Math.random().toString(36).slice(2);
@@ -289,9 +291,18 @@
 
         request.then(function (res) {
           return res.json().catch(function () { return {}; }).then(function (result) {
-            if (!res.ok) throw new Error(result.error || 'HTTP ' + res.status);
+            if (!res.ok) {
+              var message = result.error || 'HTTP ' + res.status;
+              if (result.accessUrl) message += ' Go to the booking page and choose secure email or mobile access.';
+              throw new Error(message);
+            }
+            return result;
           });
-        }).then(function () {
+        }).then(function (result) {
+          if (crmIntake && result && result.bookingUrl) {
+            window.location.assign(result.bookingUrl);
+            return;
+          }
           form.reset();
           say('ok', form.getAttribute('data-success') ||
             'Merci! Votre message a bien été envoyé. Nous vous répondrons sous peu.');

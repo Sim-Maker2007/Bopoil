@@ -36,6 +36,52 @@ test("Square remains the scheduling authority while Coat & Care owns care workfl
   assert.match(intake, /attachSolePetToSquareAppointments/);
 });
 
+test("Coat & Care remains authoritative and every website booking uses one linked Square customer", async () => {
+  const [sync, publicBooking, squareRoute, catalog, availability, experience, intake, websiteConfig, bookingPage, intakePage] = await Promise.all([
+    source("../lib/square-sync.ts"),
+    source("../lib/square-public-booking.ts"),
+    source("../app/api/square-bookings/route.ts"),
+    source("../app/api/catalog/route.ts"),
+    source("../app/api/availability/route.ts"),
+    source("../app/booking-experience.tsx"),
+    source("../app/api/public/intake/route.ts"),
+    source("../../web/js/config.js"),
+    source("../../web/rendez-vous.html"),
+    source("../../web/fiche-informations.html"),
+  ]);
+  const resolveClient = sync.slice(sync.indexOf("async function resolveClient"), sync.indexOf("async function resolvePet"));
+  assert.doesNotMatch(resolveClient, /db\.update\(clients\)\.set/);
+  assert.match(resolveClient, /Coat & Care is authoritative/);
+  assert.match(publicBooking, /referenceId = `coat-care:\$\{client\.id\}`/);
+  assert.match(publicBooking, /customers\/search/);
+  assert.match(publicBooking, /candidates\.length > 1/);
+  assert.match(publicBooking, /customer_id: squareCustomerId/);
+  assert.match(publicBooking, /idempotency_key: `coat-care-booking:/);
+  assert.match(publicBooking, /syncSquareBooking\(input\.db, response\.booking, \{ clientId: input\.clientId, petId: input\.petId \}\)/);
+  assert.match(squareRoute, /resolvePortalSession/);
+  assert.match(squareRoute, /queuePortalAccessMessage/);
+  assert.match(catalog, /syncSquareBookableServices/);
+  assert.match(availability, /loadSquareAvailability/);
+  assert.match(experience, /\/api\/square-bookings/);
+  assert.match(experience, /Create profile & add pet/);
+  assert.match(intake, /access\.client\?\.id !== existingClient\.id/);
+  assert.match(intake, /issuePortalSession\(db, clientId, 30 \/ \(24 \* 60\)\)/);
+  assert.match(websiteConfig, /bookingUrl: '\/book\/bopoil\/gatineau'/);
+  assert.doesNotMatch(websiteConfig, /bookingUrl: 'https:\/\/book\.squareup\.com/);
+  assert.match(bookingPage, /href="\/book\/bopoil\/gatineau">Réserver en ligne<\/a>/);
+  assert.doesNotMatch(bookingPage, /book\.squareup\.com/);
+  for (const field of ["telephone", "email", "nom_animal"]) assert.match(intakePage, new RegExp(`name="${field}"[^>]*required`));
+});
+
+test("Square write requests use JSON while read requests keep their existing behavior", async () => {
+  const square = await source("../lib/square.ts");
+  assert.match(square, /bookingMode === "api"/);
+  assert.match(square, /publicBookingConfigured: Boolean/);
+  assert.match(square, /if \(options\.body\) headers\["content-type"\] = "application\/json"/);
+  assert.match(square, /method: options\.method \|\| \(options\.body \? "POST" : "GET"\)/);
+  assert.match(square, /body: options\.body \? JSON\.stringify\(options\.body\) : undefined/);
+});
+
 test("the website intake endpoint stores no raw contact or care payload in its delivery ledger", async () => {
   const [schema, intake] = await Promise.all([
     source("../db/schema.ts"),

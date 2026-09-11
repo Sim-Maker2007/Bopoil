@@ -239,6 +239,13 @@
       "when": 1787368199645,
       "tag": "0033_brown_franklin_richards",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1787510001193,
+      "tag": "0034_bright_aaron_stack",
+      "breakpoints": true
     }
   ]
 }

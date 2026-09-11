@@ -9,7 +9,9 @@ import {
   publicIntakeSubmissions,
 } from "../../../../db/schema";
 import { resolveStorefront, storefrontError } from "../../../../db/public-storefront";
-import { normalizeClientPhone, requestSource, sha256Hex } from "../../../../lib/client-phone-auth";
+import { issuePortalSession, resolvePortalSession } from "../../../../db/client-portal";
+import { normalizeClientPhone, portalCookie, requestSource, sha256Hex } from "../../../../lib/client-phone-auth";
+import { portalCookieRequestIsSameOrigin, portalCookieTokenFromRequest } from "../../../../lib/portal-request";
 import { intakeOriginAllowed, squareConfig } from "../../../../lib/square";
 import { attachSolePetToSquareAppointments } from "../../../../lib/square-sync";
 import { isValidDateKey } from "../../../../lib/time-zone";
@@ -33,6 +35,7 @@ type IntakePayload = {
   gateries?: string;
   photos?: string;
   marketing?: string | boolean;
+  returnTo?: string;
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -102,7 +105,7 @@ export async function POST(request: Request) {
     const healthNotes = clean(payload.sante, 2500);
     const behaviorNotes = clean(payload.comportement, 2500);
     if (ownerName.length < 2 || petName.length < 1 || !healthNotes) return response(origin, { error: "Please complete the owner, pet, and health information." }, 400);
-    if (!email && !digits) return response(origin, { error: "Please provide an email address or phone number." }, 400);
+    if (!email || !digits) return response(origin, { error: "Please provide both an email address and mobile number so your secure profile can be connected to Square." }, 400);
     if (email && !emailPattern.test(email)) return response(origin, { error: "Please check the email address." }, 400);
     if (digits && (digits.length < 10 || digits.length > 15)) return response(origin, { error: "Please check the phone number." }, 400);
     if (birthday && !isValidDateKey(birthday)) return response(origin, { error: "Please check the pet's birthday." }, 400);
@@ -134,6 +137,16 @@ export async function POST(request: Request) {
     const uniqueMatches = [...new Map(matches.map((client) => [client.id, client])).values()];
     if (uniqueMatches.length > 1) return response(origin, { error: "We found conflicting contact information. Please contact the salon so we can update the correct profile." }, 409);
     const existingClient = uniqueMatches[0];
+    if (existingClient) {
+      const access = portalCookieRequestIsSameOrigin(request)
+        ? await resolvePortalSession(portalCookieTokenFromRequest(request))
+        : { client: null };
+      if (access.client?.id !== existingClient.id) return response(origin, {
+        intent: "secure_access_required",
+        error: "This contact information already belongs to a BOPOIL profile. Open it securely from the booking page before updating pet or health information.",
+        accessUrl: "/book/bopoil/gatineau",
+      }, 409);
+    }
     const clientId = existingClient?.id || crypto.randomUUID();
     const [existingPet] = existingClient ? await db.select().from(pets).where(and(
       eq(pets.organizationId, organization.id),
@@ -201,7 +214,16 @@ export async function POST(request: Request) {
     await db.batch(statements as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
     const reassigned = await attachSolePetToSquareAppointments(db, organization.id, clientId, petId);
     if (reassigned) await db.insert(auditEvents).values({ id: crypto.randomUUID(), organizationId: organization.id, actorType: "system", action: "integration.square_pet_assigned_from_intake", entityType: "pet", entityId: petId, detailsJson: JSON.stringify({ appointments: reassigned }) });
-    return response(origin, { received: true });
+    const requestedReturnTo = clean(payload.returnTo, 300);
+    const bookingUrl = requestedReturnTo.startsWith("/book/") && !requestedReturnTo.startsWith("//")
+      ? requestedReturnTo
+      : "/book/bopoil/gatineau";
+    const headers = corsHeaders(origin);
+    if (!existingClient && portalCookieRequestIsSameOrigin(request)) {
+      const onboardingSession = await issuePortalSession(db, clientId, 30 / (24 * 60));
+      headers.append("set-cookie", portalCookie(onboardingSession.token, 30 * 60));
+    }
+    return Response.json({ received: true, bookingUrl }, { headers });
   } catch (error) {
     if (error instanceof SyntaxError) return response(origin, { error: "The information form could not be read." }, 400);
     const handled = storefrontError(error, "The information form could not be saved.");

@@ -61,7 +61,7 @@ async function acceptInvitations(email: string, displayName: string) {
 }
 
 async function ensureBootstrapOwner(email: string, displayName: string) {
-  const configuredOwner = (process.env.SALON_OWNER_EMAIL || "").trim().toLowerCase();
+  const configuredOwner = (process.env.SALON_OWNER_EMAIL || (process.env.NODE_ENV === "development" ? "info@bopoil.ca" : "")).trim().toLowerCase();
   if (!configuredOwner || email !== configuredOwner) return;
   const db = getDb();
   let [owner] = await db.select({ id: staff.id }).from(staff).where(and(

@@ -25,8 +25,9 @@ window.BOPOIL_CONFIG = {
     bookingSiteId: '11ede6168f2fd6ccb800ac1f6bbbcc9c',
     locationId: 'LJVHDT6T6W3XM',
 
-    // Lien principal vers la page de réservation Square.
-    bookingUrl: 'https://book.squareup.com/appointments/11ede6168f2fd6ccb800ac1f6bbbcc9c/location/LJVHDT6T6W3XM/services',
+    // Coat & Care reconnaît le client, puis crée le rendez-vous dans Square.
+    bookingUrl: '/book/bopoil/gatineau',
+    embedBooking: false,
 
     // Liens directs par catégorie de service (facultatif).
     // Laissez la valeur nulle pour utiliser bookingUrl.
@@ -75,7 +76,9 @@ window.BOPOIL_CONFIG = {
     phone: '+18199682827',
     phoneDisplay: '(819) 968-2827',
     email: 'info@bopoil.ca',
-    instagram: 'https://www.instagram.com/bopoil.toilettageboutique/'
+    instagram: 'https://www.instagram.com/bopoil.toilettageboutique/',
+    facebook: 'https://www.facebook.com/share/19BA9jkFU2/',
+    tiktok: 'https://www.tiktok.com/@bopoil1'
   },
 
   /* ----------------------------------------------------------------------

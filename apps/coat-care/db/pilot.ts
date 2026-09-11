@@ -104,6 +104,36 @@ async function seedPilotData() {
     taxRateBps: 1498,
   }).onConflictDoNothing();
 
+  // Keep an older local demo database aligned with the current BOPOIL preview.
+  // Production records remain owner-managed and are never rewritten by seed code.
+  if (process.env.NODE_ENV === "development") {
+    const updatedAt = new Date().toISOString();
+    await db.update(organizations).set({
+      slug: "bopoil",
+      name: "BOPOIL Toilettage & Boutique",
+      contactEmail: "info@bopoil.ca",
+      contactPhone: "+1 819 968-2827",
+      website: "https://bopoil.ca",
+      onboardingCompleted: true,
+      updatedAt,
+    }).where(eq(organizations.id, PILOT.organizationId));
+    await db.update(locations).set({
+      slug: PILOT.locationSlug,
+      name: "Gatineau",
+      addressLine1: "38 Av Gatineau",
+      city: "Gatineau",
+      region: "QC",
+      postalCode: "J8T 4J1",
+      contactEmail: "info@bopoil.ca",
+      contactPhone: "+1 819 968-2827",
+      currency: "CAD",
+      timezone: "America/Toronto",
+      taxLabel: "GST/QST",
+      taxRateBps: 1498,
+      updatedAt,
+    }).where(eq(locations.id, PILOT.locationId));
+  }
+
   const pilotStaff = [
     { id: "staff_maya", organizationId: PILOT.organizationId, locationId: PILOT.locationId, displayName: "Maya", role: "groomer" },
     { id: "staff_nadia", organizationId: PILOT.organizationId, locationId: PILOT.locationId, displayName: "Nadia", role: "groomer" },

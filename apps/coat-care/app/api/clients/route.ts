@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { requireSalonAccess, requireSchedulingAccess, requireWorkspacePermission, salonApiError, SalonAccessError } from "../../salon-access";
-import { appointments, auditEvents, clients, pets, vaccinationRecords } from "../../../db/schema";
+import { appointments, auditEvents, clientMediaAssets, clients, pets, vaccinationRecords } from "../../../db/schema";
 import { issuePortalEmailSession } from "../../../db/client-portal";
 import { portalAccessUrl } from "../../../lib/portal-links";
 
@@ -50,6 +50,10 @@ export async function GET(request: Request) {
       eq(vaccinationRecords.organizationId, membership.organizationId),
       inArray(vaccinationRecords.petId, petIds),
     )).orderBy(asc(vaccinationRecords.expiresOn)) : [];
+    const mediaRows = await db.select({ id: clientMediaAssets.id, clientId: clientMediaAssets.clientId, kind: clientMediaAssets.kind, caption: clientMediaAssets.caption, originalFilename: clientMediaAssets.originalFilename, clientVisible: clientMediaAssets.clientVisible, createdAt: clientMediaAssets.createdAt }).from(clientMediaAssets).where(and(
+      eq(clientMediaAssets.organizationId, membership.organizationId),
+      inArray(clientMediaAssets.clientId, clientIds),
+    )).orderBy(asc(clientMediaAssets.createdAt));
 
     const records = clientRows.map((client) => ({
       id: client.id,
@@ -57,6 +61,8 @@ export async function GET(request: Request) {
       email: client.email,
       phone: client.phone,
       marketingConsent: client.marketingConsent,
+      profilePhoto: [...mediaRows].reverse().find((asset) => asset.clientId === client.id && asset.kind === "profile") || null,
+      media: mediaRows.filter((asset) => asset.clientId === client.id && asset.kind === "gallery"),
       pets: petRows.filter((pet) => pet.clientId === client.id).reduce<Array<{
         id: string; name: string; breed: string; species: string; safetyLevel: string; handlingNotes: string; appointments: Array<{ id: string; status: string; startsAt: string }>; vaccinations: typeof vaccineRows;
       }>>((items, row) => {
