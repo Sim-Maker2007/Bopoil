@@ -18,25 +18,34 @@ export type ShopProduct = {
 
 type Money = { amount?: number; currency?: string };
 
-type CatalogObject = {
+type Availability = {
+  is_deleted?: boolean;
+  present_at_all_locations?: boolean;
+  present_at_location_ids?: string[];
+  absent_at_location_ids?: string[];
+};
+
+type CatalogObject = Availability & {
   id: string;
   type: string;
   is_deleted?: boolean;
   item_data?: {
     name?: string;
+    product_type?: string;
+    is_archived?: boolean;
     description?: string;
     description_plaintext?: string;
     image_ids?: string[];
     category_id?: string;
     categories?: Array<{ id?: string }>;
     reporting_category?: { id?: string };
-    variations?: Array<{ id: string; item_variation_data?: { name?: string; price_money?: Money } }>;
+    variations?: Array<Availability & { id: string; item_variation_data?: { name?: string; sellable?: boolean; pricing_type?: string; price_money?: Money; location_overrides?: Array<{ location_id?: string; price_money?: Money; sold_out?: boolean }> } }>;
   };
   image_data?: { url?: string };
   category_data?: { name?: string };
 };
 
-type CatalogSearchResult = { objects?: CatalogObject[]; related_objects?: CatalogObject[] };
+type CatalogSearchResult = { objects?: CatalogObject[]; related_objects?: CatalogObject[]; cursor?: string };
 type PaymentLinkResult = { payment_link?: { id?: string; url?: string; long_url?: string } };
 
 export type ShopConfig = ReturnType<typeof shopConfig>;
@@ -51,50 +60,69 @@ export function shopConfig(config = squareConfig()) {
   };
 }
 
-// Pure transform: fold a Square catalog search (items + related images and
-// categories) into a flat, front-end friendly product list. One product per
-// item, priced from its first priced variation.
-export function normalizeCatalog(objects: CatalogObject[] = [], related: CatalogObject[] = []): ShopProduct[] {
+// Respect location availability for both the item and each sellable variation.
+function availableAt(object: Availability, locationId: string) {
+  if (object.is_deleted) return false;
+  if (!locationId) return true;
+  if (object.absent_at_location_ids?.includes(locationId)) return false;
+  return object.present_at_all_locations !== false || Boolean(object.present_at_location_ids?.includes(locationId));
+}
+
+export function normalizeCatalog(objects: CatalogObject[] = [], related: CatalogObject[] = [], locationId = ""): ShopProduct[] {
   const images = new Map<string, string>();
   const categories = new Map<string, string>();
   for (const object of [...related, ...objects]) {
     if (object.type === "IMAGE" && object.image_data?.url) images.set(object.id, object.image_data.url);
     if (object.type === "CATEGORY" && object.category_data?.name) categories.set(object.id, object.category_data.name);
   }
-
   const products: ShopProduct[] = [];
   for (const object of objects) {
-    if (object.type !== "ITEM" || object.is_deleted) continue;
+    if (object.type !== "ITEM" || !availableAt(object, locationId)) continue;
     const item = object.item_data;
-    if (!item) continue;
-    const variation = (item.variations || []).find(
-      (candidate) => typeof candidate.item_variation_data?.price_money?.amount === "number",
-    );
-    if (!variation) continue;
-    const price = variation.item_variation_data!.price_money!;
+    // Appointment services, gift cards and archived items are not retail goods.
+    if (!item || item.is_archived || (item.product_type && item.product_type !== "REGULAR")) continue;
     const categoryId = item.reporting_category?.id || item.categories?.[0]?.id || item.category_id || "";
-    const imageId = item.image_ids?.[0] || "";
-    products.push({
-      id: variation.id,
-      itemId: object.id,
-      name: item.name || "Article",
-      description: item.description_plaintext || item.description || "",
-      priceCents: Number(price.amount) || 0,
-      currency: price.currency || "CAD",
-      imageUrl: images.get(imageId) || "",
-      category: categories.get(categoryId) || "Boutique",
-    });
+    for (const variation of item.variations || []) {
+      const data = variation.item_variation_data;
+      if (!availableAt(variation, locationId) || !data || data.sellable === false || data.pricing_type === "VARIABLE_PRICING") continue;
+      const override = data.location_overrides?.find((entry) => entry.location_id === locationId);
+      if (override?.sold_out) continue;
+      const price = override?.price_money || data.price_money;
+      if (!price || !Number.isSafeInteger(price.amount) || price.amount! < 0) continue;
+      const variationName = data.name && !/^(regular|régulier|default)$/i.test(data.name) ? data.name : "";
+      products.push({
+        id: variation.id,
+        itemId: object.id,
+        name: (item.name || "Article") + (variationName ? ` — ${variationName}` : ""),
+        description: item.description_plaintext || (item.description || "").replace(/<[^>]*>/g, ""),
+        priceCents: price.amount!,
+        currency: price.currency || "CAD",
+        imageUrl: images.get(item.image_ids?.[0] || "") || "",
+        category: categories.get(categoryId) || "Boutique",
+      });
+    }
   }
   return products;
 }
 
 export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProduct[]> {
-  const result = await squareRequest<CatalogSearchResult>("catalog/search-catalog-objects", {
-    method: "POST",
-    fetcher,
-    body: { object_types: ["ITEM"], include_related_objects: true, include_deleted_objects: false },
-  });
-  return normalizeCatalog(result.objects || [], result.related_objects || []);
+  const objects: CatalogObject[] = [];
+  const related: CatalogObject[] = [];
+  let cursor: string | undefined;
+  const seen = new Set<string>();
+  do {
+    const result = await squareRequest<CatalogSearchResult>("catalog/search", {
+      method: "POST",
+      fetcher,
+      body: { object_types: ["ITEM"], include_related_objects: true, include_deleted_objects: false, ...(cursor ? { cursor } : {}) },
+    });
+    objects.push(...result.objects || []);
+    related.push(...result.related_objects || []);
+    cursor = result.cursor;
+    if (cursor && seen.has(cursor)) throw new Error("Le catalogue ne peut pas être chargé entièrement.");
+    if (cursor) seen.add(cursor);
+  } while (cursor);
+  return normalizeCatalog(objects, related, shopConfig().locationId);
 }
 
 export type CheckoutItem = { id: string; quantity: number };
@@ -110,6 +138,7 @@ export function buildPaymentLinkBody(
     idempotency_key: options.idempotencyKey,
     order: {
       location_id: options.locationId,
+      pricing_options: { auto_apply_taxes: true },
       line_items: items.map((item) => ({ quantity: String(item.quantity), catalog_object_id: item.id })),
     },
     checkout_options: {
@@ -126,7 +155,7 @@ export function sanitizeCartItems(input: unknown, allowed?: Set<string>): Checko
     const id = String((row as { id?: unknown })?.id || "").trim();
     if (!id || (allowed && !allowed.has(id))) continue;
     const quantity = Math.floor(Number((row as { quantity?: unknown })?.quantity) || 0);
-    if (quantity < 1) continue;
+    if (!Number.isFinite(quantity) || quantity < 1) continue;
     merged.set(id, Math.min(99, (merged.get(id) || 0) + quantity));
   }
   return [...merged.entries()].map(([id, quantity]) => ({ id, quantity }));
@@ -134,7 +163,7 @@ export function sanitizeCartItems(input: unknown, allowed?: Set<string>): Checko
 
 export async function createShopCheckout(
   items: CheckoutItem[],
-  options: { fetcher?: typeof fetch; redirectUrl?: string } = {},
+  options: { fetcher?: typeof fetch; redirectUrl?: string; idempotencyKey?: string } = {},
 ): Promise<{ url: string; items: CheckoutItem[] }> {
   const shop = shopConfig();
   if (!shop.configured) throw new Error("La boutique Square n'est pas encore configurée.");
@@ -143,12 +172,16 @@ export async function createShopCheckout(
   // Square and a stale or tampered cart id is rejected cleanly.
   const catalog = await fetchShopCatalog(options.fetcher);
   const allowed = new Set(catalog.map((product) => product.id));
-  const cleaned = sanitizeCartItems(items, allowed);
+  const requested = sanitizeCartItems(items);
+  const cleaned = sanitizeCartItems(requested, allowed);
   if (!cleaned.length) throw new Error("Aucun article valide dans le panier.");
+  if (cleaned.length !== requested.length) throw new Error("Un article n’est plus disponible. Actualisez la boutique et vérifiez votre panier avant de payer.");
+  const currencies = new Set(catalog.filter((product) => cleaned.some((item) => item.id === product.id)).map((product) => product.currency));
+  if (currencies.size !== 1) throw new Error("Les articles du panier doivent utiliser la même devise.");
 
   const body = buildPaymentLinkBody(cleaned, {
     locationId: shop.locationId,
-    idempotencyKey: crypto.randomUUID(),
+    idempotencyKey: options.idempotencyKey || crypto.randomUUID(),
     redirectUrl: options.redirectUrl,
   });
   const result = await squareRequest<PaymentLinkResult>("online-checkout/payment-links", {

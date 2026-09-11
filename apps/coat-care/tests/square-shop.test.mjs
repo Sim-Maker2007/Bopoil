@@ -134,7 +134,7 @@ test("fetchShopCatalog posts a catalog search and returns normalized products", 
   };
   const products = await fetchShopCatalog(fetcher);
   assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /catalog\/search-catalog-objects$/);
+  assert.match(calls[0].url, /catalog\/search$/);
   assert.equal(calls[0].init.method, "POST");
   const sent = JSON.parse(calls[0].init.body);
   assert.deepEqual(sent.object_types, ["ITEM"]);
@@ -148,7 +148,7 @@ test("createShopCheckout validates the cart against Square and returns a payment
   const fetcher = async (url, init) => {
     const href = String(url);
     calls.push(href);
-    if (href.endsWith("catalog/search-catalog-objects")) return jsonResponse(sampleCatalog);
+    if (href.endsWith("catalog/search")) return jsonResponse(sampleCatalog);
     if (href.endsWith("online-checkout/payment-links")) {
       const sent = JSON.parse(init.body);
       assert.equal(sent.order.location_id, "LOC123");
@@ -159,22 +159,90 @@ test("createShopCheckout validates the cart against Square and returns a payment
   };
 
   const result = await createShopCheckout(
-    [{ id: "VAR_1", quantity: 2 }, { id: "GHOST", quantity: 5 }],
+    [{ id: "VAR_1", quantity: 2 }],
     { fetcher, redirectUrl: "https://bopoil.ca/boutique.html?commande=reussie" },
   );
   assert.equal(result.url, "https://square.link/u/pay123");
   assert.deepEqual(result.items, [{ id: "VAR_1", quantity: 2 }]);
-  assert.ok(calls.some((c) => c.endsWith("catalog/search-catalog-objects")));
+  assert.ok(calls.some((c) => c.endsWith("catalog/search")));
   assert.ok(calls.some((c) => c.endsWith("online-checkout/payment-links")));
 });
 
 test("createShopCheckout rejects a cart with no valid Square items", async () => {
   const fetcher = async (url) => {
-    if (String(url).endsWith("catalog/search-catalog-objects")) return jsonResponse(sampleCatalog);
+    if (String(url).endsWith("catalog/search")) return jsonResponse(sampleCatalog);
     throw new Error("should not create a payment link for an empty cart");
   };
   await assert.rejects(
     () => createShopCheckout([{ id: "GHOST", quantity: 1 }], { fetcher }),
     /Aucun article valide/,
   );
+});
+
+
+test("retail catalog includes all sizes and excludes services, archived and unavailable products", () => {
+  const retail = structuredClone(sampleCatalog.objects[0]);
+  retail.item_data.variations.push({ id: "VAR_LARGE", item_variation_data: { name: "500 ml", price_money: { amount: 3200, currency: "CAD" } } });
+  const service = structuredClone(retail);
+  service.item_data.product_type = "APPOINTMENTS_SERVICE";
+  const archived = structuredClone(retail);
+  archived.item_data.is_archived = true;
+  const elsewhere = structuredClone(retail);
+  elsewhere.present_at_all_locations = false;
+  elsewhere.present_at_location_ids = ["OTHER"];
+  const products = normalizeCatalog([retail, service, archived, elsewhere], [], "LOC123");
+  assert.deepEqual(products.map(p => p.id), ["VAR_1", "VAR_LARGE"]);
+  assert.equal(products[1].name, "Shampooing doux — 500 ml");
+});
+
+test("location prices and sold-out variations are respected", () => {
+  const item = structuredClone(sampleCatalog.objects[0]);
+  item.item_data.variations[0].item_variation_data.location_overrides = [{ location_id: "LOC123", price_money: { amount: 2600, currency: "CAD" } }];
+  assert.equal(normalizeCatalog([item], [], "LOC123")[0].priceCents, 2600);
+  item.item_data.variations[0].item_variation_data.location_overrides[0].sold_out = true;
+  assert.equal(normalizeCatalog([item], [], "LOC123").length, 0);
+});
+
+test("catalog reads every Square page and resolves related objects across pages", async () => {
+  const cursors = [];
+  const fetcher = async (url, init) => {
+    assert.match(String(url), /\/v2\/catalog\/search$/);
+    const body = JSON.parse(init.body);
+    cursors.push(body.cursor);
+    return jsonResponse(body.cursor ? { related_objects: sampleCatalog.related_objects } : { objects: sampleCatalog.objects, cursor: "NEXT" });
+  };
+  const products = await fetchShopCatalog(fetcher);
+  assert.deepEqual(cursors, [undefined, "NEXT"]);
+  assert.equal(products[0].category, "Soins");
+});
+
+test("a broken pagination cursor fails instead of returning an incomplete catalog", async () => {
+  await assert.rejects(() => fetchShopCatalog(async () => jsonResponse({ cursor: "LOOP" })), /entièrement/);
+});
+
+test("checkout refuses a partially unavailable cart instead of silently removing products", async () => {
+  await assert.rejects(() => createShopCheckout([{ id: "VAR_1", quantity: 1 }, { id: "GHOST", quantity: 1 }], {
+    fetcher: async (url) => {
+      assert.match(String(url), /catalog\/search$/);
+      return jsonResponse(sampleCatalog);
+    },
+  }), /plus disponible/);
+});
+
+test("checkout retry preserves its idempotency key and applies configured catalog taxes", async () => {
+  await createShopCheckout([{ id: "VAR_1", quantity: 1 }], {
+    idempotencyKey: "retry-key",
+    fetcher: async (url, init) => {
+      if (String(url).endsWith("catalog/search")) return jsonResponse(sampleCatalog);
+      const body = JSON.parse(init.body);
+      assert.equal(body.idempotency_key, "retry-key");
+      assert.equal(body.order.pricing_options.auto_apply_taxes, true);
+      return jsonResponse({ payment_link: { url: "https://square.link/u/test" } });
+    },
+  });
+});
+
+test("cart normalization rejects non-finite quantities and malformed input", () => {
+  assert.deepEqual(sanitizeCartItems(null), []);
+  assert.deepEqual(sanitizeCartItems([{ id: "VAR_1", quantity: Infinity }, null, { quantity: 4 }]), []);
 });

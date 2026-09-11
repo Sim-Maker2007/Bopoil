@@ -29,7 +29,7 @@
   <link rel="stylesheet" href="css/boutique.css">
   <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"PetGroomer","@id":"https://www.bopoil.ca/#salon","name":"BOPOIL Toilettage & Boutique","url":"https://www.bopoil.ca/","image":["https://www.bopoil.ca/images/salon-photo-1-1600.jpg","https://www.bopoil.ca/images/boutique-interieur-1600.jpg"],"logo":"https://www.bopoil.ca/images/logo-bopoil-blanc-720.png","telephone":"+18199682827","email":"info@bopoil.ca","priceRange":"$$","currenciesAccepted":"CAD","address":{"@type":"PostalAddress","streetAddress":"38 Av Gatineau","addressLocality":"Gatineau","addressRegion":"QC","postalCode":"J8T 4J1","addressCountry":"CA"},"areaServed":[{"@type":"City","name":"Gatineau"},{"@type":"AdministrativeArea","name":"Outaouais"}],"hasMap":"https://www.google.com/maps?q=38+Av+Gatineau,+Gatineau,+QC+J8T+4J1","sameAs":["https://www.instagram.com/bopoil.toilettageboutique/","https://www.facebook.com/share/19BA9jkFU2/","https://www.tiktok.com/@bopoil1"]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Accueil","item":"https://www.bopoil.ca/"},{"@type":"ListItem","position":2,"name":"Boutique en ligne","item":"https://www.bopoil.ca/boutique.html"}]}]}</script>
 </head>
-<body>
+<body class="boutique-page">
   <a class="skip-link" href="#contenu">Passer au contenu principal</a>
 
   <header class="site-header profile-primary-bold">
@@ -47,7 +47,7 @@
         </div>
       </nav>
       <div class="header-actions">
-        <button class="cart-btn" type="button" data-cart-open aria-haspopup="dialog" aria-controls="cart-drawer">
+        <button class="cart-btn" type="button" data-cart-open aria-haspopup="dialog" aria-controls="cart-drawer" aria-label="Ouvrir le panier">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H3"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>
           <span class="cart-btn__label">Panier</span>
           <span class="cart-btn__count" data-cart-count hidden>0</span>
@@ -67,14 +67,22 @@
       </div>
       <div class="page-hero__inner">
         <p class="eyebrow">Boutique en ligne</p>
-        <h1 class="page-hero__title shop-hero__title">La boutique BOPOIL</h1>
-        <p class="shop-hero__lead">Les mêmes essentiels de toilettage que nous utilisons au salon, sélectionnés par nos toiletteuses. Commandez en ligne, réglez et récupérez au salon, au cœur de l'Outaouais.</p>
+        <h1 class="page-hero__title shop-hero__title">Le soin continue <br>à la maison.</h1>
+        <p class="shop-hero__lead">Brosses, soins et petites attentions pour votre compagnon. Retrouvez vos essentiels, avec les conseils de notre équipe à Gatineau.</p>
+        <a class="shop-hero__link" href="#produits">Explorer la boutique <span aria-hidden="true">↓</span></a>
       </div>
     </section>
 
-    <section class="section profile-primary-light-neutral">
+    <section class="section profile-primary-light-neutral shop-catalog" id="produits" aria-label="Nos produits">
       <div class="container">
-        <p class="form-status" data-order-status hidden></p>
+        <p class="form-status" data-order-status role="status" hidden></p>
+        <div class="shop-intro"><h2>Les essentiels du quotidien</h2><p>Cueillette au salon · 38 avenue Gatineau</p></div>
+        <div class="shop-notice" data-catalog-notice role="status">Chargement de la boutique…</div>
+        <noscript><p>Activez JavaScript pour utiliser le panier. Les produits ci-dessous sont un aperçu; contactez le salon pour connaître les disponibilités.</p></noscript>
+        <div class="shop-controls">
+          <label class="shop-search" for="shop-search"><span>Rechercher un produit</span><input id="shop-search" type="search" placeholder="Shampooing, brosse, gâterie…" autocomplete="off" data-shop-search></label>
+          <label class="shop-sort" for="shop-sort"><span>Trier par</span><select id="shop-sort" data-shop-sort><option value="selection">Notre sélection</option><option value="price-asc">Prix croissant</option><option value="price-desc">Prix décroissant</option><option value="name">Nom : A à Z</option></select></label>
+        </div>
         <div class="shop-toolbar">
           <ul class="shop-filters" data-shop-filters role="group" aria-label="Filtrer par catégorie">
             <li><button class="shop-filter" type="button" data-filter="tous" aria-pressed="true">Tous</button></li>
@@ -87,7 +95,8 @@
           <p class="shop-count" data-shop-count aria-live="polite">10 produits</p>
         </div>
 
-        <div class="shop-grid" data-shop-grid>
+        <div class="shop-empty" data-shop-empty hidden><h3>Aucun produit trouvé</h3><p>Essayez un autre mot ou explorez toutes les catégories.</p><button class="btn btn--filled btn--small" type="button" data-shop-reset>Voir tous les produits</button></div>
+        <div class="shop-grid" data-shop-grid aria-busy="true">
 
           <article class="product-card" data-product data-id="shampoing-doux" data-name="Shampooing doux hypoallergénique" data-price="2400" data-cat="soins" data-tint="#f3ecf1" data-ink="#b14f7e">
             <div class="product-card__media" style="--tint:#f3ecf1;--tint-ink:#b14f7e">
@@ -271,7 +280,7 @@
 
         </div>
 
-        <p class="form-note" style="margin-top:28px;max-width:60ch;">Les prix sont en dollars canadiens, taxes en sus. La commande en ligne réserve vos articles; le paiement et la cueillette se font au salon, au 38&nbsp;avenue Gatineau. <a href="contactez-nous.html">Une question sur un produit&nbsp;?</a></p>
+        <p class="form-note" style="margin-top:28px;max-width:60ch;">Les prix sont en dollars canadiens, avant taxes. Cueillette au 38&nbsp;avenue Gatineau. Attendez la confirmation du salon avant de vous déplacer. <a href="contactez-nous.html">Une question sur un produit&nbsp;?</a></p>
       </div>
     </section>
 
@@ -282,7 +291,7 @@
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h11v8H3z"/><path d="M14 10h4l3 3v2h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg>
             <div>
               <h3>Cueillette au salon</h3>
-              <p>Réservez en ligne et récupérez vos articles au 38&nbsp;avenue Gatineau, sans frais de livraison.</p>
+              <p>Récupérez vos achats au 38&nbsp;avenue Gatineau après confirmation du salon.</p>
             </div>
           </div>
           <div class="assurance">
@@ -306,7 +315,7 @@
 
   <div class="cart-overlay" data-cart-overlay></div>
   <aside class="cart-drawer" id="cart-drawer" data-cart-drawer role="dialog" aria-modal="true"
-         aria-label="Votre panier" aria-hidden="true">
+         aria-label="Votre panier" aria-hidden="true" inert>
     <div class="cart-drawer__head">
       <h2 class="cart-drawer__title">Votre panier</h2>
       <button class="cart-close" type="button" data-cart-close aria-label="Fermer le panier">
@@ -314,14 +323,14 @@
       </button>
     </div>
     <ul class="cart-drawer__items" data-cart-items></ul>
-    <p class="cart-confirm" data-cart-confirm hidden></p>
+    <p class="cart-confirm" data-cart-confirm role="status" hidden></p>
     <div class="cart-drawer__foot" data-cart-foot hidden>
       <dl class="cart-subtotal">
         <dt>Sous-total</dt>
         <dd data-cart-subtotal>0,00&nbsp;$</dd>
       </dl>
-      <p class="cart-drawer__note" data-cart-note>Taxes calculées à la cueillette. Le paiement se fait au salon.</p>
-      <button class="btn btn--filled cart-drawer__checkout" type="button" data-cart-checkout>Passer la commande</button>
+      <p class="cart-drawer__note" data-cart-note>Le paiement en ligne sera bientôt disponible.</p>
+      <button class="btn btn--filled cart-drawer__checkout" type="button" data-cart-checkout disabled>Paiement bientôt disponible</button>
       <button class="cart-drawer__continue" type="button" data-cart-close>Continuer mes achats</button>
     </div>
   </aside>
@@ -379,6 +388,7 @@
     Contactez-nous par texto
   </a>
 
+  <div class="shop-toast" data-shop-toast hidden><span data-shop-announcement role="status" aria-live="polite"></span><button type="button" data-cart-open>Voir le panier →</button></div>
   <script src="js/config.js"></script>
   <script src="js/main.js" defer></script>
   <script src="js/boutique.js" defer></script>
