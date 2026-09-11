@@ -3,6 +3,10 @@ import { sweepExpiredBookingHolds } from "../../../../db/booking-holds";
 import { sweepDueMessages } from "../../../../lib/message-delivery";
 import { sweepWaitlistOpenings } from "../../../../lib/waitlist-outreach";
 
+// Square reconciliation and message sweeps page through provider APIs; give them
+// the full function budget instead of the platform's short default.
+export const maxDuration = 60;
+
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
   return Boolean(secret && request.headers.get("authorization") === `Bearer ${secret}`);

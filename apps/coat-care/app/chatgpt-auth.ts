@@ -84,7 +84,10 @@ export async function createSalonLoginChallenge(input: { email: string; returnTo
   const rawToken = token();
   const id = crypto.randomUUID();
   const expiresAt = new Date(now.getTime() + LOGIN_TTL_MS).toISOString();
-  await db.insert(salonAuthChallenges).values({ id, email, tokenHash: await hash(rawToken), sourceHash, expiresAt });
+  // createdAt is written explicitly in ISO form so the throttle window above
+  // (also ISO) compares like with like; the column's database default uses a
+  // space-separated format that sorts before every ISO string.
+  await db.insert(salonAuthChallenges).values({ id, email, tokenHash: await hash(rawToken), sourceHash, expiresAt, createdAt: now.toISOString() });
   const config = deliveryConfig();
   if (!config.email.configured) throw new Error("Salon sign-in email is not configured.");
   const link = `${input.origin}/salon/access/${encodeURIComponent(rawToken)}?return_to=${encodeURIComponent(safeRelativeReturnPath(input.returnTo))}`;

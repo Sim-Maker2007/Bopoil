@@ -23,4 +23,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: npm audit --omit=dev
+      # Only high and critical advisories block a merge; low and moderate ones
+      # in transitive dependencies are reviewed on their own schedule.
+      - run: npm audit --omit=dev --audit-level=high

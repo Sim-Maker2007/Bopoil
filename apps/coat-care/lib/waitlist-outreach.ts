@@ -3,7 +3,7 @@ import type { getDb } from "../db";
 import { loadAvailability } from "../db/availability";
 import { issuePortalEmailSession } from "../db/client-portal";
 import { queueClientTemplateMessage } from "../db/communications";
-import { auditEvents, clients, locations, messages, organizations, pets, services, waitlistEntries } from "../db/schema";
+import { auditEvents, clients, locations, messages, organizations, pets, salonSettings, services, waitlistEntries } from "../db/schema";
 import { dateKeyInZone } from "./time-zone";
 import { matchesWaitlistTime, waitlistDates } from "./waitlist";
 import { portalAccessUrl, safePublicOrigin } from "./portal-links";
@@ -42,6 +42,17 @@ async function notifyEntry(db: Db, entry: WaitingEntry, publicOrigin: string) {
   const today = dateKeyInZone(new Date(), entry.timezone);
   const from = entry.preferredFrom < today ? today : entry.preferredFrom;
   if (from > entry.preferredTo) return false;
+  // While online booking is paused (Square owns the calendar) the availability
+  // engine never returns an opening, so skip its seven-query load entirely.
+  const [settings] = await db.select({ allowOnlineBooking: salonSettings.allowOnlineBooking }).from(salonSettings).where(eq(salonSettings.locationId, entry.locationId)).limit(1);
+  if (settings && !settings.allowOnlineBooking) {
+    await db.update(waitlistEntries).set({ updatedAt: new Date().toISOString() }).where(and(
+      eq(waitlistEntries.id, entry.id),
+      eq(waitlistEntries.status, "waiting"),
+      eq(waitlistEntries.updatedAt, entry.updatedAt),
+    ));
+    return false;
+  }
   const availability = await loadAvailability(entry.serviceId, waitlistDates(from, entry.preferredTo), {
     organizationId: entry.organizationId,
     locationId: entry.locationId,

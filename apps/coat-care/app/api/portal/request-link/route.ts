@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const emailHash = await sha256(`${organization.id}:${email}`); const source = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"; const sourceHash = await sha256(`${organization.id}:${source}`);
     const requestedAt = new Date().toISOString();
     const cutoff = new Date(Date.now() - 10 * 60_000).toISOString();
-    const recentEnough = sql<boolean>`datetime(${portalAccessRequests.requestedAt}) >= datetime(${cutoff})`;
+    const recentEnough = sql<boolean>`(${portalAccessRequests.requestedAt})::timestamp >= (${cutoff})::timestamp`;
     const [recentEmail, recentSource] = await Promise.all([db.select({ id: portalAccessRequests.id }).from(portalAccessRequests).where(and(eq(portalAccessRequests.organizationId, organization.id), eq(portalAccessRequests.emailHash, emailHash), recentEnough)).limit(3), db.select({ id: portalAccessRequests.id }).from(portalAccessRequests).where(and(eq(portalAccessRequests.organizationId, organization.id), eq(portalAccessRequests.sourceHash, sourceHash), recentEnough)).limit(10)]);
     if (recentEmail.length >= 3 || recentSource.length >= 10) return Response.json(response);
     await db.insert(portalAccessRequests).values({ id: crypto.randomUUID(), organizationId: organization.id, emailHash, sourceHash, requestedAt });

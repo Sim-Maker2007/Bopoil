@@ -57,11 +57,18 @@ export async function squareRequest<T>(path: string, options: {
   };
   if (options.body) headers["content-type"] = "application/json";
   if (config.apiVersion) headers["Square-Version"] = config.apiVersion;
-  const response = await (options.fetcher || fetch)(url, {
+  const fetcher = options.fetcher || fetch;
+  const init: RequestInit = {
     method: options.method || (options.body ? "POST" : "GET"),
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  };
+  let response = await fetcher(url, init);
+  for (let attempt = 0; attempt < 2 && (response.status === 429 || response.status >= 500); attempt += 1) {
+    const retryAfter = Number(response.headers.get("retry-after") || 0);
+    await new Promise((resolve) => setTimeout(resolve, Math.min(5_000, retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt)));
+    response = await fetcher(url, init);
+  }
   const body = await response.json() as T & { errors?: Array<{ detail?: string }> };
   if (!response.ok) throw new Error(body.errors?.[0]?.detail || `Square request failed (${response.status}).`);
   return body;

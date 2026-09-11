@@ -1,5 +1,5 @@
 import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
-import { getDb } from "../../../../db";
+import { getDb, databaseErrorMessage } from "../../../../db";
 import { auditEvents, employeePortalCredentials, employeePortalInvitations, employeePortalSessions, staff } from "../../../../db/schema";
 import { clearEmployeeSession, createEmployeeSession, employeeCode, hashPin, sha256, validPin, verifyPin } from "../../../../lib/employee-auth";
 
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
           db.update(employeePortalSessions).set({ revokedAt: now }).where(and(eq(employeePortalSessions.organizationId, invitation.organizationId), eq(employeePortalSessions.staffId, person.id), isNull(employeePortalSessions.revokedAt))),
         ]);
       } catch (error) {
-        if (error instanceof Error && /constraint|null|unique/i.test(error.message)) throw new Error("This invitation is invalid or expired.");
+        if (error instanceof Error && /constraint|null|unique/i.test(databaseErrorMessage(error))) throw new Error("This invitation is invalid or expired.");
         throw error;
       }
       await createEmployeeSession(invitation.organizationId, person.id);

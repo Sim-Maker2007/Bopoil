@@ -25,7 +25,14 @@ body {
   --btn-outline: var(--primary-color);
 }
 
-img { max-width: 100%; display: block; }
+/* height:auto : les attributs width/height des <img> réservent l'espace avant
+   le chargement, mais la hauteur doit suivre la largeur réelle. */
+img { max-width: 100%; height: auto; display: block; }
+/* <picture> n'est qu'un conteneur de sources : il ne doit pas créer de boîte,
+   sinon les règles « .x img » qui remplissent leur parent cessent d'agir. */
+picture { display: contents; }
+/* Champ piège anti-robots des formulaires (voir tools/build.py). */
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 a { color: inherit; }
 
@@ -382,17 +389,29 @@ body[data-nav-open="true"] { overflow: hidden; }
   display: flex;
   gap: 10px;
 }
+/* Le point visible reste à 10 px, mais la zone cliquable fait 24 px : le
+   minimum recommandé pour un doigt (Lighthouse « target-size »). */
 .hero-dot {
-  width: 10px;
-  height: 10px;
+  position: relative;
+  width: 24px;
+  height: 24px;
   padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.hero-dot::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
   border-radius: 50%;
   border: 1px solid var(--pure-white);
   background: transparent;
-  cursor: pointer;
   transition: background .18s ease;
 }
-.hero-dot[aria-selected="true"] { background: var(--pure-white); }
+.hero-dot[aria-selected="true"]::before { background: var(--pure-white); }
+.hero-dot:focus-visible { outline: 2px solid var(--pure-white); outline-offset: 2px; }
 
 @media (max-width: 1023px) {
   .hero { min-height: 520px; }
@@ -638,15 +657,46 @@ body[data-nav-open="true"] { overflow: hidden; }
 .instagram__grid a { display: block; overflow: hidden; border-radius: var(--image-border-radius); }
 .instagram__grid img {
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   object-fit: cover;
   transition: transform .4s ease;
 }
 .instagram__grid a:hover img { transform: scale(1.04); }
 
+/* Diaporama « Notre salon en images »
+   ------------------------------------
+   Le JS répartit les diapos dans trois cases (deux sur mobile). Chaque
+   case empile ses diapos, [data-active] est visible, les autres
+   disparaissent en fondu. Tant que le JS n'a pas marqué [data-ready], on
+   tombe sur la version dégradée : les trois premières photos affichées
+   en grille normale, comme un rendu statique propre. */
+.instagram__slot {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--image-border-radius);
+  aspect-ratio: 1;
+}
+.instagram__slot .instagram__slide {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .7s ease;
+}
+.instagram__slot .instagram__slide[data-active] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.instagram__grid[data-slideshow]:not([data-ready]) .instagram__slide { aspect-ratio: 1; }
+.instagram__grid[data-slideshow]:not([data-ready]) .instagram__slide:nth-child(n+4) { display: none; }
+
 @media (max-width: 767px) {
   .instagram__grid { grid-template-columns: repeat(2, 1fr); }
-  .instagram__grid a:last-child { display: none; }
+  .instagram__grid[data-slideshow]:not([data-ready]) .instagram__slide:nth-child(n+3) {
+    display: none;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -1123,31 +1173,6 @@ select.field { appearance: none; background-image: none; height: 48px; }
   flex: none;
 }
 
-.footer-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  list-style: none;
-  margin: 28px 0 0;
-}
-.footer-nav a { font-size: var(--font-step--1); text-decoration: none; opacity: .85; }
-.footer-nav a:hover { opacity: 1; text-decoration: underline; }
-
-.payments { display: flex; flex-wrap: wrap; gap: 8px; max-width: 260px; justify-content: flex-end; }
-.payments span {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 3px;
-  background: var(--pure-white);
-  color: var(--color-gray-80);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .3px;
-  text-transform: uppercase;
-}
-
 .site-footer__meta {
   display: flex;
   flex-wrap: wrap;
@@ -1161,7 +1186,6 @@ select.field { appearance: none; background-image: none; height: 48px; }
 
 @media (max-width: 767px) {
   .site-footer__body { grid-template-columns: 1fr; }
-  .payments { justify-content: flex-start; max-width: none; }
   .newsletter__row { max-width: none; }
 }
 
@@ -1257,3 +1281,11 @@ select.field {
   border-radius: var(--image-border-radius);
 }
 @media (min-width: 768px) { .instagram__frame { min-height: 380px; } }
+
+/* Mention de consentement sous l'infolettre (exigence anti-pourriel). */
+.newsletter__note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: .72;
+}

@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
-import { getDb } from "../db";
+import { getDb, databaseErrorMessage } from "../db";
 import { ensurePilotData, PILOT } from "../db/pilot";
 import { locations, organizations, staff, staffInvitations, staffLocations } from "../db/schema";
 import { getChatGPTUser } from "./chatgpt-auth";
@@ -30,7 +30,7 @@ async function acceptInvitations(email: string, displayName: string) {
       select id from staff
       where organization_id = ${invitation.organizationId}
         and email = ${email}
-        and active = 1
+        and active
       limit 1
     )`;
     try {
@@ -51,7 +51,7 @@ async function acceptInvitations(email: string, displayName: string) {
           .where(and(eq(staffInvitations.id, invitation.id), eq(staffInvitations.email, email), eq(staffInvitations.status, "pending"), gt(staffInvitations.expiresAt, now))),
       ]);
     } catch (error) {
-      if (error instanceof Error && /constraint|null|unique/i.test(error.message)) {
+      if (error instanceof Error && /constraint|null|unique/i.test(databaseErrorMessage(error))) {
         const [current] = await db.select({ status: staffInvitations.status }).from(staffInvitations).where(eq(staffInvitations.id, invitation.id)).limit(1);
         if (current?.status !== "pending") continue;
       }

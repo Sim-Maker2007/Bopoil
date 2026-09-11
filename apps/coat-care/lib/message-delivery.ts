@@ -20,8 +20,10 @@ export function deliveryConfig(values: RuntimeValues = runtimeValues()): Deliver
   };
 }
 
+// Only what the public booking page branches on. Provider names and webhook
+// state stay private to the salon workspace.
 export function publicDeliveryConfig(config = deliveryConfig()) {
-  return { email: { configured: config.email.configured, webhookConfigured: config.email.webhookConfigured, provider: "Resend" }, sms: { configured: config.sms.configured, webhookConfigured: config.sms.webhookConfigured, provider: "Twilio" } };
+  return { email: { configured: config.email.configured }, sms: { configured: config.sms.configured } };
 }
 
 async function responseError(response: Response) { const text = await response.text(); try { const body = JSON.parse(text) as { message?: string; error?: { message?: string } }; return body.message || body.error?.message || `${response.status} ${response.statusText}`; } catch { return text.slice(0, 300) || `${response.status} ${response.statusText}`; } }

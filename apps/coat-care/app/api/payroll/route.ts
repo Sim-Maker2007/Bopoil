@@ -4,6 +4,7 @@ import { requirePayrollAccess, requirePayrollManagement, requireSalonAccess, sal
 import { calculateGross, calculateRetailCommission, CompensationSnapshot, mergeReportedTips, PAYROLL_DISCLAIMER, splitCommissionRevenue, splitWeeklyMinutes } from "../../../lib/payroll";
 import { zonedDayBounds } from "../../../lib/time-zone";
 
+import { databaseErrorMessage } from "../../../db";
 function date(value: unknown, name: string) {
   const result = String(value || "");
   const parsed = new Date(`${result}T12:00:00.000Z`);
@@ -36,8 +37,20 @@ type PayrollInputSnapshot = {
 };
 
 function snapshotComponent(rows: SnapshotValue[][]): SnapshotComponent {
-  const sorted = [...rows].sort((left, right) => String(left[0]).localeCompare(String(right[0])));
+  // Tri par unités de code, pas localeCompare : le SQL de garde reproduit cet
+  // ordre avec COLLATE "C", qui ne dépend pas de la locale du serveur Postgres.
+  const sorted = [...rows].sort((left, right) => {
+    const a = String(left[0]), b = String(right[0]);
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
   return { rows: sorted, signature: sorted.map((row) => JSON.stringify(row)).join("|") };
+}
+
+// Reconstruit en SQL le JSON.stringify(row) de snapshotComponent, octet pour
+// octet : to_json() applique les mêmes échappements JSON que JavaScript et
+// coalesce(..., 'null') reproduit la sérialisation des valeurs null.
+function jsonRowSql(fields: string[]) {
+  return `('[' || ${fields.map((field) => `coalesce(to_json(${field})::text, 'null')`).join(" || ',' || ")} || ']')`;
 }
 
 async function sha256(value: string) {
@@ -310,28 +323,28 @@ function payrollInputGuardSql(input: {
   return sql<string>`(
     with expected as (
       select
-        ${input.organizationId} as organization_id,
-        ${input.locationId} as location_id,
-        ${input.startsOn} as starts_on,
-        ${input.endsOn} as ends_on,
-        ${input.bounds.start} as bounds_start,
-        ${input.bounds.end} as bounds_end,
-        ${input.locationName} as location_name,
-        ${input.allowLegacyLocationName ? 1 : 0} as allow_legacy_location_name,
-        ${input.inputSnapshotJson} as snapshot_json,
-        ${input.inputSnapshotHash} as snapshot_hash,
-        ${input.expectedPeriod?.id || ""} as expected_period_id,
-        ${input.expectedPeriod?.updatedAt || ""} as expected_period_updated_at,
-        ${input.expectedPeriod?.requireStoredSnapshot ? 1 : 0} as require_stored_snapshot
+        ${input.organizationId}::text as organization_id,
+        ${input.locationId}::text as location_id,
+        ${input.startsOn}::text as starts_on,
+        ${input.endsOn}::text as ends_on,
+        ${input.bounds.start}::text as bounds_start,
+        ${input.bounds.end}::text as bounds_end,
+        ${input.locationName}::text as location_name,
+        ${input.allowLegacyLocationName ? 1 : 0}::int as allow_legacy_location_name,
+        ${input.inputSnapshotJson}::text as snapshot_json,
+        ${input.inputSnapshotHash}::text as snapshot_hash,
+        ${input.expectedPeriod?.id || ""}::text as expected_period_id,
+        ${input.expectedPeriod?.updatedAt || ""}::text as expected_period_updated_at,
+        ${input.expectedPeriod?.requireStoredSnapshot ? 1 : 0}::int as require_stored_snapshot
     )
     select payroll_location.organization_id
     from locations as payroll_location
     cross join expected
     where payroll_location.id = expected.location_id
       and payroll_location.organization_id = expected.organization_id
-      and payroll_location.active = 1
-      and json_array(payroll_location.id, payroll_location.name, payroll_location.currency, payroll_location.timezone)
-        = json_extract(expected.snapshot_json, '$.location.signature')
+      and payroll_location.active
+      and ${sql.raw(jsonRowSql(["payroll_location.id", "payroll_location.name", "payroll_location.currency", "payroll_location.timezone"]))}
+        = (expected.snapshot_json::json #>> '{location,signature}')
       and (
         expected.allow_legacy_location_name = 0
         or (
@@ -402,57 +415,58 @@ function payrollInputGuardSql(input: {
           and pending_shift.work_date <= expected.ends_on
       )
       and coalesce((
-        select group_concat(team_row, '|')
+        select string_agg(team_row, '|' order by team_sort collate "C")
         from (
-          select json_array(team_assignment.id, team_staff.id, team_staff.display_name) as team_row
+          select ${sql.raw(jsonRowSql(["team_assignment.id", "team_staff.id", "team_staff.display_name"]))} as team_row,
+                 team_assignment.id as team_sort
           from staff_locations as team_assignment
           inner join staff as team_staff on team_staff.id = team_assignment.staff_id
           where team_assignment.organization_id = expected.organization_id
             and team_assignment.location_id = expected.location_id
-            and team_assignment.active = 1
+            and team_assignment.active
             and team_staff.organization_id = expected.organization_id
-            and team_staff.active = 1
-          order by team_assignment.id
-        )
-      ), '') = json_extract(expected.snapshot_json, '$.team.signature')
+            and team_staff.active
+        ) as team_rows
+      ), '') = (expected.snapshot_json::json #>> '{team,signature}')
       and coalesce((
-        select group_concat(profile_row, '|')
+        select string_agg(profile_row, '|' order by profile_sort collate "C")
         from (
-          select json_array(
-            profile.id,
-            profile.staff_id,
-            profile.worker_class,
-            profile.pay_type,
-            profile.hourly_rate_cents,
-            profile.annual_salary_cents,
-            profile.overtime_eligible,
-            profile.weekly_overtime_minutes,
-            profile.overtime_multiplier_bps,
-            profile.service_commission_bps,
-            profile.retail_commission_bps,
-            profile.currency,
-            profile.effective_from
-          ) as profile_row
+          select ${sql.raw(jsonRowSql([
+            "profile.id",
+            "profile.staff_id",
+            "profile.worker_class",
+            "profile.pay_type",
+            "profile.hourly_rate_cents",
+            "profile.annual_salary_cents",
+            "case when profile.overtime_eligible then 1 else 0 end",
+            "profile.weekly_overtime_minutes",
+            "profile.overtime_multiplier_bps",
+            "profile.service_commission_bps",
+            "profile.retail_commission_bps",
+            "profile.currency",
+            "profile.effective_from",
+          ]))} as profile_row,
+                 profile.id as profile_sort
           from compensation_profiles as profile
           where profile.organization_id = expected.organization_id
             and profile.location_id = expected.location_id
             and profile.effective_from <= expected.ends_on
-          order by profile.id
-        )
-      ), '') = json_extract(expected.snapshot_json, '$.compensationProfiles.signature')
+        ) as profile_rows
+      ), '') = (expected.snapshot_json::json #>> '{compensationProfiles,signature}')
       and coalesce((
-        select group_concat(work_row, '|')
+        select string_agg(work_row, '|' order by work_sort collate "C")
         from (
-          select json_array(
-            approved_entry.id,
-            approved_entry.staff_id,
-            approved_entry.updated_at,
-            coalesce(latest_adjustment.id, ''),
-            coalesce(latest_adjustment.created_at, ''),
-            coalesce(latest_adjustment.clock_in, approved_entry.clock_in),
-            coalesce(latest_adjustment.clock_out, approved_entry.clock_out, ''),
-            coalesce(latest_adjustment.break_minutes, approved_entry.break_minutes)
-          ) as work_row
+          select ${sql.raw(jsonRowSql([
+            "approved_entry.id",
+            "approved_entry.staff_id",
+            "approved_entry.updated_at",
+            "coalesce(latest_adjustment.id, '')",
+            "coalesce(latest_adjustment.created_at, '')",
+            "coalesce(latest_adjustment.clock_in, approved_entry.clock_in)",
+            "coalesce(latest_adjustment.clock_out, approved_entry.clock_out, '')",
+            "coalesce(latest_adjustment.break_minutes, approved_entry.break_minutes)",
+          ]))} as work_row,
+                 approved_entry.id as work_sort
           from time_entries as approved_entry
           left join time_entry_adjustments as latest_adjustment
             on latest_adjustment.id = (
@@ -469,25 +483,25 @@ function payrollInputGuardSql(input: {
             and approved_entry.status = 'approved'
             and coalesce(latest_adjustment.clock_in, approved_entry.clock_in) >= expected.bounds_start
             and coalesce(latest_adjustment.clock_in, approved_entry.clock_in) < expected.bounds_end
-          order by approved_entry.id
-        )
-      ), '') = json_extract(expected.snapshot_json, '$.approvedTime.signature')
+        ) as work_rows
+      ), '') = (expected.snapshot_json::json #>> '{approvedTime,signature}')
       and coalesce((
-        select group_concat(tip_row, '|')
+        select string_agg(tip_row, '|' order by tip_sort collate "C")
         from (
-          select json_array(
-            approved_shift.id,
-            approved_shift.week_id,
-            approved_shift.staff_id,
-            approved_shift.work_date,
-            approved_shift.start_time,
-            approved_shift.end_time,
-            approved_shift.tips_cents,
-            approved_shift.updated_at,
-            approved_week.revision,
-            approved_week.updated_at,
-            coalesce(approved_shift.location_id, '')
-          ) as tip_row
+          select ${sql.raw(jsonRowSql([
+            "approved_shift.id",
+            "approved_shift.week_id",
+            "approved_shift.staff_id",
+            "approved_shift.work_date",
+            "approved_shift.start_time",
+            "approved_shift.end_time",
+            "approved_shift.tips_cents",
+            "approved_shift.updated_at",
+            "approved_week.revision",
+            "approved_week.updated_at",
+            "coalesce(approved_shift.location_id, '')",
+          ]))} as tip_row,
+                 approved_shift.id as tip_sort
           from timesheet_shifts as approved_shift
           inner join timesheet_weeks as approved_week
             on approved_week.id = approved_shift.week_id
@@ -504,45 +518,45 @@ function payrollInputGuardSql(input: {
             )
             and approved_shift.work_date >= expected.starts_on
             and approved_shift.work_date <= expected.ends_on
-          order by approved_shift.id
-        )
-      ), '') = json_extract(expected.snapshot_json, '$.approvedReportedTips.signature')
+        ) as tip_rows
+      ), '') = (expected.snapshot_json::json #>> '{approvedReportedTips,signature}')
       and coalesce((
-        select group_concat(payment_row, '|')
+        select string_agg(payment_row, '|' order by payment_sort collate "C")
         from (
-          select json_array(
-            pay_event.id,
-            pay_event.invoice_id,
-            pay_event.appointment_id,
-            pay_event.kind,
-            pay_event.method,
-            pay_event.amount_cents,
-            pay_event.tax_amount_cents,
-            pay_event.tip_amount_cents,
-            pay_event.status,
-            coalesce(pay_event.parent_payment_id, ''),
-            pay_event.occurred_at
-          ) as payment_row
+          select ${sql.raw(jsonRowSql([
+            "pay_event.id",
+            "pay_event.invoice_id",
+            "pay_event.appointment_id",
+            "pay_event.kind",
+            "pay_event.method",
+            "pay_event.amount_cents",
+            "pay_event.tax_amount_cents",
+            "pay_event.tip_amount_cents",
+            "pay_event.status",
+            "coalesce(pay_event.parent_payment_id, '')",
+            "pay_event.occurred_at",
+          ]))} as payment_row,
+                 pay_event.id as payment_sort
           from payment_events as pay_event
           where pay_event.organization_id = expected.organization_id
             and pay_event.location_id = expected.location_id
             and pay_event.status = 'succeeded'
             and pay_event.occurred_at >= expected.bounds_start
             and pay_event.occurred_at < expected.bounds_end
-          order by pay_event.id
-        )
-      ), '') = json_extract(expected.snapshot_json, '$.payments.signature')
+        ) as payment_rows
+      ), '') = (expected.snapshot_json::json #>> '{payments,signature}')
       and coalesce((
-        select group_concat(line_row, '|')
+        select string_agg(line_row, '|' order by line_sort collate "C")
         from (
-          select json_array(
-            invoice_line.id,
-            invoice_line.invoice_id,
-            invoice_line.kind,
-            invoice_line.quantity,
-            invoice_line.unit_price_cents,
-            invoice_line.total_cents
-          ) as line_row
+          select ${sql.raw(jsonRowSql([
+            "invoice_line.id",
+            "invoice_line.invoice_id",
+            "invoice_line.kind",
+            "invoice_line.quantity",
+            "invoice_line.unit_price_cents",
+            "invoice_line.total_cents",
+          ]))} as line_row,
+                 invoice_line.id as line_sort
           from invoice_line_items as invoice_line
           where invoice_line.organization_id = expected.organization_id
             and exists (
@@ -555,13 +569,13 @@ function payrollInputGuardSql(input: {
                 and line_payment.occurred_at < expected.bounds_end
                 and line_payment.invoice_id = invoice_line.invoice_id
             )
-          order by invoice_line.id
-        )
-      ), '') = json_extract(expected.snapshot_json, '$.invoiceLines.signature')
+        ) as line_rows
+      ), '') = (expected.snapshot_json::json #>> '{invoiceLines,signature}')
       and coalesce((
-        select group_concat(assignment_row, '|')
+        select string_agg(assignment_row, '|' order by assignment_sort collate "C")
         from (
-          select json_array(payroll_appointment.id, coalesce(payroll_appointment.staff_id, '')) as assignment_row
+          select ${sql.raw(jsonRowSql(["payroll_appointment.id", "coalesce(payroll_appointment.staff_id, '')"]))} as assignment_row,
+                 payroll_appointment.id as assignment_sort
           from appointments as payroll_appointment
           where payroll_appointment.organization_id = expected.organization_id
             and payroll_appointment.location_id = expected.location_id
@@ -575,9 +589,8 @@ function payrollInputGuardSql(input: {
                 and appointment_payment.occurred_at < expected.bounds_end
                 and appointment_payment.appointment_id = payroll_appointment.id
             )
-          order by payroll_appointment.id
-        )
-      ), '') = json_extract(expected.snapshot_json, '$.appointmentAssignments.signature')
+        ) as assignment_rows
+      ), '') = (expected.snapshot_json::json #>> '{appointmentAssignments,signature}')
       and (
         expected.expected_period_id = ''
         or exists (
@@ -764,7 +777,7 @@ export async function POST(request: Request) {
         period = results[0][0];
       }
     } catch (error) {
-      if (error instanceof Error && /constraint|null|unique/i.test(error.message)) throw new SalonAccessError("Payroll inputs changed or the draft was updated elsewhere. Refresh and rebuild payroll.", 409);
+      if (error instanceof Error && /constraint|null|unique/i.test(databaseErrorMessage(error))) throw new SalonAccessError("Payroll inputs changed or the draft was updated elsewhere. Refresh and rebuild payroll.", 409);
       throw error;
     }
     if (!period) throw new SalonAccessError("Payroll inputs changed or the draft was updated elsewhere. Refresh and rebuild payroll.", 409);
@@ -810,7 +823,7 @@ export async function PATCH(request: Request) {
         ]);
         updated = results[1][0];
       } catch (error) {
-        if (error instanceof Error && /constraint|null|unique/i.test(error.message)) throw new SalonAccessError("Only draft or reopened payroll can be approved.", 409);
+        if (error instanceof Error && /constraint|null|unique/i.test(databaseErrorMessage(error))) throw new SalonAccessError("Only draft or reopened payroll can be approved.", 409);
         throw error;
       }
       if (!updated) throw new SalonAccessError("Only draft or reopened payroll can be approved.", 409);
@@ -842,7 +855,7 @@ export async function PATCH(request: Request) {
         ]);
         updated = results[1][0];
       } catch (error) {
-        if (error instanceof Error && /constraint|null|unique/i.test(error.message)) throw new SalonAccessError("Only approved or exported payroll can be reopened.", 409);
+        if (error instanceof Error && /constraint|null|unique/i.test(databaseErrorMessage(error))) throw new SalonAccessError("Only approved or exported payroll can be reopened.", 409);
         throw error;
       }
       if (!updated) throw new SalonAccessError("Only approved or exported payroll can be reopened.", 409);

@@ -45,8 +45,8 @@ test("profile and gallery photos are tenant-scoped and explicitly client-visible
     source("../app/api/portal/[token]/profile-photo/route.ts"),
     source("../app/portal/[token]/portal-experience.tsx"),
   ]);
-  assert.match(schema, /clientMediaAssets = sqliteTable\("client_media_assets"/);
-  assert.match(schema, /clientVisible: integer\("client_visible"/);
+  assert.match(schema, /clientMediaAssets = pgTable\("client_media_assets"/);
+  assert.match(schema, /clientVisible: boolean\("client_visible"/);
   assert.match(adminUpload, /eq\(clients\.organizationId, membership\.organizationId\)/);
   assert.match(adminUpload, /clientVisible/);
   assert.match(portalPayload, /eq\(clientMediaAssets\.clientVisible, true\)/);

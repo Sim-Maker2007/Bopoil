@@ -17,8 +17,12 @@ npm run db:migrate
 npm run dev
 ```
 
-The Vercel project needs a Turso Cloud database (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`) and a private Vercel Blob store (`BLOB_READ_WRITE_TOKEN`). Provider credentials such as Square and Resend belong in Vercel environment variables, never in the repository.
+The Vercel project needs a Supabase Postgres database (`DATABASE_URL`, using the pooled Supavisor connection string) and a private Vercel Blob store (`BLOB_READ_WRITE_TOKEN`). Provider credentials such as Square and Resend belong in Vercel environment variables, never in the repository.
 
 Set `SALON_OWNER_EMAIL` to the owner’s sign-in address. On the first secure sign-in, that address receives the BOPOIL owner profile for the Gatineau location. Set the Square tenant slugs to `bopoil` and `gatineau`.
 
-The configured five-minute operations job and hourly Square reconciliation require a Vercel Pro project; Vercel Hobby projects only permit daily cron jobs.
+The configured 15-minute operations job and hourly Square reconciliation require a Vercel Pro project; Vercel Hobby projects only permit daily cron jobs.
+
+Database migrations are not applied by the Vercel build: after deploying a change that adds one under `apps/coat-care/drizzle/`, run `npm run db:migrate` with the production `DATABASE_URL`. Demo groomers and services are only seeded when `SEED_DEMO_DATA=true`, which belongs in a local `.env.local` and never in Vercel.
+
+The public website's contact form, newsletter sign-up and information form post to `/api/public/contact`, `/api/public/newsletter` and `/api/public/intake`; the contact form needs Resend configured to deliver, and every form falls back to the visitor's mail app when the CRM is unreachable.

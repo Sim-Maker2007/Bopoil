@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://www.bopoil.ca/</loc><priority>1.0</priority></url>
-  <url><loc>https://www.bopoil.ca/a-propos.html</loc><priority>0.8</priority></url>
-  <url><loc>https://www.bopoil.ca/nos-services.html</loc><priority>0.8</priority></url>
-  <url><loc>https://www.bopoil.ca/chiens.html</loc><priority>0.8</priority></url>
-  <url><loc>https://www.bopoil.ca/chats.html</loc><priority>0.8</priority></url>
-  <url><loc>https://www.bopoil.ca/petits-animaux.html</loc><priority>0.8</priority></url>
-  <url><loc>https://www.bopoil.ca/guide.html</loc><priority>0.8</priority></url>
-  <url><loc>https://www.bopoil.ca/politique.html</loc><priority>0.8</priority></url>
-  <url><loc>https://www.bopoil.ca/rendez-vous.html</loc><priority>0.8</priority></url>
-  <url><loc>https://www.bopoil.ca/contactez-nous.html</loc><priority>0.8</priority></url>
-  <url><loc>https://www.bopoil.ca/fiche-informations.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.bopoil.ca/</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/a-propos.html</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/nos-services.html</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/chiens.html</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/chats.html</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/petits-animaux.html</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/guide.html</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/politique.html</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/rendez-vous.html</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/contactez-nous.html</loc><lastmod>2026-09-01</lastmod></url>
+  <url><loc>https://www.bopoil.ca/fiche-informations.html</loc><lastmod>2026-09-01</lastmod></url>
 </urlset>

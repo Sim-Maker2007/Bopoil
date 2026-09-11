@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
+import type { DbBatchItem } from "../../../db";
 import { requireSalonAccess, requireSalonManager, requireSchedulingAccess, requireWorkspacePermission, salonApiError, SalonAccessError } from "../../salon-access";
 import { appointmentChangeClaims, appointmentReservations, appointments, auditEvents, clients, locations, onlinePaymentSessions, paymentProviderAccounts, pets, services } from "../../../db/schema";
 import { canTransitionAppointment } from "../../../lib/appointment-workflow";
@@ -11,6 +11,7 @@ import { dateKeyInZone } from "../../../lib/time-zone";
 import { portalAccessUrl } from "../../../lib/portal-links";
 import { squareManagedAppointmentIds } from "../../../lib/square-sync";
 
+import { databaseErrorMessage } from "../../../db";
 type StaffBookingPayload = {
   clientName?: string; email?: string; phone?: string; petName?: string; breed?: string;
   clientId?: string; petId?: string; serviceId?: string; staffId?: string; startsAt?: string;
@@ -67,17 +68,17 @@ export async function GET(request: Request) {
       }).from(clients).where(and(
         eq(clients.organizationId, membership.organizationId),
         or(
-          sql`instr(lower(${clients.fullName}), ${needle}) > 0`,
-          sql`instr(lower(${clients.email}), ${needle}) > 0`,
-          sql`instr(lower(${clients.phone}), ${needle}) > 0`,
-          phoneNeedle.length >= 3 ? sql`instr(replace(replace(replace(replace(${clients.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), ${phoneNeedle}) > 0` : undefined,
+          sql`strpos(lower(${clients.fullName}), ${needle}) > 0`,
+          sql`strpos(lower(${clients.email}), ${needle}) > 0`,
+          sql`strpos(lower(${clients.phone}), ${needle}) > 0`,
+          phoneNeedle.length >= 3 ? sql`strpos(replace(replace(replace(replace(${clients.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), ${phoneNeedle}) > 0` : undefined,
           sql`exists (
             select 1 from ${pets}
             where ${pets.clientId} = ${clients.id}
               and ${pets.organizationId} = ${membership.organizationId}
               and (
-                instr(lower(${pets.name}), ${needle}) > 0
-                or instr(lower(${pets.breed}), ${needle}) > 0
+                strpos(lower(${pets.name}), ${needle}) > 0
+                or strpos(lower(${pets.breed}), ${needle}) > 0
               )
           )`,
         ),
@@ -178,8 +179,8 @@ export async function POST(request: Request) {
     let clientId = requestedClientId;
     let petId = requestedPetId;
     let bookedPetName = petName;
-    let clientInsert: BatchItem<"sqlite"> | null = null;
-    let petInsert: BatchItem<"sqlite"> | null = null;
+    let clientInsert: DbBatchItem | null = null;
+    let petInsert: DbBatchItem | null = null;
     if (usingExistingProfile) {
       const [[ownedClient], [ownedPet]] = await Promise.all([
         db.select({ id: clients.id }).from(clients).where(and(eq(clients.id, requestedClientId), eq(clients.organizationId, membership.organizationId))).limit(1),
@@ -206,7 +207,7 @@ export async function POST(request: Request) {
         eq(clients.organizationId, membership.organizationId),
         or(
           eq(sql<string>`lower(${clients.email})`, email),
-          eq(sql<string>`substr(replace(replace(replace(replace(replace(replace(${clients.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''), -10)`, phoneDigits.slice(-10)),
+          eq(sql<string>`right(replace(replace(replace(replace(replace(replace(${clients.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''), 10)`, phoneDigits.slice(-10)),
         ),
       )).limit(1);
       if (exactClient) throw new SalonAccessError("That email or phone already belongs to a salon client. Choose Existing client and confirm the correct pet.", 409, "existing_client_selection_required");
@@ -251,13 +252,13 @@ export async function POST(request: Request) {
     });
     let appointment;
     try {
-      const prefix = [clientInsert, petInsert].filter((statement): statement is BatchItem<"sqlite"> => Boolean(statement));
+      const prefix = [clientInsert, petInsert].filter((statement): statement is DbBatchItem => Boolean(statement));
       const appointmentIndex = prefix.length;
-      const statements = [...prefix, appointmentInsert, ...reservationInsertStatements(db, reservationRows), auditInsert] as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
+      const statements = [...prefix, appointmentInsert, ...reservationInsertStatements(db, reservationRows), auditInsert] as unknown as [DbBatchItem, ...DbBatchItem[]];
       const results = await db.batch(statements);
       appointment = (results[appointmentIndex] as Array<typeof appointments.$inferSelect>)[0];
     } catch (error) {
-      if (error instanceof Error && /unique|constraint/i.test(error.message)) throw new SalonAccessError("That opening was just reserved. Choose another live time.", 409);
+      if (error instanceof Error && /unique|constraint/i.test(databaseErrorMessage(error))) throw new SalonAccessError("That opening was just reserved. Choose another live time.", 409);
       throw error;
     }
     if (!appointment) throw new SalonAccessError("The appointment changed before it could be saved. Try again.", 409);
@@ -388,7 +389,7 @@ export async function PATCH(request: Request) {
         ]);
         updated = results[2][0];
       } catch (error) {
-        if (error instanceof Error && /unique|constraint|null/i.test(error.message)) throw new SalonAccessError("That opening or appointment just changed. Refresh and try again.", 409);
+        if (error instanceof Error && /unique|constraint|null/i.test(databaseErrorMessage(error))) throw new SalonAccessError("That opening or appointment just changed. Refresh and try again.", 409);
         throw error;
       }
       if (!updated) throw new SalonAccessError("This appointment changed. Refresh and try again.", 409);
@@ -451,7 +452,7 @@ export async function PATCH(request: Request) {
           updated = results[1][0];
         }
       } catch (error) {
-        if (error instanceof Error && /constraint|null|unique/i.test(error.message)) throw new SalonAccessError("The deposit state changed. Refresh and try again.", 409);
+        if (error instanceof Error && /constraint|null|unique/i.test(databaseErrorMessage(error))) throw new SalonAccessError("The deposit state changed. Refresh and try again.", 409);
         throw error;
       }
       if (!updated) throw new SalonAccessError("The deposit state changed. Refresh and try again.", 409);
@@ -541,7 +542,7 @@ export async function PATCH(request: Request) {
         updated = results[1][0];
       }
     } catch (error) {
-      if (error instanceof Error && /constraint|null|unique/i.test(error.message)) throw new SalonAccessError("This appointment changed. Refresh and try again.", 409);
+      if (error instanceof Error && /constraint|null|unique/i.test(databaseErrorMessage(error))) throw new SalonAccessError("This appointment changed. Refresh and try again.", 409);
       throw error;
     }
     if (!updated) throw new SalonAccessError("This appointment changed. Refresh and try again.", 409);

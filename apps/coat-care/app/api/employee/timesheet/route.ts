@@ -2,6 +2,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { auditEvents, locations, organizations, staffLocations, timesheetShifts, timesheetWeeks } from "../../../../db/schema";
 import { requireEmployeeSession } from "../../../../lib/employee-auth";
 
+import { databaseErrorMessage } from "../../../../db";
 type ShiftInput = { id?: unknown; workDate?: unknown; locationId?: unknown; locationName?: unknown; startTime?: unknown; endTime?: unknown; tips?: unknown };
 type LocationOption = { id: string; name: string; label?: string };
 
@@ -122,7 +123,7 @@ export async function PUT(request: Request) {
         updated = results[2][0];
       }
     } catch (error) {
-      if (error instanceof Error && /constraint|null|unique/i.test(error.message)) throw new Error("This timesheet changed. Refresh and try again.");
+      if (error instanceof Error && /constraint|null|unique/i.test(databaseErrorMessage(error))) throw new Error("This timesheet changed. Refresh and try again.");
       throw error;
     }
     if (!updated) throw new Error("This timesheet changed. Refresh and try again.");
@@ -161,7 +162,7 @@ export async function POST(request: Request) {
       ]);
       updated = results[1][0];
     } catch (error) {
-      if (error instanceof Error && /constraint|null|unique/i.test(error.message)) throw new Error("This timesheet changed. Refresh and try again.");
+      if (error instanceof Error && /constraint|null|unique/i.test(databaseErrorMessage(error))) throw new Error("This timesheet changed. Refresh and try again.");
       throw error;
     }
     if (!updated) throw new Error("This timesheet changed. Refresh and try again.");

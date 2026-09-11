@@ -5,12 +5,13 @@ import { stripeRequest } from "../../../lib/stripe";
 import { queueAppointmentMessage } from "../../../db/communications";
 import { requireSalonAccess, requireSalonManager, requireWorkspacePermission, salonApiError, SalonAccessError } from "../../salon-access";
 
+import { databaseErrorMessage } from "../../../db";
 const methods = ["cash", "card_terminal", "e_transfer", "external"] as const;
 type Db = ReturnType<typeof import("../../../db").getDb>;
 type MutationType = "payment" | "refund" | "reconcile";
 
 function isConstraintError(error: unknown) {
-  return error instanceof Error && /unique|constraint/i.test(error.message);
+  return error instanceof Error && /unique|constraint/i.test(databaseErrorMessage(error));
 }
 
 async function appointmentSnapshot(db: Db, appointmentId: string, organizationId: string, locationId: string) {

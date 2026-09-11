@@ -8,6 +8,7 @@ import { portalAccessUrl } from "../../../../lib/portal-links";
 import { matchesWaitlistTime, waitlistDates } from "../../../../lib/waitlist";
 import { requireSalonAccess, requireWorkspacePermission, salonApiError, SalonAccessError } from "../../../salon-access";
 
+import { databaseErrorMessage } from "../../../../db";
 function clean(value: unknown, max = 200) { return String(value || "").trim().slice(0, max); }
 function requireWaitlistAccess(role: string) { if (!["owner", "manager", "receptionist"].includes(role)) throw new SalonAccessError("Waitlist access requires owner, manager, or receptionist access.", 403); }
 
@@ -78,7 +79,7 @@ export async function PATCH(request: Request) {
         db.update(waitlistEntries).set({ status: "booked", convertedAppointmentId: appointmentId, staffNotes, updatedAt: changedAt }).where(and(eq(waitlistEntries.id, entry.id), eq(waitlistEntries.updatedAt, entry.updatedAt))),
         db.insert(auditEvents).values({ id: crypto.randomUUID(), organizationId: membership.organizationId, actorType: "staff", actorId: membership.id, action: "waitlist.converted", entityType: "waitlist_entry", entityId: entry.id, detailsJson: JSON.stringify({ appointmentId, startsAt: slot.startsAt, staffId: assignedStaff.id }) }),
       ]);
-    } catch (error) { if (error instanceof Error && /unique|constraint|null/i.test(error.message)) throw new SalonAccessError("That opening or request just changed. Refresh and try again.", 409); throw error; }
+    } catch (error) { if (error instanceof Error && /unique|constraint|null/i.test(databaseErrorMessage(error))) throw new SalonAccessError("That opening or request just changed. Refresh and try again.", 409); throw error; }
     try {
       const portal = await issuePortalEmailSession(db, entry.clientId); const portalUrl = portalAccessUrl(process.env.DELIVERY_PUBLIC_URL || new URL(request.url).origin, portal.token);
       await queueBookingCommunications(db, appointmentId, slot.startsAt, "confirmed", { portal_url: portalUrl }, `waitlist-${entry.id}`);

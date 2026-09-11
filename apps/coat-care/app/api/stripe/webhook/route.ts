@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { appointmentReservations, appointments, auditEvents, invoiceMutationClaims, invoices, onlinePaymentSessions, organizationSubscriptions, paymentEvents, paymentProviderAccounts, providerWebhookEvents, salonSettings } from "../../../../db/schema";
-import { getDb } from "../../../../db";
+import { getDb, databaseErrorMessage } from "../../../../db";
 import { issuePortalEmailSession } from "../../../../db/client-portal";
 import { cancelPendingAppointmentMessages, queueAppointmentMessage, queueBookingCommunications } from "../../../../db/communications";
 import { invoiceStatus } from "../../../../lib/financial-ledger";
@@ -13,7 +13,7 @@ const date = (value: unknown) => typeof value === "number" && value > 0 ? new Da
 type Db = ReturnType<typeof getDb>;
 
 function isConstraintError(error: unknown) {
-  return error instanceof Error && /unique|constraint/i.test(error.message);
+  return error instanceof Error && /unique|constraint/i.test(databaseErrorMessage(error));
 }
 
 function mutationClaim(input: {

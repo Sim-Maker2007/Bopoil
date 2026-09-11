@@ -1,9 +1,10 @@
 import { and, asc, eq } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
+import type { DbBatchItem } from "../../../db";
 import { auditEvents, communicationTemplates, locationHours, locations, organizations, paymentProviderAccounts, salonSettings, services, staff, staffInvitations, staffLocations } from "../../../db/schema";
 import { stripeConfig } from "../../../lib/stripe";
 import { requireSalonAccess, requireSalonManager, requireSalonOwner, requireWorkspacePermission, salonApiError, SalonAccessError } from "../../salon-access";
 
+import { databaseErrorMessage } from "../../../db";
 const currencies = ["CAD", "USD"];
 const countries = ["CA", "US"];
 const timezones = ["America/Toronto", "America/Vancouver", "America/Edmonton", "America/Winnipeg", "America/Halifax", "America/St_Johns", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "America/Phoenix"];
@@ -100,7 +101,7 @@ export async function PATCH(request: Request) {
       });
       if (new Set(hourValues.map((day) => day.weekday)).size !== 7) throw new SalonAccessError("Provide each day of the week exactly once.", 400);
     }
-    const statements: [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]] = [
+    const statements: [DbBatchItem, ...DbBatchItem[]] = [
       db.insert(auditEvents).values({ id: crypto.randomUUID(), organizationId: membership.organizationId, actorType: "staff", actorId: membership.id, action: "salon.settings_updated", entityType: "location", entityId: membership.locationId, detailsJson: JSON.stringify({ organization: Boolean(organizationValues), location: Boolean(locationValues), settings: Boolean(settingsValues), hours: Boolean(hourValues) }) }),
     ];
     if (organizationValues) statements.push(db.update(organizations).set(organizationValues).where(eq(organizations.id, membership.organizationId)));
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
       ]) : [[], []];
       const serviceClones = source.map((service) => ({ id: crypto.randomUUID(), organizationId: membership.organizationId, locationId: id, name: service.name, description: service.description, durationMinutes: service.durationMinutes, bufferMinutes: service.bufferMinutes, priceFromCents: service.priceFromCents, depositCents: service.depositCents, bathMinutes: service.bathMinutes, dryerMinutes: service.dryerMinutes, groomingTableMinutes: service.groomingTableMinutes, kennelMinutes: service.kennelMinutes, active: service.active }));
       const templateClones = templates.map((template) => ({ id: crypto.randomUUID(), organizationId: membership.organizationId, locationId: id, key: template.key, name: template.name, channel: template.channel, category: template.category, subject: template.subject, body: template.body, active: template.active }));
-      const statements: [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]] = [
+      const statements: [DbBatchItem, ...DbBatchItem[]] = [
         db.insert(locations).values({ id, organizationId: membership.organizationId, slug: locationSlug, name, city, addressLine1, region, postalCode, currency, timezone }),
         db.insert(salonSettings).values({ id: crypto.randomUUID(), organizationId: membership.organizationId, locationId: id }),
         db.insert(locationHours).values(Array.from({ length: 7 }, (_, weekday) => ({ id: crypto.randomUUID(), organizationId: membership.organizationId, locationId: id, weekday, open: weekday !== 0 }))),
@@ -148,7 +149,7 @@ export async function POST(request: Request) {
       try {
         await db.batch(statements);
       } catch (error) {
-        if (error instanceof Error && /constraint|unique/i.test(error.message)) throw new SalonAccessError("A location with that identity was created in another session. Refresh settings and try again.", 409);
+        if (error instanceof Error && /constraint|unique/i.test(databaseErrorMessage(error))) throw new SalonAccessError("A location with that identity was created in another session. Refresh settings and try again.", 409);
         throw error;
       }
     } else throw new SalonAccessError("Unknown settings action.", 400);

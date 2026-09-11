@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.DELIVERY_PUBLIC_URL || "https://bopoil.ca"),
+  metadataBase: new URL(process.env.DELIVERY_PUBLIC_URL || "https://www.bopoil.ca"),
   title: "Coat & Care — Pet Grooming, Beautifully Simple",
   description: "A calm, complete operating system for pet grooming salons and the people they care for.",
+  // Coat & Care shares the bopoil.ca domain with the public website. Its
+  // workspace, portal and booking routes are private tools, never search results.
+  robots: { index: false, follow: false },
   openGraph: {
     title: "Coat & Care",
     description: "Pet grooming, beautifully simple.",

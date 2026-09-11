@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { DatabaseSync } from "node:sqlite";
 
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -162,56 +161,22 @@ test("final in-salon checkout completes only a ready visit and records the trans
 });
 
 test("the complete migration chain installs invoice mutation serialization", () => {
-  const db = new DatabaseSync(":memory:");
-  db.exec("PRAGMA foreign_keys = OFF");
   const migrations = fs
     .readdirSync(path.join(root, "drizzle"))
     .filter((file) => file.endsWith(".sql"))
     .sort();
-  for (const migration of migrations) {
-    const sql = read(path.join("drizzle", migration)).replaceAll(
-      "--> statement-breakpoint",
-      "",
-    );
-    assert.doesNotThrow(
-      () => db.exec(sql),
-      `migration ${migration} should apply cleanly`,
-    );
+  assert.ok(migrations.length >= 1, "the Postgres baseline migration exists");
+  const journal = JSON.parse(read(path.join("drizzle", "meta", "_journal.json")));
+  assert.equal(journal.dialect, "postgresql");
+  assert.equal(journal.entries.length, migrations.length, "journal entries match migration files");
+  for (const entry of journal.entries) {
+    assert.ok(migrations.includes(`${entry.tag}.sql`), `journal entry ${entry.tag} has its SQL file`);
   }
 
-  const invoiceColumns = db.prepare("pragma table_info(invoices)").all();
-  assert.ok(
-    invoiceColumns.some(
-      (column) =>
-        column.name === "mutation_version" &&
-        column.notnull === 1 &&
-        column.dflt_value === "0",
-    ),
+  const chain = migrations.map((file) => read(path.join("drizzle", file))).join("\n");
+  assert.match(chain, /"mutation_version" integer DEFAULT 0 NOT NULL/);
+  assert.match(
+    chain,
+    /CREATE UNIQUE INDEX "invoice_mutation_claims_invoice_version_unique" ON "invoice_mutation_claims" USING btree \("invoice_id","expected_mutation_version"\)/,
   );
-  const claimIndexes = db
-    .prepare("pragma index_list(invoice_mutation_claims)")
-    .all();
-  assert.ok(
-    claimIndexes.some(
-      (index) =>
-        index.name === "invoice_mutation_claims_invoice_version_unique" &&
-        index.unique === 1,
-    ),
-  );
-
-  db.exec(`
-    insert into invoices (id, organization_id, location_id, appointment_id, invoice_number, subtotal_cents, total_cents, currency)
-    values ('invoice-1', 'org-1', 'location-1', 'appointment-1', 'CC-1', 1000, 1000, 'CAD');
-    insert into invoice_mutation_claims (id, organization_id, invoice_id, expected_mutation_version, mutation_type, idempotency_key)
-    values ('claim-1', 'org-1', 'invoice-1', 0, 'payment', 'request-1');
-  `);
-  assert.throws(
-    () =>
-      db.exec(`
-    insert into invoice_mutation_claims (id, organization_id, invoice_id, expected_mutation_version, mutation_type, idempotency_key)
-    values ('claim-2', 'org-1', 'invoice-1', 0, 'payment', 'request-2');
-  `),
-    /UNIQUE constraint failed/,
-  );
-  db.close();
-});
+})

@@ -41,7 +41,7 @@ async function captureInboundReply(params: URLSearchParams) {
       return;
     }
     const last10 = digits.slice(-10);
-    const recipientLast10 = sql<string>`substr(replace(replace(replace(replace(replace(replace(${messages.recipientAddress}, '+', ''), ' ', ''), '-', ''), '(', ''), ')', ''), '.', ''), -10)`;
+    const recipientLast10 = sql<string>`right(replace(replace(replace(replace(replace(replace(${messages.recipientAddress}, '+', ''), ' ', ''), '-', ''), '(', ''), ')', ''), '.', ''), 10)`;
     const conversationFilter = and(
       eq(messages.direction, "outbound"),
       eq(messages.channel, "sms"),

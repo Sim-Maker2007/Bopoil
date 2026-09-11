@@ -36,6 +36,7 @@ import {
   SalonAccessError,
 } from "../../salon-access";
 
+import { databaseErrorMessage } from "../../../db";
 function mondayOf(value: string) {
   const date = new Date(`${value}T12:00:00Z`);
   if (!Number.isFinite(date.getTime()))
@@ -844,7 +845,7 @@ export async function PATCH(request: Request) {
       } catch (error) {
         if (
           error instanceof Error &&
-          /constraint|null|unique/i.test(error.message)
+          /constraint|null|unique/i.test(databaseErrorMessage(error))
         )
           throw new SalonAccessError(
             "This week changed or was already approved. Refresh and try again.",
@@ -930,7 +931,7 @@ export async function PATCH(request: Request) {
       } catch (error) {
         if (
           error instanceof Error &&
-          /constraint|null|unique/i.test(error.message)
+          /constraint|null|unique/i.test(databaseErrorMessage(error))
         )
           throw new SalonAccessError(
             "This timesheet changed. Refresh and try again.",
@@ -1023,7 +1024,7 @@ export async function PATCH(request: Request) {
     } catch (error) {
       if (
         error instanceof Error &&
-        /constraint|null|unique/i.test(error.message)
+        /constraint|null|unique/i.test(databaseErrorMessage(error))
       )
         throw new SalonAccessError(
           "This timesheet changed. Refresh and try again.",
