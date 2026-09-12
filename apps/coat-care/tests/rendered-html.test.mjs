@@ -9,7 +9,7 @@ test("ships the public grooming booking experience", async () => {
   ]);
   assert.match(layout, /Coat & Care — Pet Grooming, Beautifully Simple/);
   assert.match(page, /A happier grooming day/);
-  assert.match(page, /fetch\("\/api\/bookings"/);
+  assert.match(page, /"\/api\/square-bookings" : "\/api\/bookings"/);
   assert.match(page, /policyAccepted/);
   assert.doesNotMatch(page + layout, /codex-preview|Your site is taking shape/i);
 });

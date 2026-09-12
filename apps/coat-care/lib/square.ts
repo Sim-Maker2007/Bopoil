@@ -17,6 +17,7 @@ export function squareConfig(runtime: RuntimeValues = runtimeValues()) {
     || (publicOrigin ? `${publicOrigin}/api/webhooks/square` : "");
   const accessToken = trim(runtime.SQUARE_ACCESS_TOKEN);
   const webhookSignatureKey = trim(runtime.SQUARE_WEBHOOK_SIGNATURE_KEY);
+  const bookingMode = trim(runtime.SQUARE_BOOKING_MODE).toLowerCase();
   const allowedOrigins = [publicOrigin, ...trim(runtime.PUBLIC_INTAKE_ALLOWED_ORIGINS)
     .split(",")
     .map((origin) => origin.trim().replace(/\/$/, ""))
@@ -32,6 +33,7 @@ export function squareConfig(runtime: RuntimeValues = runtimeValues()) {
     allowedOrigins,
     syncConfigured: Boolean(accessToken),
     webhookConfigured: Boolean(accessToken && webhookSignatureKey && webhookNotificationUrl),
+    publicBookingConfigured: Boolean(accessToken && trim(runtime.SQUARE_LOCATION_ID) && bookingMode === "api"),
   };
 }
 
@@ -44,7 +46,7 @@ export async function squareRequest<T>(path: string, options: { query?: URLSearc
   if (!config.accessToken) throw new Error("Square synchronization is not configured.");
   const url = new URL(`https://connect.squareup.com/v2/${path.replace(/^\//, "")}`);
   options.query?.forEach((value, key) => url.searchParams.append(key, value));
-  const method = options.method || "GET";
+  const method = options.method || (options.body !== undefined ? "POST" : "GET");
   const headers: Record<string, string> = {
     authorization: `Bearer ${config.accessToken}`,
     accept: "application/json",

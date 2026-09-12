@@ -246,3 +246,23 @@ test("cart normalization rejects non-finite quantities and malformed input", () 
   assert.deepEqual(sanitizeCartItems(null), []);
   assert.deepEqual(sanitizeCartItems([{ id: "VAR_1", quantity: Infinity }, null, { quantity: 4 }]), []);
 });
+
+test("shared Square transport preserves implicit POST bodies when retrying", async () => {
+  const { squareRequest } = await import("../lib/square.ts");
+  const calls = [];
+  const payload = { idempotency_key: "same-attempt", customer_id: "CUSTOMER" };
+  const result = await squareRequest("bookings", {
+    body: payload,
+    fetcher: async (_url, init) => {
+      calls.push({ method: init.method, body: init.body });
+      return calls.length === 1
+        ? { ...jsonResponse({}), ok: false, status: 503 }
+        : jsonResponse({ booking: { id: "BOOKING" } });
+    },
+  });
+  assert.equal(result.booking.id, "BOOKING");
+  assert.deepEqual(calls, [
+    { method: "POST", body: JSON.stringify(payload) },
+    { method: "POST", body: JSON.stringify(payload) },
+  ]);
+});
