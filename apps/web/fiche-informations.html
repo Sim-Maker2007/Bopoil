@@ -70,9 +70,8 @@
             <p>Afin de mieux planifier votre premier rendez-vous avec nous, s'il vous plaît,
               compléter cette fiche d'informations. Le tout nous permettra d'adapter les soins
               offerts selon les besoins de votre animal.</p>
-            <p>Déjà client? Et la situation de votre animal a changé?</p>
-            <p>Merci de remplir de nouveau cette fiche afin que nous puissions mettre votre
-              dossier à jour.</p>
+            <p>Déjà client? Ouvrez d'abord votre profil sécurisé depuis la page de réservation
+              avant de modifier la fiche de votre animal.</p>
             <p>Pour toutes questions, n'hésitez pas à
               <a href="contactez-nous.html">communiquer avec nous</a>.</p>
           </div>
@@ -87,18 +86,21 @@
                      autocomplete="name" required>
             </div>
             <div class="form-field">
-              <label class="form-label" for="fiche-telephone">Numéro de téléphone</label>
+              <label class="form-label" for="fiche-telephone">Numéro de téléphone
+                <span class="req" aria-hidden="true">*</span></label>
               <input class="field" id="fiche-telephone" name="telephone" type="tel"
-                     autocomplete="tel">
+                     autocomplete="tel" required>
             </div>
             <div class="form-field">
-              <label class="form-label" for="fiche-courriel">Adresse courriel</label>
+              <label class="form-label" for="fiche-courriel">Adresse courriel
+                <span class="req" aria-hidden="true">*</span></label>
               <input class="field" id="fiche-courriel" name="email" type="email"
-                     autocomplete="email">
+                     autocomplete="email" required>
             </div>
             <div class="form-field">
-              <label class="form-label" for="fiche-animal">Nom de l'animal</label>
-              <input class="field" id="fiche-animal" name="nom_animal" type="text">
+              <label class="form-label" for="fiche-animal">Nom de l'animal
+                <span class="req" aria-hidden="true">*</span></label>
+              <input class="field" id="fiche-animal" name="nom_animal" type="text" required>
             </div>
             <div class="form-field">
               <label class="form-label" for="fiche-anniversaire">Date d'anniversaire</label>
@@ -193,6 +195,7 @@
       </div>
       <div class="site-footer__meta">
         <p class="mb-0">
+          <a href="/salon">Accès équipe</a> &nbsp;·&nbsp;
           <a href="tel:+18199682827">(819) 968-2827</a> &nbsp;·&nbsp;
           <a href="mailto:info@bopoil.ca">info@bopoil.ca</a> &nbsp;·&nbsp;
           38 Av Gatineau, Gatineau, Québec J8T 4J1

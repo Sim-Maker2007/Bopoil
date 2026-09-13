@@ -982,6 +982,26 @@ export const mediaAssets = pgTable("media_assets", {
   index("media_assets_pet_idx").on(table.petId, table.createdAt),
 ]);
 
+export const clientMediaAssets = pgTable("client_media_assets", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organizations.id),
+  locationId: text("location_id").references(() => locations.id),
+  clientId: text("client_id").notNull().references(() => clients.id),
+  kind: text("kind", { enum: ["profile", "gallery"] }).notNull().default("gallery"),
+  r2Key: text("r2_key").notNull().unique(),
+  originalFilename: text("original_filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  caption: text("caption").notNull().default(""),
+  clientVisible: boolean("client_visible").notNull().default(true),
+  uploadedByStaffId: text("uploaded_by_staff_id").references(() => staff.id),
+  uploadedByClient: boolean("uploaded_by_client").notNull().default(false),
+  createdAt: text("created_at").notNull().default(sql`to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')`),
+}, (table) => [
+  index("client_media_assets_client_idx").on(table.clientId, table.createdAt),
+  index("client_media_assets_org_idx").on(table.organizationId, table.createdAt),
+]);
+
 export const approvalRequests = pgTable("approval_requests", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),

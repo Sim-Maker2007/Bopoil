@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- protected client photos require the viewer's authenticated request */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -114,7 +115,18 @@ type DirectoryClient = {
   email: string;
   phone: string;
   marketingConsent: boolean;
+  profilePhoto: DirectoryMedia | null;
+  media: DirectoryMedia[];
   pets: DirectoryPet[];
+};
+
+type DirectoryMedia = {
+  id: string;
+  kind: "profile" | "gallery";
+  caption: string;
+  originalFilename: string;
+  clientVisible: boolean;
+  createdAt: string;
 };
 
 const toneByStatus: Record<string, string> = {
@@ -267,6 +279,7 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
   const [clientsLoading, setClientsLoading] = useState(false);
   const [clientQuery, setClientQuery] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [clientRevision, setClientRevision] = useState(0);
   const [checkoutAppointmentId, setCheckoutAppointmentId] = useState<
     string | null
   >(null);
@@ -356,7 +369,7 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [activeView, clientQuery]);
+  }, [activeView, clientQuery, clientRevision]);
 
   useEffect(() => {
     const dialog = mobileToolsOpen ? mobileToolsDialog.current : null;
@@ -1114,6 +1127,7 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
               )}
               canSharePortal={canSchedule}
               onReviewVaccine={reviewVaccination}
+              onPhotosChanged={() => setClientRevision((value) => value + 1)}
               notify={showNotice}
               timezone={data?.salon.timezone || "America/Toronto"}
             />
@@ -1646,6 +1660,7 @@ function ClientsView({
   canReviewVaccines,
   canSharePortal,
   onReviewVaccine,
+  onPhotosChanged,
   notify,
   timezone,
 }: {
@@ -1658,10 +1673,14 @@ function ClientsView({
   canReviewVaccines: boolean;
   canSharePortal: boolean;
   onReviewVaccine: (id: string, status: "verified" | "rejected") => void;
+  onPhotosChanged: () => void;
   notify: (message: string) => void;
   timezone: string;
 }) {
   const [portalLinkBusy, setPortalLinkBusy] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoKind, setPhotoKind] = useState<"profile" | "gallery">("gallery");
+  const [photoCaption, setPhotoCaption] = useState("");
   async function copyFreshPortalLink(clientId: string) {
     setPortalLinkBusy(clientId);
     try {
@@ -1687,6 +1706,24 @@ function ClientsView({
     } finally {
       setPortalLinkBusy("");
     }
+  }
+  async function uploadClientPhoto(clientId: string, file: File) {
+    setPhotoBusy(true);
+    try {
+      const form = new FormData(); form.set("clientId", clientId); form.set("file", file); form.set("kind", photoKind); form.set("caption", photoCaption); form.set("clientVisible", "true");
+      const response = await fetch("/api/client-media", { method: "POST", body: form });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Client photo could not be uploaded.");
+      setPhotoCaption(""); onPhotosChanged(); notify(photoKind === "profile" ? "Client profile photo updated" : "Photo shared in the client portal");
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "Client photo could not be uploaded."); }
+    finally { setPhotoBusy(false); }
+  }
+  async function deleteClientPhoto(id: string) {
+    if (!window.confirm("Remove this photo from the client file?")) return;
+    const response = await fetch(`/api/client-media/${id}`, { method: "DELETE" });
+    const result = await response.json() as { error?: string };
+    if (!response.ok) { notify(result.error || "Client photo could not be removed."); return; }
+    onPhotosChanged(); notify("Client photo removed");
   }
   return (
     <section className="directory-panel">
@@ -1741,9 +1778,7 @@ function ClientsView({
           {selectedClient ? (
             <>
               <header>
-                <span className="client-avatar large">
-                  {selectedClient.fullName.slice(0, 2).toUpperCase()}
-                </span>
+                {selectedClient.profilePhoto ? <img className="client-avatar large client-avatar-photo" src={`/api/client-media/${selectedClient.profilePhoto.id}`} alt={`${selectedClient.fullName} profile`}/> : <span className="client-avatar large">{selectedClient.fullName.slice(0, 2).toUpperCase()}</span>}
                 <div>
                   <h2>{selectedClient.fullName}</h2>
                   <p>
@@ -1771,6 +1806,15 @@ function ClientsView({
                     : "Transactional only"}
                 </span>
               </header>
+              <section className="client-photo-file">
+                <div className="client-photo-upload">
+                  <div><strong>Client photos</strong><small>Profile and gallery photos are visible in this client’s private portal. Internal notes and safety warnings stay team-only.</small></div>
+                  <label><span>Use as</span><select value={photoKind} onChange={(event) => setPhotoKind(event.target.value as "profile" | "gallery")}><option value="gallery">Shared gallery photo</option><option value="profile">Profile photo</option></select></label>
+                  <label><span>Caption</span><input value={photoCaption} onChange={(event) => setPhotoCaption(event.target.value)} placeholder="Optional caption"/></label>
+                  <label className="secondary-button client-photo-picker">{photoBusy ? "Uploading…" : "Add photo"}<input disabled={photoBusy} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadClientPhoto(selectedClient.id, file); event.currentTarget.value = ""; }}/></label>
+                </div>
+                {selectedClient.media.length > 0 && <div className="client-photo-gallery">{selectedClient.media.map((photo) => <figure key={photo.id}><img src={`/api/client-media/${photo.id}`} alt={photo.caption || photo.originalFilename}/><figcaption><span><strong>{photo.caption || "Shared photo"}</strong><small>Visible to client</small></span><button onClick={() => void deleteClientPhoto(photo.id)} aria-label={`Remove ${photo.caption || photo.originalFilename}`}>×</button></figcaption></figure>)}</div>}
+              </section>
               <div className="pet-records">
                 {selectedClient.pets.map((pet) => {
                   const futureVisits = pet.appointments

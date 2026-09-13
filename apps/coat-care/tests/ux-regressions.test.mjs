@@ -12,19 +12,23 @@ test("public booking never submits stale availability or overpromises delivery",
   assert.match(booking, /if \(requestId !== availabilityRequest\.current\) return/);
   assert.match(booking, /selectedDateRef\.current = date/);
   assert.match(booking, /allowOnlineBooking !== false/);
-  assert.match(booking, /disabled=\{!serviceId \|\| !selectedDate \|\| availabilityLoading \|\| !onlineBookingOpen\}/);
+  assert.match(booking, /disabled=\{!serviceId \|\| availabilityLoading \|\| !onlineBookingOpen/);
+  assert.match(booking, /squareManaged && !bookingContext/);
   assert.match(booking, /requireOnlineDeposit && service && service\.depositCents > 0/);
   assert.match(booking, /No online deposit is due for this service/);
   assert.match(booking, /delivery\?: \{ email\?: \{ configured\?: boolean \}; sms\?: \{ configured\?: boolean \} \}/);
   assert.match(booking, /Automatic email delivery is not available yet/);
+  assert.doesNotMatch(booking, /Salon OS/);
+  assert.doesNotMatch(booking, /window\.location\.assign\("\/salon"\)/);
 });
 
 test("returning clients can rebook from a minimal private context without retyping contact details", async () => {
-  const [booking, context, portal, styles] = await Promise.all([
+  const [booking, context, portal, styles, demo] = await Promise.all([
     source("../app/booking-experience.tsx"),
     source("../app/api/booking-context/route.ts"),
     source("../app/portal/[token]/portal-experience.tsx"),
     source("../app/globals.css"),
+    source("../app/api/auth/client/demo/route.ts"),
   ]);
 
   assert.doesNotMatch(booking, /useState\("Mochi"\)|useState\("Mini Poodle"\)/);
@@ -50,6 +54,10 @@ test("returning clients can rebook from a minimal private context without retypi
   assert.match(booking, /ref=\{bookingErrorAlert\}[\s\S]*?role="alert" tabIndex=\{-1\}/);
   assert.match(styles, /\.time-grid,\s*\.time-grid\.live-times \{ grid-template-columns: 1fr 1fr; \}/);
   assert.match(styles, /\.auth-resend:disabled/);
+  assert.match(booking, /Preview returning client \(local only\)/);
+  assert.match(demo, /process\.env\.NODE_ENV !== "development"/);
+  assert.match(demo, /\["localhost", "127\.0\.0\.1"\]\.includes\(hostname\)/);
+  assert.match(demo, /issuePortalSession\(db, DEMO_CLIENT_ID, 30\)/);
 
   assert.match(context, /resolvePortalSession\(portalTokenFromRequest\(request\)\)/);
   assert.match(context, /hasVerifiedPhoneIdentity/);

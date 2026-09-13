@@ -574,7 +574,7 @@ export function CareWorkspace({
                     />
                   </label>
                   <label>
-                    Internal groomer notes
+                    Internal groomer notes — never shown to the client
                     <textarea
                       value={care.internalNotes}
                       onChange={(event) =>

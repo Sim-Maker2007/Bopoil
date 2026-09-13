@@ -15,6 +15,13 @@
       "when": 1788303512167,
       "tag": "0001_bopoil_production_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789096824691,
+      "tag": "0002_minor_king_cobra",
+      "breakpoints": true
     }
   ]
 }

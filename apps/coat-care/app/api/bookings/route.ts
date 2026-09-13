@@ -26,6 +26,7 @@ type BookingPayload = {
   startsAt?: string;
   clientNotes?: string;
   policyAccepted?: boolean;
+  informationCurrent?: boolean;
   marketingConsent?: boolean;
 };
 
@@ -95,6 +96,9 @@ export async function POST(request: Request) {
     if (!serviceId || !startsAt || Number.isNaN(startsAt.valueOf())) return Response.json({ error: "Choose a service and appointment time." }, { status: 400 });
     if (!payload.policyAccepted) {
       return Response.json({ error: "The booking and cancellation policy must be accepted." }, { status: 400 });
+    }
+    if (!payload.informationCurrent) {
+      return Response.json({ error: "Confirm that your contact and pet information is current for this appointment." }, { status: 400 });
     }
     const portalToken = portalCookieTokenFromRequest(request);
     const phoneProofCookie = cookieValue(request, CLIENT_PHONE_CHALLENGE_COOKIE);
@@ -257,6 +261,16 @@ export async function POST(request: Request) {
       accepted: true,
       source: "online_booking",
     });
+    const informationConfirmationInsert = db.insert(consentRecords).values({
+      id: crypto.randomUUID(),
+      organizationId: organization.id,
+      clientId,
+      appointmentId,
+      type: "client_information_current",
+      policyVersion: "2026-08-v1",
+      accepted: true,
+      source: "online_booking",
+    });
     const auditInsert = db.insert(auditEvents).values({
       id: crypto.randomUUID(),
       organizationId: organization.id,
@@ -275,8 +289,8 @@ export async function POST(request: Request) {
     try {
       if (authenticatedBooking || reclaimedAbandonedProfile) {
         const [created] = depositRequired && invoiceInsert && lineInsert
-          ? await db.batch([appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, auditInsert, invoiceInsert, lineInsert])
-          : await db.batch([appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, auditInsert]);
+          ? await db.batch([appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, informationConfirmationInsert, auditInsert, invoiceInsert, lineInsert])
+          : await db.batch([appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, informationConfirmationInsert, auditInsert]);
         appointment = created[0];
       } else {
         const clientInsert = db.insert(clients).values({ id: clientId, organizationId: organization.id, fullName: clientName, email, phone, marketingConsent: Boolean(payload.marketingConsent) });
@@ -302,13 +316,13 @@ export async function POST(request: Request) {
             isNull(clientPhoneOtpChallenges.proofConsumedAt),
           ));
           const committed = depositRequired && invoiceInsert && lineInsert
-            ? await db.batch([clientInsert, petInsert, phoneIdentityInsert, phoneProofClaim, appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, auditInsert, invoiceInsert, lineInsert])
-            : await db.batch([clientInsert, petInsert, phoneIdentityInsert, phoneProofClaim, appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, auditInsert]);
+            ? await db.batch([clientInsert, petInsert, phoneIdentityInsert, phoneProofClaim, appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, informationConfirmationInsert, auditInsert, invoiceInsert, lineInsert])
+            : await db.batch([clientInsert, petInsert, phoneIdentityInsert, phoneProofClaim, appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, informationConfirmationInsert, auditInsert]);
           appointment = committed[4][0];
         } else {
           const [, , created] = depositRequired && invoiceInsert && lineInsert
-            ? await db.batch([clientInsert, petInsert, appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, auditInsert, invoiceInsert, lineInsert])
-            : await db.batch([clientInsert, petInsert, appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, auditInsert]);
+            ? await db.batch([clientInsert, petInsert, appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, informationConfirmationInsert, auditInsert, invoiceInsert, lineInsert])
+            : await db.batch([clientInsert, petInsert, appointmentInsert, ...reservationInsertStatements(db, reservationRows), consentInsert, informationConfirmationInsert, auditInsert]);
           appointment = created[0];
         }
       }

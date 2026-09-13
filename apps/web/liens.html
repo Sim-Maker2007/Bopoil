@@ -34,14 +34,15 @@
       align-items: center;
     }
     .links__logo { width: 210px; height: auto; }
-    .links__tagline {
-      margin: 18px 0 34px;
+    .links__intro {
+      margin: 18px 0 30px;
       font-size: 14px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      opacity: .75;
+      line-height: 1.55;
+      opacity: .8;
       text-align: center;
     }
+    .links__intro p { margin: 0; }
+    .links__intro p + p { margin-top: 14px; }
     .links__list { width: 100%; display: flex; flex-direction: column; gap: 14px; }
     .links__btn {
       display: flex;
@@ -77,7 +78,10 @@
   <main class="links">
     <img class="links__logo" src="images/logo-bopoil-blanc-720.png" width="230" height="103"
          alt="BOPOIL Toilettage &amp; Boutique" fetchpriority="high">
-    <p class="links__tagline">Toilettage &amp; Boutique — Gatineau</p>
+    <div class="links__intro">
+      <p>Services de toilettage professionnels et soins de qualité en Outaouais!</p>
+      <p>Boutique pensée pour les besoins de vos animaux de compagnie! Produits québécois et canadiens visant bien-être, santé et confort.</p>
+    </div>
     <nav class="links__list" aria-label="Nos réseaux sociaux">
       <a class="links__btn" href="https://www.instagram.com/bopoil.toilettageboutique/" target="_blank" rel="noopener" data-instagram-link>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"

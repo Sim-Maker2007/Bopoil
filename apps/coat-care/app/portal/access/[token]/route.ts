@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { issuePortalSession, resolvePortalSession, resolvePortalTokenContext } from "../../../../db/client-portal";
-import { clientPortalSessions } from "../../../../db/schema";
+import { clientPortalSessions, consentRecords } from "../../../../db/schema";
 import { safePortalReturnTo } from "../../../../lib/portal-links";
 import { requestIsSameOrigin } from "../../../../lib/portal-request";
 
@@ -43,6 +43,9 @@ export async function GET(request: Request) {
     main { width: min(100%, 420px); padding: 32px; border: 1px solid #ded6ca; border-radius: 18px; background: white; box-shadow: 0 18px 50px #332a1b18; }
     h1 { margin: 0 0 12px; font: 500 2rem/1.1 Georgia, serif; }
     p { margin: 0 0 24px; color: #625d54; line-height: 1.6; }
+    label { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 20px; color: #4f4a42; font-size: .9rem; line-height: 1.45; }
+    input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: #a9402d; flex: 0 0 auto; }
+    a { color: #8f3425; font-weight: 700; }
     button { width: 100%; min-height: 48px; border: 0; border-radius: 999px; padding: 12px 18px; background: #a9402d; color: white; font: 700 1rem/1 system-ui, sans-serif; cursor: pointer; }
     button:focus-visible { outline: 3px solid #292722; outline-offset: 3px; }
   </style>
@@ -51,7 +54,10 @@ export async function GET(request: Request) {
   <main>
     <h1>Your private pet portal</h1>
     <p>For your security, confirm that you want to open this private session. This extra step keeps email security scanners from using your one-time link.</p>
-    <form method="post"><button type="submit">Open my pet portal</button></form>
+    <form method="post">
+      <label><input type="checkbox" name="policyAcknowledged" value="yes" required><span>I confirm that I have read the <a href="/politique.html" target="_blank" rel="noopener">salon policies</a>.</span></label>
+      <button type="submit">Open my pet portal</button>
+    </form>
   </main>
 </body>
 </html>`, {
@@ -72,12 +78,20 @@ export async function POST(request: Request) {
       headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" },
     });
   }
+  const form = await request.formData();
+  if (form.get("policyAcknowledged") !== "yes") {
+    return Response.json({ error: "Confirm that you have read the salon policies before connecting." }, { status: 400, headers: { "cache-control": "no-store" } });
+  }
   const token = tokenFrom(request); const access = await resolvePortalSession(token);
   if (!access.client || !access.session) return Response.redirect(await expiredLocation(request, token), 303);
   const rotated = await issuePortalSession(access.db, access.client.id);
   let claimed;
   try {
-    [claimed] = await access.db.update(clientPortalSessions).set({ revokedAt: new Date().toISOString() }).where(and(eq(clientPortalSessions.id, access.session.id), isNull(clientPortalSessions.revokedAt))).returning({ id: clientPortalSessions.id });
+    const results = await access.db.batch([
+      access.db.update(clientPortalSessions).set({ revokedAt: new Date().toISOString() }).where(and(eq(clientPortalSessions.id, access.session.id), isNull(clientPortalSessions.revokedAt))).returning({ id: clientPortalSessions.id }),
+      access.db.insert(consentRecords).values({ id: crypto.randomUUID(), organizationId: access.client.organizationId, clientId: access.client.id, type: "portal_policy_acknowledgement", policyVersion: "bopoil-website-2026-08", accepted: true, source: "portal_connection" }),
+    ]);
+    [claimed] = results[0];
   } catch (error) {
     await access.db.update(clientPortalSessions).set({ revokedAt: new Date().toISOString() }).where(eq(clientPortalSessions.id, rotated.id)).catch(() => undefined);
     throw error;

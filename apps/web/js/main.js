@@ -190,6 +190,7 @@
     var embed = document.querySelector('[data-booking-embed]');
     var frame = document.querySelector('[data-booking-frame]');
     if (!embed || !frame) return;
+    if (CONFIG.square && CONFIG.square.embedBooking === false) return;
 
     // On ne charge le cadre que si l'URL est configurée. Sinon la page reste
     // propre : la CTA "Réserver sur Square" fait tout le travail.
@@ -322,6 +323,7 @@
           if (key === 'intake') values.marketing = values.marketing === 'oui';
           values.salonSlug = coatCare.salonSlug || '';
           values.locationSlug = coatCare.locationSlug || '';
+          values.returnTo = new URLSearchParams(window.location.search).get('continue') || '';
           values.submissionId = window.crypto && window.crypto.randomUUID
             ? window.crypto.randomUUID()
             : String(Date.now()) + '-' + Math.random().toString(36).slice(2);
@@ -342,11 +344,17 @@
           return res.json().catch(function () { return {}; }).then(function (result) {
             if (!res.ok) {
               var failure = new Error(result.error || 'HTTP ' + res.status);
+              if (result.accessUrl) failure.message += ' Ouvrez la page de réservation pour accéder à votre profil par courriel ou téléphone.';
               failure.status = res.status;
               throw failure;
             }
+            return result;
           });
-        }).then(function () {
+        }).then(function (result) {
+          if (crmIntake && result && result.bookingUrl) {
+            window.location.assign(result.bookingUrl);
+            return;
+          }
           form.reset();
           track('Formulaire', { type: key, page: window.location.pathname });
           say('ok', form.getAttribute('data-success') ||

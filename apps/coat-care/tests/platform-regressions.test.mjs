@@ -101,13 +101,13 @@ test("reservation-heavy bookings keep bounded inserts without losing atomicity",
   }
 });
 
-test("the merged app develops locally and deploys on Vercel with Turso", async () => {
+test("the merged app develops locally and deploys on Vercel with PostgreSQL", async () => {
   const [packageSource, nextConfig, drizzle, rootPackage, vercel, catalog, onboarding] = await Promise.all([
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../../../package.json", import.meta.url), "utf8"),
-    readFile(new URL("../../../vercel.json", import.meta.url), "utf8"),
+    readFile(new URL("../vercel.json", import.meta.url), "utf8"),
     readFile(new URL("../app/api/catalog/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/onboarding/route.ts", import.meta.url), "utf8"),
   ]);
