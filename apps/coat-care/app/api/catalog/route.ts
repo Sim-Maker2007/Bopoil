@@ -1,14 +1,20 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { resolveStorefront, storefrontError } from "../../../db/public-storefront";
 import { services } from "../../../db/schema";
 import { publicDeliveryConfig } from "../../../lib/message-delivery";
+import { squarePublicBookingEnabled, syncSquareBookableServices } from "../../../lib/square-public-booking";
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const storefront = await resolveStorefront({ organizationSlug: url.searchParams.get("salon"), locationSlug: url.searchParams.get("location") });
+    const squareManaged = squarePublicBookingEnabled();
+    const squareServiceIds = squareManaged
+      ? await syncSquareBookableServices(storefront.db, storefront.organization.id, storefront.location.id)
+      : [];
     const rows = await storefront.db.select().from(services).where(and(
       eq(services.organizationId, storefront.organization.id), eq(services.locationId, storefront.location.id), eq(services.active, true),
+      squareManaged ? inArray(services.id, squareServiceIds) : undefined,
     )).orderBy(asc(services.priceFromCents));
     return Response.json({
       organization: {
@@ -22,9 +28,12 @@ export async function GET(request: Request) {
       },
       locations: storefront.locations.map((location) => ({ slug: location.slug, name: location.name, city: location.city, region: location.region })),
       booking: {
-        allowOnlineBooking: storefront.settings.allowOnlineBooking, bookingMode: storefront.settings.bookingMode,
+        allowOnlineBooking: squareManaged || storefront.settings.allowOnlineBooking,
+        bookingMode: squareManaged ? "automatic" : storefront.settings.bookingMode,
+        managedBySquare: squareManaged,
         minimumLeadMinutes: storefront.settings.minimumLeadMinutes, bookingWindowDays: storefront.settings.bookingWindowDays,
-        requireOnlineDeposit: storefront.settings.requireOnlineDeposit, depositHoldMinutes: storefront.settings.depositHoldMinutes,
+        requireOnlineDeposit: squareManaged ? false : storefront.settings.requireOnlineDeposit,
+        depositHoldMinutes: storefront.settings.depositHoldMinutes,
       },
       delivery: publicDeliveryConfig(),
       services: rows.map((service) => ({

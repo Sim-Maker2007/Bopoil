@@ -1,7 +1,7 @@
 import { BookingExperience } from "../../booking-experience";
 import { resolveStorefront } from "../../../db/public-storefront";
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> | { slug: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   try {
     const { organization, location } = await resolveStorefront({ organizationSlug: slug });
@@ -9,7 +9,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   } catch { return { title: "Salon booking — Coat & Care" }; }
 }
 
-export default async function SalonStorefront({ params }: { params: Promise<{ slug: string }> | { slug: string } }) {
+export default async function SalonStorefront({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   return <BookingExperience storefrontSlug={slug} />;
 }

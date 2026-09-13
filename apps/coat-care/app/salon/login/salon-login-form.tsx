@@ -4,14 +4,21 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { CrmLanguageSwitch } from "../../crm-language-boundary";
 
-export function SalonLoginForm({ expired, returnTo }: { expired: boolean; returnTo: string }) {
+export function SalonLoginForm({ demoEnabled, expired, returnTo }: { demoEnabled: boolean; expired: boolean; returnTo: string }) {
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [state, setState] = useState<"idle" | "sending" | "opening" | "sent" | "error">("idle");
   async function submit(event: FormEvent) {
     event.preventDefault();
     setState("sending");
     const response = await fetch("/api/auth/salon/request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, returnTo }) });
     setState(response.ok ? "sent" : "error");
+  }
+  async function openDemo() {
+    setState("opening");
+    const response = await fetch("/api/auth/salon/demo", { method: "POST" });
+    if (!response.ok) { setState("error"); return; }
+    const destination = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/salon";
+    window.location.assign(destination);
   }
   return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f5f1eb", color: "#171717" }}>
     <section style={{ width: "min(440px, 100%)", background: "white", borderRadius: 24, padding: 36, boxShadow: "0 24px 80px rgba(0,0,0,.1)" }}>
@@ -27,6 +34,10 @@ export function SalonLoginForm({ expired, returnTo }: { expired: boolean; return
       </form>
       {state === "sent" && <p role="status" style={{ color: "#28623c" }}>Check your inbox. For privacy, we show this same message for every address.</p>}
       {state === "error" && <p role="alert" style={{ color: "#9d2d20" }}>The email could not be sent. Please try again.</p>}
+      {demoEnabled && <div style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid #e5dfd6" }}>
+        <p style={{ margin: "0 0 12px", color: "#666", lineHeight: 1.5 }}>Local preview only—open the complete owner workspace without sending an email.</p>
+        <button type="button" disabled={state === "opening"} onClick={openDemo} style={{ width: "100%", border: "1px solid #171717", borderRadius: 999, padding: "13px 18px", background: "white", color: "#171717", font: "inherit", fontWeight: 700, cursor: "pointer" }}>{state === "opening" ? "Opening workspace…" : "Open demo owner workspace"}</button>
+      </div>}
       <Link href="/" style={{ display: "inline-block", marginTop: 22, color: "inherit" }}>← Back to BOPOIL</Link>
     </section>
   </main>;
