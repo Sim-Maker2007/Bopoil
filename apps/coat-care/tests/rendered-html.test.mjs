@@ -500,7 +500,7 @@ test("reconciles signed provider outcomes and sweeps due communications unattend
     readFile(new URL("../lib/message-delivery.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/message-provider-payloads.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/cron/operations/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../../../vercel.json", import.meta.url), "utf8"),
+    readFile(new URL("../vercel.json", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/salon/communications-view.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.env.example", import.meta.url), "utf8"),
