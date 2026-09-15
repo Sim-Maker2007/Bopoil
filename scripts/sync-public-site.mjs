@@ -1,6 +1,7 @@
-import { cp, mkdir, readdir } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { boutiqueEnabled, transformPublicFile } from "./public-site-boutique.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = join(root, "apps", "web");
@@ -10,10 +11,18 @@ const excluded = new Set(["README.md", "tools"]);
 await mkdir(destination, { recursive: true });
 for (const entry of await readdir(source, { withFileTypes: true })) {
   if (excluded.has(entry.name)) continue;
-  await cp(join(source, entry.name), join(destination, entry.name), {
-    recursive: entry.isDirectory(),
-    force: true,
-  });
+  const from = join(source, entry.name);
+  const to = join(destination, entry.name);
+  const transformed = entry.isFile() ? transformPublicFile(entry.name, await readFile(from, "utf8")) : null;
+  if (transformed !== null) {
+    await writeFile(to, transformed);
+    continue;
+  }
+  await cp(from, to, { recursive: entry.isDirectory(), force: true });
 }
 
-console.log("BOPOIL public website synchronized without transforming its HTML, CSS, or layout.");
+console.log(
+  boutiqueEnabled()
+    ? "BOPOIL public website synchronized with the boutique published."
+    : "BOPOIL public website synchronized with the boutique hidden (set BOUTIQUE_ENABLED=true to publish it).",
+);
