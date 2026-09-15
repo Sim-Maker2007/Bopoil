@@ -23,8 +23,9 @@ window.BOPOIL_CONFIG = {
     bookingSiteId: 'cxp2nq7jmuh54t',
     locationId: 'LJVHDT6T6W3XM',
 
-    // Lien principal vers la page de réservation Square.
-    bookingUrl: 'https://book.squareup.com/appointments/cxp2nq7jmuh54t/location/LJVHDT6T6W3XM/services',
+    // Coat & Care reconnaît le client, puis crée le rendez-vous dans Square.
+    bookingUrl: '/book/bopoil/gatineau',
+    embedBooking: false,
 
     // Liens directs par catégorie de service (facultatif).
     // Laissez la valeur nulle pour utiliser bookingUrl.

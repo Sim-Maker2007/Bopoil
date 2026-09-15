@@ -9,7 +9,7 @@ test("ships the public grooming booking experience", async () => {
   ]);
   assert.match(layout, /Coat & Care — Pet Grooming, Beautifully Simple/);
   assert.match(page, /A happier grooming day/);
-  assert.match(page, /fetch\("\/api\/bookings"/);
+  assert.match(page, /"\/api\/square-bookings" : "\/api\/bookings"/);
   assert.match(page, /policyAccepted/);
   assert.doesNotMatch(page + layout, /codex-preview|Your site is taking shape/i);
 });
@@ -500,7 +500,7 @@ test("reconciles signed provider outcomes and sweeps due communications unattend
     readFile(new URL("../lib/message-delivery.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/message-provider-payloads.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/cron/operations/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../../../vercel.json", import.meta.url), "utf8"),
+    readFile(new URL("../vercel.json", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/salon/communications-view.tsx", import.meta.url), "utf8"),
     readFile(new URL("../.env.example", import.meta.url), "utf8"),

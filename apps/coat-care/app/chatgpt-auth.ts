@@ -114,10 +114,21 @@ export async function consumeSalonLoginChallenge(rawToken: string) {
     isNull(salonAuthChallenges.usedAt),
   )).returning({ email: salonAuthChallenges.email });
   if (!challenge) return false;
-  const sessionToken = token();
-  await db.insert(salonAuthSessions).values({ id: crypto.randomUUID(), email: challenge.email, tokenHash: await hash(sessionToken), expiresAt: new Date(now.getTime() + SESSION_TTL_MS).toISOString(), lastUsedAt: now.toISOString() });
-  (await cookies()).set(COOKIE, sessionToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: Math.floor(SESSION_TTL_MS / 1000) });
+  await issueSalonSession(challenge.email, now);
   return true;
+}
+
+async function issueSalonSession(email: string, now = new Date()) {
+  const sessionToken = token();
+  await getDb().insert(salonAuthSessions).values({ id: crypto.randomUUID(), email, tokenHash: await hash(sessionToken), expiresAt: new Date(now.getTime() + SESSION_TTL_MS).toISOString(), lastUsedAt: now.toISOString() });
+  (await cookies()).set(COOKIE, sessionToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: Math.floor(SESSION_TTL_MS / 1000) });
+}
+
+export async function createDevelopmentOwnerSession() {
+  if (process.env.NODE_ENV !== "development") throw new Error("Development sign-in is disabled.");
+  const email = normalizeEmail(process.env.SALON_OWNER_EMAIL || "info@bopoil.ca");
+  if (!email) throw new Error("A valid salon owner email is required.");
+  await issueSalonSession(email);
 }
 
 export async function revokeSalonSession() {

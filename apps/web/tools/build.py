@@ -1410,9 +1410,8 @@ FICHE_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .45;">
             <p>Afin de mieux planifier votre premier rendez-vous avec nous, s'il vous plaît,
               compléter cette fiche d'informations. Le tout nous permettra d'adapter les soins
               offerts selon les besoins de votre animal.</p>
-            <p>Déjà client? Et la situation de votre animal a changé?</p>
-            <p>Merci de remplir de nouveau cette fiche afin que nous puissions mettre votre
-              dossier à jour.</p>
+            <p>Déjà client? Ouvrez d'abord votre profil sécurisé depuis la page de réservation
+              avant de modifier la fiche de votre animal.</p>
             <p>Pour toutes questions, n'hésitez pas à
               <a href="contactez-nous.html">communiquer avec nous</a>.</p>
           </div>
@@ -1427,18 +1426,21 @@ FICHE_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .45;">
                      autocomplete="name" required>
             </div>
             <div class="form-field">
-              <label class="form-label" for="fiche-telephone">Numéro de téléphone</label>
+              <label class="form-label" for="fiche-telephone">Numéro de téléphone
+                <span class="req" aria-hidden="true">*</span></label>
               <input class="field" id="fiche-telephone" name="telephone" type="tel"
-                     autocomplete="tel">
+                     autocomplete="tel" required>
             </div>
             <div class="form-field">
-              <label class="form-label" for="fiche-courriel">Adresse courriel</label>
+              <label class="form-label" for="fiche-courriel">Adresse courriel
+                <span class="req" aria-hidden="true">*</span></label>
               <input class="field" id="fiche-courriel" name="email" type="email"
-                     autocomplete="email">
+                     autocomplete="email" required>
             </div>
             <div class="form-field">
-              <label class="form-label" for="fiche-animal">Nom de l'animal</label>
-              <input class="field" id="fiche-animal" name="nom_animal" type="text">
+              <label class="form-label" for="fiche-animal">Nom de l'animal
+                <span class="req" aria-hidden="true">*</span></label>
+              <input class="field" id="fiche-animal" name="nom_animal" type="text" required>
             </div>
             <div class="form-field">
               <label class="form-label" for="fiche-anniversaire">Date d'anniversaire</label>
@@ -1502,19 +1504,19 @@ RDV_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .45;">
             le service, la date et l'heure qui vous conviennent{NB}: vous recevrez une
             confirmation par courriel, puis un rappel entre 24{NB}h et 48{NB}h avant votre
             visite.</p>
-          <p>Premier rendez-vous chez nous? Merci de remplir aussi la
+          <p>Premier rendez-vous chez nous? Commencez par remplir la
             <a href="fiche-informations.html">fiche d'informations</a> afin que nous puissions
-            adapter les soins aux besoins de votre animal.</p>
+            créer le profil permanent de votre animal avant de réserver.</p>
         </div>
 
         <div class="booking-cta">
           <div>
             <h2 class="booking-cta__title">Réservation en ligne</h2>
-            <p class="mb-0">Choisissez votre service et votre plage horaire dans le
-              calendrier Square, en un clic.</p>
+            <p class="mb-0">Votre profil BOPOIL est reconnu d'abord, puis votre rendez-vous
+              est ajouté directement au calendrier Square.</p>
           </div>
-          <a class="btn btn--filled btn--large" data-booking-link="" target="_blank"
-             rel="noopener" href="{{BOOKING_URL}}">Réserver sur Square</a>
+          <a class="btn btn--filled btn--large" data-booking-link=""
+             href="{{BOOKING_URL}}">Réserver en ligne</a>
         </div>
 
         <!-- Le cadre reste caché jusqu'à ce qu'il ait vraiment chargé, pour
@@ -1573,8 +1575,7 @@ RDV_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .45;">
 
 # Doit correspondre à square.bookingUrl dans js/config.js. Utilisé uniquement
 # comme repli statique (href écrit dans le HTML) si JavaScript est désactivé.
-BOOKING_URL = ("https://book.squareup.com/appointments/"
-               "cxp2nq7jmuh54t/location/LJVHDT6T6W3XM/services")
+BOOKING_URL = "/book/bopoil/gatineau"
 
 PAGES = [
     dict(filename="index.html",
