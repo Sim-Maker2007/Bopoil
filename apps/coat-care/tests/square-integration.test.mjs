@@ -74,12 +74,31 @@ test("Coat & Care remains authoritative and every website booking uses one linke
 });
 
 test("Square write requests use JSON while read requests keep their existing behavior", async () => {
-  const square = await source("../lib/square.ts");
-  assert.match(square, /bookingMode === "api"/);
-  assert.match(square, /publicBookingConfigured: Boolean/);
-  assert.match(square, /if \(options\.body\) headers\["content-type"\] = "application\/json"/);
-  assert.match(square, /method: options\.method \|\| \(options\.body \? "POST" : "GET"\)/);
-  assert.match(square, /body: options\.body \? JSON\.stringify\(options\.body\) : undefined/);
+  const { squareRequest, squareConfig } = await import("../lib/square.ts");
+  const previousToken = process.env.SQUARE_ACCESS_TOKEN;
+  process.env.SQUARE_ACCESS_TOKEN = "fixture-token";
+  try {
+    assert.equal(squareConfig({ SQUARE_ACCESS_TOKEN: "token", SQUARE_LOCATION_ID: "loc", SQUARE_BOOKING_MODE: "api" }).publicBookingConfigured, true);
+    const calls = [];
+    const fetcher = async (_url, init) => {
+      calls.push(init);
+      return { ok: true, status: 200, headers: new Headers(), json: async () => ({ ok: true }) };
+    };
+    await squareRequest("customers", { fetcher });
+    await squareRequest("customers", { fetcher, body: { given_name: "Test" } });
+    await squareRequest("customers/id", { fetcher, method: "PUT", body: { given_name: "Updated" } });
+    assert.equal(calls[0].method, "GET");
+    assert.equal(calls[0].body, undefined);
+    assert.equal(calls[0].headers["content-type"], undefined);
+    assert.equal(calls[1].method, "POST");
+    assert.equal(calls[1].headers["content-type"], "application/json");
+    assert.deepEqual(JSON.parse(calls[1].body), { given_name: "Test" });
+    assert.equal(calls[2].method, "PUT");
+    assert.deepEqual(JSON.parse(calls[2].body), { given_name: "Updated" });
+  } finally {
+    if (previousToken === undefined) delete process.env.SQUARE_ACCESS_TOKEN;
+    else process.env.SQUARE_ACCESS_TOKEN = previousToken;
+  }
 });
 
 test("the website intake endpoint stores no raw contact or care payload in its delivery ledger", async () => {

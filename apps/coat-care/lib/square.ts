@@ -1,5 +1,5 @@
-import { verifySquareWebhookSignature } from "./square-webhooks";
-export { squareWebhookSignature } from "./square-webhooks";
+import { verifySquareWebhookSignature } from "./square-webhooks.ts";
+export { squareWebhookSignature } from "./square-webhooks.ts";
 
 type RuntimeValues = Record<string, string | undefined>;
 
@@ -41,29 +41,25 @@ export async function verifySquareWebhook(payload: string, signature: string, co
   return verifySquareWebhookSignature(payload, signature, config.webhookNotificationUrl, config.webhookSignatureKey);
 }
 
-export async function squareRequest<T>(path: string, options: {
-  query?: URLSearchParams;
-  fetcher?: typeof fetch;
-  method?: "GET" | "POST" | "PUT";
-  body?: Record<string, unknown>;
-} = {}) {
+export async function squareRequest<T>(path: string, options: { query?: URLSearchParams; fetcher?: typeof fetch; method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown } = {}) {
   const config = squareConfig();
   if (!config.accessToken) throw new Error("Square synchronization is not configured.");
   const url = new URL(`https://connect.squareup.com/v2/${path.replace(/^\//, "")}`);
   options.query?.forEach((value, key) => url.searchParams.append(key, value));
+  const method = options.method || (options.body !== undefined ? "POST" : "GET");
   const headers: Record<string, string> = {
     authorization: `Bearer ${config.accessToken}`,
     accept: "application/json",
   };
-  if (options.body) headers["content-type"] = "application/json";
   if (config.apiVersion) headers["Square-Version"] = config.apiVersion;
+  const sendsBody = options.body !== undefined && method !== "GET";
+  if (sendsBody) headers["content-type"] = "application/json";
+  const init: RequestInit = { method, headers };
+  if (sendsBody) init.body = JSON.stringify(options.body);
   const fetcher = options.fetcher || fetch;
-  const init: RequestInit = {
-    method: options.method || (options.body ? "POST" : "GET"),
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  };
   let response = await fetcher(url, init);
+  // Square rate-limits bursts with 429 and occasionally answers 5xx; a short
+  // back-off keeps an hourly reconciliation from failing on a single blip.
   for (let attempt = 0; attempt < 2 && (response.status === 429 || response.status >= 500); attempt += 1) {
     const retryAfter = Number(response.headers.get("retry-after") || 0);
     await new Promise((resolve) => setTimeout(resolve, Math.min(5_000, retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt)));
