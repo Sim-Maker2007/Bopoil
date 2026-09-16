@@ -605,6 +605,16 @@ footer > span { color: rgba(255,255,255,.45); text-align: right; font-size: 11px
 .guided-booking .primary-button { text-align: center; text-decoration: none; }
 @media(max-width: 760px) { .guided-booking .booking-flow { grid-template-columns: 1fr; padding: 28px 16px; gap: 24px; } .guided-booking .booking-intro { position: static; } .guided-booking h1 { font-size: 34px; margin: 12px 0; } .guided-progress { grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; font-size: 12px; } .guided-booking .booking-card { min-height: 300px; } .guided-help { margin-bottom: 0; } }
 
+/* Match the public intake questionnaire without stretching choice controls. */
+.guided-fields .intake-questions { gap: 24px; }
+.guided-fields .intake-questions .form-field { display: grid; gap: 8px; }
+.guided-fields .intake-choice { display: flex; align-items: flex-start; gap: 10px; font-weight: 400; line-height: 1.5; cursor: pointer; }
+.guided-fields .intake-choice input { flex: 0 0 auto; width: 18px; height: 18px; min-height: 0; margin: 2px 0 0; padding: 0; accent-color: #a33120; }
+.guided-fields .intake-honeypot { display: none; }
+.guided-fields .req { color: #a33120; }
+.guided-fields .form-note { font-size: 13px; }
+.guided-fields .intake-questions .form-label { display: block; }
+
 /* ==========================================================================
    Mobile-first booking onboarding (2026 refresh)
    The public booking flow is used mostly on phones. These rules turn the
@@ -680,32 +690,13 @@ footer > span { color: rgba(255,255,255,.45); text-align: right; font-size: 11px
 .guided-booking .profile-choice-button > b { font-size: 26px; line-height: 1; color: var(--bk-plum); text-align: right; }
 .guided-booking .returning-link { color: var(--bk-plum-deep); font-size: 13px; min-height: 40px; }
 
-/* Two-screen profile form. */
-.guided-fields fieldset[hidden] { display: none; }
-.intake-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; }
+/* Profile form shell. */
 .intake-back { white-space: nowrap; }
 .intake-back > span { font-size: 22px; line-height: 1; }
-.intake-progress { display: flex; gap: 6px; }
-.intake-progress span { flex: 1; height: 6px; border-radius: 6px; background: #e3d9ce; transition: background .3s ease; }
-.intake-progress span.active { background: var(--bk-plum); }
-.intake-step { color: var(--bk-muted); font-size: 12px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
-.intake-form h3 { margin: 6px 0 0; }
-.intake-form > p { margin: 0; }
-.intake-form legend { font-size: 13px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--bk-muted); }
 .guided-booking .guided-fields label { font-size: 14px; font-weight: 600; }
 .guided-booking .guided-fields input, .guided-booking .guided-fields select, .guided-booking .guided-fields textarea { min-height: 52px; padding: 12px 16px; border: 1.5px solid #d8cec3; border-radius: 16px; background: var(--bk-soft); font-size: 16px; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
 .guided-booking .guided-fields :is(input, select, textarea):focus { border-color: var(--bk-plum); background: white; box-shadow: 0 0 0 4px rgba(177,79,126,.14); outline: 0; }
 .guided-booking .guided-fields select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%236b625c' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; padding-right: 42px; }
-.chip-field { display: grid; gap: 8px; }
-.chip-label { font-size: 14px; font-weight: 600; }
-.chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { position: relative; }
-.chip input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
-.chip > span { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; border: 1.5px solid #d8cec3; border-radius: 999px; background: var(--bk-soft); font-size: 15px; font-weight: 600; transition: background .15s ease, border-color .15s ease, color .15s ease; }
-.chip > span i { font-style: normal; font-size: 18px; }
-.chip input:checked + span { border-color: var(--bk-ink); background: var(--bk-ink); color: white; }
-.chip input:focus-visible + span { outline: 3px solid var(--bk-plum); outline-offset: 3px; }
-.intake-privacy { display: block; margin-top: -4px; color: var(--bk-muted); font-size: 12px; line-height: 1.5; text-align: center; }
 
 /* Returning clients and phone sign-in share the same rounded language. */
 .guided-booking .returning-pets > button { border-radius: 20px; padding: 14px 16px; background: white; border-color: var(--bk-line); box-shadow: 0 8px 22px rgba(60,38,40,.05); }
@@ -749,11 +740,25 @@ footer > span { color: rgba(255,255,255,.45); text-align: right; font-size: 11px
 .profile-choice-question { margin: 8px 0 -4px; font: 400 22px/1.2 var(--bk-serif); color: var(--bk-ink); }
 .intake-form .booking-hero { margin: 2px 0 6px; }
 .intake-form .req { margin-left: 2px; color: var(--bk-plum); }
-.chip-group.sizes { display: grid; grid-template-columns: 1fr 1fr; }
-.chip-group.sizes .chip > span { width: 100%; justify-content: center; padding: 0 10px; font-size: 13px; text-align: center; }
-.check-row { display: grid !important; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 12px; font-weight: 500 !important; }
-.check-row input { width: 24px; height: 24px; min-height: 0 !important; margin: 0; padding: 0 !important; border-radius: 7px !important; accent-color: var(--bk-plum); }
-.intake-privacy a { color: var(--bk-plum-deep); font-weight: 700; }
+.intake-required-note { margin: 0; color: var(--bk-muted); font-size: 13px; }
+/* The website questionnaire markup, restyled: radio groups become tappable chips. */
+.guided-booking .intake-form .intake-questions { gap: 18px; }
+.guided-booking .intake-form .form-field { display: grid; gap: 8px; }
+.guided-booking .intake-form .form-label { display: block; font-size: 14px; font-weight: 600; line-height: 1.4; }
+.guided-booking .intake-form .field-group { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.guided-booking .intake-form .field-group legend { float: left; width: 100%; padding: 0 0 8px; font-size: 14px; font-weight: 600; }
+.guided-booking .intake-form .field-group .intake-choice { position: relative; display: block; margin: 0; }
+.guided-booking .intake-form .field-group .intake-choice input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
+.guided-booking .intake-form .field-group .intake-choice span { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 16px; border: 1.5px solid #d8cec3; border-radius: 999px; background: var(--bk-soft); font-size: 15px; font-weight: 600; text-align: center; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.guided-booking .intake-form .field-group .intake-choice input:checked + span { border-color: var(--bk-ink); background: var(--bk-ink); color: white; }
+.guided-booking .intake-form .field-group .intake-choice input:focus-visible + span { outline: 3px solid var(--bk-plum); outline-offset: 3px; }
+.guided-booking .intake-form .field-group:has(input[name="taille"]) { display: grid; grid-template-columns: 1fr 1fr; }
+.guided-booking .intake-form .field-group:has(input[name="taille"]) legend { grid-column: 1 / -1; }
+.guided-booking .intake-form .field-group:has(input[name="taille"]) .intake-choice span { width: 100%; padding: 0 10px; font-size: 13px; }
+.guided-booking .intake-form .intake-questions > .intake-choice { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 12px; font-size: 14px; font-weight: 500; }
+.guided-booking .intake-form .intake-questions > .intake-choice input { width: 24px; height: 24px; min-height: 0; margin: 0; padding: 0; border-radius: 7px; accent-color: var(--bk-plum); }
+.guided-booking .intake-form .form-note { margin: 0; color: var(--bk-muted); font-size: 13px; line-height: 1.5; }
+.guided-booking .intake-form .form-note a { color: var(--bk-plum-deep); font-weight: 700; }
 
 @media (max-width: 760px) {
   .guided-booking .topbar { height: 60px; }
@@ -776,15 +781,14 @@ footer > span { color: rgba(255,255,255,.45); text-align: right; font-size: 11px
   .guided-booking .profile-choice-button { padding: 14px; gap: 12px; grid-template-columns: 48px minmax(0, 1fr) 18px; }
   .guided-booking .profile-choice-button .choice-icon { width: 48px; height: 48px; border-radius: 16px; }
   .guided-booking .profile-choice-button strong { font-size: 16px; }
-  .intake-head { gap: 10px; }
-  .chip > span { flex: 1; justify-content: center; }
-  .chip { flex: 1 1 auto; display: flex; }
+  .guided-booking .intake-form .field-group:not(:has(input[name="taille"])) .intake-choice { flex: 1 1 auto; }
+  .guided-booking .intake-form .field-group:not(:has(input[name="taille"])) .intake-choice span { width: 100%; }
   /* The illustrated banner bleeds to the card edges on phones. */
   .profile-choice .booking-hero { margin: -22px -18px 6px; border-radius: 26px 26px 0 0; padding: 22px 20px 22px; }
   .hero-art { width: min(52vw, 200px); }
   .booking-hero.compact { grid-template-columns: minmax(0, 1fr) 84px; padding: 16px; }
   .booking-hero.compact .hero-art { width: 84px; }
-  .chip-group.sizes .chip > span { font-size: 12px; }
+  .guided-booking .intake-form .field-group:has(input[name="taille"]) .intake-choice span { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-shape { animation: none; }

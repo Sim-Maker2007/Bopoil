@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { matchingCare, sizeKeyFromLabel, suggestedCoat, careLabel } from '../lib/care-options.ts';
+import { matchingCare, suggestedCoat, careLabel } from '../lib/care-options.ts';
 const services = [
   'Base - Catégorie D (Long ou frisé) · XS/TP (11 à 20 lbs)',
   'Complet - Catégorie D (Long ou frisé) · XS/TP (11 à 20 lbs)',
@@ -26,15 +26,3 @@ test('unknown and mixed breeds require an explicit coat choice', () => {
   assert.equal(careLabel(services[0].name), 'Bain et soins de base');
 });
 
-test('sizeKeyFromLabel accepts the website size labels and the short keys', () => {
-  assert.equal(sizeKeyFromLabel('XS/TP (11 à 20 lbs)'), 'XS');
-  assert.equal(sizeKeyFromLabel('XXS/TTP (moins de 10 lbs)'), 'XXS');
-  assert.equal(sizeKeyFromLabel('S/P (21 à 40 lbs)'), 'S');
-  assert.equal(sizeKeyFromLabel('XL/TG (81 à 100 lbs)'), 'XL');
-  assert.equal(sizeKeyFromLabel('XXL/TTG (101 à 120 lbs)'), 'OTHER');
-  assert.equal(sizeKeyFromLabel('Géant (plus de 121 lbs)'), 'OTHER');
-  assert.equal(sizeKeyFromLabel('M'), 'M');
-  assert.equal(sizeKeyFromLabel(''), '');
-  assert.equal(sizeKeyFromLabel(null), '');
-  assert.equal(sizeKeyFromLabel('Moyen'), '');
-});

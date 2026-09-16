@@ -131,13 +131,11 @@ test("operational navigation and dialogs expose accessible state", async () => {
 });
 
 test("the booking flow keeps its steps and carries the public information form's exact questions", async () => {
-  const [booking, intake, hero, careChoices, careOptions, publicForm, styles, layout] = await Promise.all([
+  const [booking, intake, hero, careChoices, styles, layout] = await Promise.all([
     source("../app/booking-experience.tsx"),
     source("../app/booking-intake.tsx"),
     source("../app/booking-hero.tsx"),
     source("../app/care-choices.tsx"),
-    source("../lib/care-options.ts"),
-    source("../../web/fiche-informations.html"),
     source("../app/globals.css"),
     source("../app/layout.tsx"),
   ]);
@@ -150,24 +148,12 @@ test("the booking flow keeps its steps and carries the public information form's
   assert.match(styles, /\.guided-progress-label \{ display: flex/);
   assert.match(layout, /viewportFit: "cover"/);
 
-  // The in-app profile form is the website « Fiche d'informations »: same fields, values and required flags.
-  const publicFormMarkup = publicForm.slice(publicForm.indexOf('data-formspree="intake"'), publicForm.indexOf("</form>"));
-  for (const name of ["proprietaire", "telephone", "email", "nom_animal", "anniversaire", "espece", "race", "taille", "sante", "comportement", "sterilise", "gateries", "photos", "marketing"]) {
-    assert.match(publicFormMarkup, new RegExp(`name="${name}"`));
-    assert.match(intake, new RegExp(`name="${name}"`));
-  }
-  for (const name of ["proprietaire", "telephone", "email", "nom_animal"]) assert.match(intake, new RegExp(`name="${name}"[^>]*required`));
-  assert.match(intake, /name="sante" rows=\{4\} required/);
-  for (const name of ["anniversaire", "race", "comportement", "sterilise", "gateries", "photos", "marketing"]) assert.doesNotMatch(intake, new RegExp(`name="${name}"[^>]*required`));
-  for (const value of publicFormMarkup.matchAll(/<option value="([^"]+)"|name="(?:espece|taille)" value="([^"]+)"/g)) { const choice = (value[1] || value[2]).replace(/\u00a0/g, "\\u00a0"); assert.ok(intake.includes(`"${choice}"`), `${choice} missing from the booking form`); }
-  assert.match(intake, /const speciesChoices = \["Chien", "Chat", "Petit animal"\]/);
-  assert.match(intake, /name="marketing" value="oui"/);
-  assert.doesNotMatch(intake, /name="website"/);
+  // The profile form keeps PR #18's website questionnaire markup (checked by booking-intake-parity.test.mjs) inside the restyled shell.
+  assert.match(intake, /import \{ BookingHero, PhoneArt \} from "\.\/booking-hero"/);
+  assert.match(intake, /className="guided-fields intake-form"/);
+  assert.match(intake, /name="website"/);
   assert.match(intake, /fetch\("\/api\/public\/intake"/);
-  assert.doesNotMatch(intake, /hidden=\{panel/);
-
-  // Website size labels and short size keys both pre-select the care size.
-  assert.match(careOptions, /export function sizeKeyFromLabel/);
-  assert.match(careChoices, /useState\(sizeKeyFromLabel\(pet\.sizeLabel\)\)/);
-  assert.match(styles, /\.guided-fields fieldset\[hidden\] \{ display: none; \}/);
+  assert.doesNotMatch(intake, /hidden=\{panel|defaultChecked|defaultValue/);
+  assert.match(careChoices, /useState\(savedSizeChoice\(pet\.sizeLabel\)\)/);
+  assert.match(styles, /\.guided-booking \.intake-form \.field-group \.intake-choice input:checked \+ span/);
 });

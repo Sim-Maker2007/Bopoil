@@ -13,6 +13,7 @@ export type ShopProduct = {
   priceCents: number;
   currency: string;
   imageUrl: string;
+  imageUrls: string[];
   category: string;
 };
 
@@ -39,7 +40,7 @@ type CatalogObject = Availability & {
     category_id?: string;
     categories?: Array<{ id?: string }>;
     reporting_category?: { id?: string };
-    variations?: Array<Availability & { id: string; item_variation_data?: { name?: string; sellable?: boolean; pricing_type?: string; price_money?: Money; location_overrides?: Array<{ location_id?: string; price_money?: Money; sold_out?: boolean }> } }>;
+    variations?: Array<Availability & { id: string; item_variation_data?: { name?: string; sellable?: boolean; pricing_type?: string; price_money?: Money; image_ids?: string[]; location_overrides?: Array<{ location_id?: string; price_money?: Money; sold_out?: boolean }> } }>;
   };
   image_data?: { url?: string };
   category_data?: { name?: string };
@@ -49,6 +50,71 @@ type CatalogSearchResult = { objects?: CatalogObject[]; related_objects?: Catalo
 type PaymentLinkResult = { payment_link?: { id?: string; url?: string; long_url?: string } };
 
 export type ShopConfig = ReturnType<typeof shopConfig>;
+
+// Square's French dashboard labels the default variation "Article de base".
+// English dashboards use Regular / Default. None of those belong on a storefront title.
+const GENERIC_VARIATION = /^(regular|r[ée]gulier|default|standard|article de base)(\s+(item|variation))?$/i;
+
+function genericVariationName(name = "") {
+  return GENERIC_VARIATION.test(name.trim());
+}
+
+function shopDisplayName(itemName = "", variationName = "") {
+  const base = itemName.replace(/\s*[—–-]\s*article de base\s*$/i, "").trim() || "Article";
+  if (!variationName || genericVariationName(variationName)) return base;
+  return `${base} — ${variationName}`;
+}
+
+function httpsUrl(url = "") {
+  return /^https:\/\//i.test(url) ? url : "";
+}
+
+function indexCatalogImages(objects: CatalogObject[] = []) {
+  const images = new Map<string, string>();
+  for (const object of objects) {
+    const url = object.type === "IMAGE" ? httpsUrl(object.image_data?.url) : "";
+    if (url) images.set(object.id, url);
+  }
+  return images;
+}
+
+function uniqueIds(ids: Array<string | undefined>) {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const id of ids) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(id);
+  }
+  return ordered;
+}
+
+function variationImageIds(item: NonNullable<CatalogObject["item_data"]>, variationId: string) {
+  const variation = item.variations?.find((entry) => entry.id === variationId);
+  return uniqueIds([...(variation?.item_variation_data?.image_ids || []), ...(item.image_ids || [])]);
+}
+
+function catalogImageIds(objects: CatalogObject[] = []) {
+  return uniqueIds(objects.flatMap((object) => {
+    if (object.type !== "ITEM" || !object.item_data) return [];
+    return [
+      ...(object.item_data.image_ids || []),
+      ...(object.item_data.variations || []).flatMap((variation) => variation.item_variation_data?.image_ids || []),
+    ];
+  }));
+}
+
+async function retrieveMissingImages(ids: string[], images: Map<string, string>, fetcher?: typeof fetch) {
+  const missing = ids.filter((id) => !images.has(id));
+  for (let offset = 0; offset < missing.length; offset += 100) {
+    const result = await squareRequest<{ objects?: CatalogObject[] }>("catalog/batch-retrieve", {
+      method: "POST",
+      fetcher,
+      body: { object_ids: missing.slice(offset, offset + 100), include_related_objects: false, include_deleted_objects: false },
+    });
+    for (const [id, url] of indexCatalogImages(result.objects || [])) images.set(id, url);
+  }
+}
 
 export function shopConfig(config = squareConfig()) {
   return {
@@ -69,10 +135,9 @@ function availableAt(object: Availability, locationId: string) {
 }
 
 export function normalizeCatalog(objects: CatalogObject[] = [], related: CatalogObject[] = [], locationId = ""): ShopProduct[] {
-  const images = new Map<string, string>();
+  const images = indexCatalogImages([...related, ...objects]);
   const categories = new Map<string, string>();
   for (const object of [...related, ...objects]) {
-    if (object.type === "IMAGE" && object.image_data?.url) images.set(object.id, object.image_data.url);
     if (object.type === "CATEGORY" && object.category_data?.name) categories.set(object.id, object.category_data.name);
   }
   const products: ShopProduct[] = [];
@@ -89,15 +154,16 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
       if (override?.sold_out) continue;
       const price = override?.price_money || data.price_money;
       if (!price || !Number.isSafeInteger(price.amount) || price.amount! < 0) continue;
-      const variationName = data.name && !/^(regular|régulier|default)$/i.test(data.name) ? data.name : "";
+      const imageUrls = variationImageIds(item, variation.id).map((id) => images.get(id) || "").filter(Boolean);
       products.push({
         id: variation.id,
         itemId: object.id,
-        name: (item.name || "Article") + (variationName ? ` — ${variationName}` : ""),
+        name: shopDisplayName(item.name || "Article", data.name || ""),
         description: item.description_plaintext || (item.description || "").replace(/<[^>]*>/g, ""),
         priceCents: price.amount!,
         currency: price.currency || "CAD",
-        imageUrl: images.get(item.image_ids?.[0] || "") || "",
+        imageUrl: imageUrls[0] || "",
+        imageUrls,
         category: categories.get(categoryId) || "Boutique",
       });
     }
@@ -122,6 +188,14 @@ export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProd
     if (cursor && seen.has(cursor)) throw new Error("Le catalogue ne peut pas être chargé entièrement.");
     if (cursor) seen.add(cursor);
   } while (cursor);
+  const images = indexCatalogImages([...related, ...objects]);
+  try {
+    await retrieveMissingImages(catalogImageIds(objects), images, fetcher);
+  } catch {
+    // Search often returns only the first IMAGE in related_objects. Extra photos
+    // are worth a second fetch, but the catalog should still load without them.
+  }
+  related.push(...[...images.entries()].map(([id, url]) => ({ id, type: "IMAGE", image_data: { url } })));
   return normalizeCatalog(objects, related, shopConfig().locationId);
 }
 

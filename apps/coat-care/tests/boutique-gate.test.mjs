@@ -79,3 +79,18 @@ test("the Next.js proxy enforces the gate on every boutique address", async () =
   assert.match(sync, /transformPublicFile/);
   assert.equal(BOUTIQUE_PREVIEW_COOKIE, "__Host-bopoil_boutique");
 });
+
+test("product cards keep descriptions off the grid and show them in the product sheet", async () => {
+  const [boutique, script] = await Promise.all([
+    readFile(new URL("../../web/boutique.html", import.meta.url), "utf8"),
+    readFile(new URL("../../web/js/boutique.js", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(boutique, /class="product-card__desc"/);
+  assert.match(boutique, /data-product-sheet/);
+  assert.match(boutique, /data-product-desc/);
+  assert.match(boutique, /data-desc="/);
+  assert.match(boutique, /class="shop-cats"/);
+  assert.match(script, /function openProduct\(/);
+  assert.match(script, /sheetDesc\.textContent/);
+  assert.doesNotMatch(script, /product-card__desc/);
+});
