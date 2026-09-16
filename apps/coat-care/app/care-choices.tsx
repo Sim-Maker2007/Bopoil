@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { careLabel, coatOptions, matchingCare, sizeOptions, suggestedCoat } from "../lib/care-options";
+import { careLabel, coatOptions, matchingCare, sizeOptions, savedSizeChoice, suggestedCoat } from "../lib/care-options";
 
 type Service = { id: string; name: string; durationMinutes: number; priceFromCents: number };
 export function CareChoices({ pet, services, currency, contactPhone, onChoose, onBack }: {
@@ -8,7 +8,7 @@ export function CareChoices({ pet, services, currency, contactPhone, onChoose, o
   services: Service[]; currency: string; contactPhone: string; onChoose: (id: string) => void; onBack: () => void;
 }) {
   const [coat, setCoat] = useState(suggestedCoat(pet.breed));
-  const [size, setSize] = useState(sizeOptions.some(([key]) => key === pet.sizeLabel) ? pet.sizeLabel! : "");
+  const [size, setSize] = useState(savedSizeChoice(pet.sizeLabel));
   const [confirmed, setConfirmed] = useState(false);
   const dog = !pet.species || pet.species === "dog";
   const choices = matchingCare(services, pet, coat, size);

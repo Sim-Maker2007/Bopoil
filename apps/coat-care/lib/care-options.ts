@@ -8,6 +8,14 @@ export const sizeOptions = [
   ["XXS", "10 lb et moins"], ["XS", "11 à 20 lb"], ["S", "21 à 40 lb"],
   ["M", "41 à 60 lb"], ["L", "61 à 80 lb"], ["XL", "81 à 100 lb"], ["OTHER", "Plus de 100 lb / je ne sais pas"],
 ] as const;
+// The public intake stores the full weight label; older profiles used a short code.
+export function savedSizeChoice(value: string | null | undefined): string {
+  const size = (value || "").trim();
+  const code = size.match(/^(XXS|XS|XL|S|M|L)(?:\/|$)/i)?.[1].toUpperCase();
+  if (code) return code;
+  if (/^(XXL\/|Géant|OTHER$)/i.test(size)) return "OTHER";
+  return "";
+}
 function normalize(value: string) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 // Suggestions only: the client confirms the actual coat, including for mixed breeds.
 export function suggestedCoat(breed: string): string {
