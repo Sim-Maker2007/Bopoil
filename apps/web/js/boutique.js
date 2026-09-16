@@ -186,7 +186,7 @@
     if (!p || !sheet) return false;
     openProductId = id;
     productQty = 1;
-    sheetMedia.innerHTML = p.media || paw();
+    sheetMedia.innerHTML = galleryHTML(p);
     sheetCategory.textContent = p.category || '';
     sheetTitle.textContent = p.name;
     sheetPrice.textContent = money(p.price, p.currency);
@@ -194,6 +194,31 @@
     sheetAdd.dataset.add = id;
     renderProductQty();
     return true;
+  }
+  function allowedImageUrl(url) {
+    url = String(url || '').trim();
+    if (/^https:\/\//i.test(url)) return true;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return false;
+    return /^[\w][\w./-]*\.(jpg|jpeg|png|webp|gif)$/i.test(url);
+  }
+  function galleryHTML(p) {
+    var urls = (p.images || []).filter(allowedImageUrl);
+    if (!urls.length) return p.media || paw();
+    var thumbs = urls.length > 1
+      ? '<div class="product-sheet__thumbs" role="tablist" aria-label="Photos du produit">' + urls.map(function (url, index) {
+        return '<button class="product-sheet__thumb" type="button" role="tab" data-sheet-image="' + index + '" aria-selected="' + (index === 0 ? 'true' : 'false') + '" aria-label="Photo ' + (index + 1) + ' sur ' + urls.length + '"><img src="' + escapeHtml(url) + '" alt=""></button>';
+      }).join('') + '</div>'
+      : '';
+    return '<img src="' + escapeHtml(urls[0]) + '" alt="' + escapeHtml(p.name) + '" data-sheet-main>' + thumbs;
+  }
+  function setSheetImage(index) {
+    var p = products[openProductId];
+    if (!p || !p.images || !p.images[index] || !sheet) return;
+    var main = sheet.querySelector('[data-sheet-main]');
+    if (main) main.src = p.images[index];
+    sheet.querySelectorAll('[data-sheet-image]').forEach(function (btn) {
+      btn.setAttribute('aria-selected', String(Number(btn.dataset.sheetImage) === index));
+    });
   }
   function openProduct(id, opts) {
     if (!products[id] || !sheet) return;
@@ -261,11 +286,15 @@
     var category = escapeHtml(p.category || 'Boutique');
     var cat = escapeHtml(p.cat || slug(p.category));
     var desc = escapeHtml(p.description || '');
+    var images = (p.imageUrls || []).filter(allowedImageUrl);
     var image = p.imageHtml || paw();
-    return '<article class="product-card" style="--i:' + index + (p.tint ? ';--tint:' + escapeHtml(p.tint) + ';--tint-ink:' + escapeHtml(p.ink || '') : '') + '" data-product data-id="' + id + '" data-name="' + name + '" data-price="' + p.priceCents + '" data-currency="' + escapeHtml(p.currency || 'CAD') + '" data-cat="' + cat + '" data-desc="' + desc + '">' +
+    var dots = images.length > 1
+      ? '<span class="product-card__dots" aria-hidden="true">' + images.map(function (_, index) { return '<i' + (index === 0 ? ' data-active="true"' : '') + '></i>'; }).join('') + '</span>'
+      : '';
+    return '<article class="product-card" style="--i:' + index + (p.tint ? ';--tint:' + escapeHtml(p.tint) + ';--tint-ink:' + escapeHtml(p.ink || '') : '') + '" data-product data-id="' + id + '" data-name="' + name + '" data-price="' + p.priceCents + '" data-currency="' + escapeHtml(p.currency || 'CAD') + '" data-cat="' + cat + '" data-desc="' + desc + '" data-images="' + escapeHtml(images.join('|')) + '">' +
       '<button class="product-card__hit" type="button" data-open-product="' + id + '" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : ' + name + '">' +
         '<span class="product-card__media">' +
-          '<span class="product-card__badge">' + category + '</span>' + image +
+          '<span class="product-card__badge">' + category + '</span>' + image + dots +
           '<span class="product-card__view">Voir le produit</span>' +
         '</span>' +
         '<span class="product-card__body">' +
@@ -298,6 +327,7 @@
         price: Number(card.dataset.price),
         currency: card.dataset.currency || 'CAD',
         media: media ? media.outerHTML : paw(),
+        images: (card.dataset.images || '').split('|').filter(Boolean),
         description: card.dataset.desc || '',
         category: badge ? badge.textContent.trim() : ''
       };
@@ -318,7 +348,8 @@
     grid.innerHTML = list.map(function (p, index) {
       var category = slug(p.category);
       categories.set(category, p.category);
-      var image = /^https:\/\//i.test(p.imageUrl || '') ? '<img src="' + escapeHtml(p.imageUrl) + '" alt="' + escapeHtml(p.name) + '" loading="lazy" decoding="async">' : paw();
+      var urls = (Array.isArray(p.imageUrls) ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : [])).filter(allowedImageUrl);
+      var image = urls[0] ? '<img src="' + escapeHtml(urls[0]) + '" alt="' + escapeHtml(p.name) + '" loading="lazy" decoding="async">' : paw();
       return cardHTML({
         id: p.id,
         name: p.name,
@@ -327,7 +358,8 @@
         currency: p.currency,
         category: p.category,
         cat: category,
-        imageHtml: image
+        imageHtml: image,
+        imageUrls: urls
       }, index);
     }).join('');
     renderFilters(categories);
@@ -437,6 +469,7 @@
     if (btn.hasAttribute('data-cart-open')) openCart();
     if (btn.hasAttribute('data-cart-close')) closeCart();
     if (btn.hasAttribute('data-product-close')) closeProduct();
+    if (btn.hasAttribute('data-sheet-image')) { setSheetImage(Number(btn.dataset.sheetImage)); return; }
     if (btn.hasAttribute('data-catalog-retry')) loadCatalog();
     if (btn.hasAttribute('data-add')) addToCart(btn.dataset.add, btn.hasAttribute('data-product-add') ? productQty : 1, btn);
     if (btn.hasAttribute('data-product-inc')) { productQty = Math.min(99, productQty + 1); renderProductQty(); }
@@ -460,6 +493,17 @@
     if (e.key === 'Escape') {
       if (drawer.dataset.open === 'true') closeCart();
       else if (sheet.dataset.open === 'true') closeProduct();
+      return;
+    }
+    if (sheet.dataset.open === 'true' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+      var p = products[openProductId];
+      var total = p && p.images ? p.images.length : 0;
+      if (total > 1) {
+        e.preventDefault();
+        var current = Array.prototype.findIndex.call(sheet.querySelectorAll('[data-sheet-image]'), function (btn) { return btn.getAttribute('aria-selected') === 'true'; });
+        if (current < 0) current = 0;
+        setSheetImage((current + (e.key === 'ArrowRight' ? 1 : total - 1)) % total);
+      }
       return;
     }
     if (e.key !== 'Tab') return;

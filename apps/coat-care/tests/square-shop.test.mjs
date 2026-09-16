@@ -71,6 +71,7 @@ test("normalizeCatalog maps items to priced products with images and categories"
     priceCents: 2400,
     currency: "CAD",
     imageUrl: "https://squarecdn.test/img1.jpg",
+    imageUrls: ["https://squarecdn.test/img1.jpg"],
     category: "Soins",
   });
 });
@@ -81,6 +82,7 @@ test("normalizeCatalog falls back gracefully when image/category are missing", (
     [],
   );
   assert.equal(products[0].imageUrl, "");
+  assert.deepEqual(products[0].imageUrls, []);
   assert.equal(products[0].category, "Boutique");
   assert.equal(products[0].currency, "USD");
 });
@@ -230,12 +232,105 @@ test("retail catalog includes all sizes and excludes services, archived and unav
   assert.equal(products[1].name, "Shampooing doux — 500 ml");
 });
 
+test("normalizeCatalog keeps every Square product photo, not only the first", () => {
+  const products = normalizeCatalog(
+    [{
+      id: "ITEM_GALLERY",
+      type: "ITEM",
+      item_data: {
+        name: "BACI+ Chien Tonus",
+        image_ids: ["IMG_1", "IMG_2", "IMG_3"],
+        variations: [
+          { id: "VAR_G", item_variation_data: { image_ids: ["IMG_2"], price_money: { amount: 5799, currency: "CAD" } } },
+        ],
+      },
+    }],
+    [
+      { id: "IMG_1", type: "IMAGE", image_data: { url: "https://squarecdn.test/one.jpg" } },
+      { id: "IMG_2", type: "IMAGE", image_data: { url: "https://squarecdn.test/two.jpg" } },
+      { id: "IMG_3", type: "IMAGE", image_data: { url: "https://squarecdn.test/three.jpg" } },
+    ],
+  );
+  assert.deepEqual(products[0].imageUrls, [
+    "https://squarecdn.test/two.jpg",
+    "https://squarecdn.test/one.jpg",
+    "https://squarecdn.test/three.jpg",
+  ]);
+  assert.equal(products[0].imageUrl, "https://squarecdn.test/two.jpg");
+});
+
 test("location prices and sold-out variations are respected", () => {
   const item = structuredClone(sampleCatalog.objects[0]);
   item.item_data.variations[0].item_variation_data.location_overrides = [{ location_id: "LOC123", price_money: { amount: 2600, currency: "CAD" } }];
   assert.equal(normalizeCatalog([item], [], "LOC123")[0].priceCents, 2600);
   item.item_data.variations[0].item_variation_data.location_overrides[0].sold_out = true;
   assert.equal(normalizeCatalog([item], [], "LOC123").length, 0);
+});
+
+test("fetchShopCatalog retrieves Square photos missing from the search related objects", async () => {
+  const calls = [];
+  const fetcher = async (url, init) => {
+    const href = String(url);
+    calls.push(href);
+    if (href.endsWith("catalog/search")) {
+      return jsonResponse({
+        objects: [{
+          id: "ITEM_GALLERY",
+          type: "ITEM",
+          item_data: {
+            name: "BACI+ Tonus",
+            image_ids: ["IMG_1", "IMG_2", "IMG_3"],
+            variations: [{ id: "VAR_G", item_variation_data: { price_money: { amount: 5799, currency: "CAD" } } }],
+          },
+        }],
+        related_objects: [
+          { id: "IMG_1", type: "IMAGE", image_data: { url: "https://squarecdn.test/one.jpg" } },
+        ],
+      });
+    }
+    if (href.endsWith("catalog/batch-retrieve")) {
+      const sent = JSON.parse(init.body);
+      assert.deepEqual(sent.object_ids, ["IMG_2", "IMG_3"]);
+      return jsonResponse({
+        objects: [
+          { id: "IMG_2", type: "IMAGE", image_data: { url: "https://squarecdn.test/two.jpg" } },
+          { id: "IMG_3", type: "IMAGE", image_data: { url: "https://squarecdn.test/three.jpg" } },
+        ],
+      });
+    }
+    throw new Error(`unexpected request: ${href}`);
+  };
+  const products = await fetchShopCatalog(fetcher);
+  assert.ok(calls.some((href) => href.endsWith("catalog/batch-retrieve")));
+  assert.deepEqual(products[0].imageUrls, [
+    "https://squarecdn.test/one.jpg",
+    "https://squarecdn.test/two.jpg",
+    "https://squarecdn.test/three.jpg",
+  ]);
+});
+
+test("fetchShopCatalog still returns the catalog if extra Square photos cannot be retrieved", async () => {
+  const products = await fetchShopCatalog(async (url) => {
+    if (String(url).endsWith("catalog/search")) {
+      return jsonResponse({
+        objects: [{
+          id: "ITEM_GALLERY",
+          type: "ITEM",
+          item_data: {
+            name: "BACI+ Tonus",
+            image_ids: ["IMG_1", "IMG_2"],
+            variations: [{ id: "VAR_G", item_variation_data: { price_money: { amount: 5799, currency: "CAD" } } }],
+          },
+        }],
+        related_objects: [
+          { id: "IMG_1", type: "IMAGE", image_data: { url: "https://squarecdn.test/one.jpg" } },
+        ],
+      });
+    }
+    throw new Error("batch retrieve failed");
+  });
+  assert.equal(products[0].imageUrl, "https://squarecdn.test/one.jpg");
+  assert.deepEqual(products[0].imageUrls, ["https://squarecdn.test/one.jpg"]);
 });
 
 test("catalog reads every Square page and resolves related objects across pages", async () => {
