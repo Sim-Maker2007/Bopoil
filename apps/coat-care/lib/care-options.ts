@@ -8,6 +8,16 @@ export const sizeOptions = [
   ["XXS", "10 lb et moins"], ["XS", "11 à 20 lb"], ["S", "21 à 40 lb"],
   ["M", "41 à 60 lb"], ["L", "61 à 80 lb"], ["XL", "81 à 100 lb"], ["OTHER", "Plus de 100 lb / je ne sais pas"],
 ] as const;
+// The website « Fiche d'informations » stores sizes as « XS/TP (11 à 20 lbs) »;
+// the booking flow uses the short keys above. Both map here.
+export function sizeKeyFromLabel(label: string | null | undefined): string {
+  const value = (label || "").trim().toUpperCase();
+  if (!value) return "";
+  if (sizeOptions.some(([key]) => key === value)) return value;
+  const prefix = value.match(/^(XXS|XS|S|M|L|XL)(?:\/|\s|$)/)?.[1];
+  if (prefix) return prefix;
+  return /^(XXL|GEANT|GÉANT)/.test(value) || /LBS?\)?$/.test(value) ? "OTHER" : "";
+}
 function normalize(value: string) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 // Suggestions only: the client confirms the actual coat, including for mixed breeds.
 export function suggestedCoat(breed: string): string {

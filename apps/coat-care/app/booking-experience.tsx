@@ -1,7 +1,7 @@
 "use client";
 
 import { BookingIntake } from "./booking-intake";
-import { BookingWelcome, welcomeAlreadySeen } from "./booking-welcome";
+import { BookingHero, DogArt } from "./booking-hero";
 import { CareChoices } from "./care-choices";
 import { careLabel } from "../lib/care-options";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,8 +19,6 @@ type ClientAuthResult = { ok?: boolean; configured?: boolean; expiresInSeconds?:
 
 const isDevelopmentPreview = process.env.NODE_ENV === "development";
 const bookingSteps = ["Votre profil et votre animal", "Ses soins", "La date et l’heure", "Confirmation"];
-// Deep links (a saved pet, a service, a chosen time, an expired portal link) skip the welcome tour.
-const deepLinkKeys = ["pet", "service", "date", "startsAt", "portal"];
 function money(cents: number, currency = "CAD") { return new Intl.NumberFormat("fr-CA", { style: "currency", currency }).format(cents / 100); }
 function duration(minutes: number) { return minutes >= 60 ? `${Math.floor(minutes / 60)} hr${minutes % 60 ? ` ${minutes % 60} min` : ""}` : `${minutes} min`; }
 function dayLabel(day: string, compact = false) { return new Intl.DateTimeFormat("fr-CA", { weekday: compact ? "short" : "long", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`)); }
@@ -49,7 +47,6 @@ function bookingUrl(organizationSlug: string, location: string, petId?: string, 
 
 export function BookingExperience({ storefrontSlug = "", locationSlug = "" }: { storefrontSlug?: string; locationSlug?: string }) {
   const [newProfile, setNewProfile] = useState(false);
-  const [welcome, setWelcome] = useState<"pending" | "show" | "done">("pending");
   const [step, setStep] = useState<BookingStep>("search");
   const [catalog, setCatalog] = useState<Catalog | null>(null); const [availability, setAvailability] = useState<Availability | null>(null);
   const [serviceId, setServiceId] = useState(""); const [selectedDate, setSelectedDate] = useState(""); const [selectedStartsAt, setSelectedStartsAt] = useState("");
@@ -161,16 +158,6 @@ export function BookingExperience({ storefrontSlug = "", locationSlug = "" }: { 
     const timer = window.setTimeout(() => { void loadBookingContext(); }, 0);
     return () => window.clearTimeout(timer);
   }, [loadBookingContext]);
-
-  useEffect(() => {
-    if (!contextChecked || welcome !== "pending") return;
-    const timer = window.setTimeout(() => {
-      const query = new URLSearchParams(window.location.search);
-      const deepLink = deepLinkKeys.some((key) => query.has(key));
-      setWelcome(bookingContext || deepLink || welcomeAlreadySeen() ? "done" : "show");
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [bookingContext, contextChecked, welcome]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -460,15 +447,13 @@ export function BookingExperience({ storefrontSlug = "", locationSlug = "" }: { 
   const requiresDeposit = Boolean(catalog?.booking.requireOnlineDeposit && service && service.depositCents > 0);
   const emailDeliveryConfigured = catalog?.delivery?.email?.configured !== false;
   const smsDeliveryConfigured = catalog?.delivery?.sms?.configured === true;
-  const searchReady = contextChecked && welcome !== "pending";
-  const welcomeVisible = step === "search" && searchReady && clientAuthStep === "closed" && !bookingContext && welcome === "show";
-  return <main className={`app-shell guided-booking${welcomeVisible ? " welcome-active" : ""}`} lang="fr">
+  return <main className="app-shell guided-booking" lang="fr">
     <header className="topbar"><button className="brand" onClick={() => setStep("search")} aria-label={`${salonName} home`}><span className="brand-mark">{brandInitial}</span><span>{salonName}</span></button><div className="top-actions"><button className="text-button" onClick={() => setManageOpen(true)}>Mon profil</button><button className="avatar-button" onClick={() => setManageOpen(true)} aria-label="Ouvrir mon profil">♡</button></div></header>
     <div className="client-view">
       <section className="booking-flow" id="booking"><div className="booking-intro"><span className="eyebrow">Votre rendez-vous chez BOPOIL</span><h1>Un soin adapté.<br/>Un animal heureux.</h1><p>Retrouvez votre animal, choisissez ses soins et réservez le moment qui vous convient.</p>{catalog && catalog.locations.length > 1 && <label className="guided-fields">Salon<select value={catalog.location.slug} onChange={(event) => window.location.assign(bookingUrl(catalog.organization.slug, event.target.value, selectedPetId))}>{catalog.locations.map((item) => <option key={item.slug} value={item.slug}>{item.name} · {item.city}</option>)}</select></label>}<ol className="guided-progress" aria-label="Étapes de réservation">{bookingSteps.map((label, index) => <li key={label} className={index + 1 < stepNumber ? "done" : undefined} aria-current={index + 1 === stepNumber ? "step" : undefined}><span>{index + 1}</span><em>{label}</em></li>)}</ol><p className="guided-progress-label" aria-hidden="true"><b>Étape {stepNumber} sur {bookingSteps.length}</b>{bookingSteps[stepNumber - 1]}</p><p className="guided-help">Besoin d’aide ? <a href={`tel:${(catalog?.organization.contactPhone || "+18199682827").replace(/[^+\d]/g, "")}`}>Appelez-nous</a></p></div>
         <div className="booking-card" ref={bookingCard}>
-          {step === "search" && !searchReady && <div className="booking-context-loading" role="status" aria-live="polite"><span className="pet-medallion">♡</span><h3>Un instant…</h3><p>Nous recherchons votre profil sur cet appareil.</p></div>}
-          {step === "search" && searchReady && clientAuthStep !== "closed" && <div className="client-auth-card">
+          {step === "search" && !contextChecked && <div className="booking-context-loading" role="status" aria-live="polite"><span className="pet-medallion">♡</span><h3>Un instant…</h3><p>Nous recherchons votre profil sur cet appareil.</p></div>}
+          {step === "search" && contextChecked && clientAuthStep !== "closed" && <div className="client-auth-card">
             <button type="button" className="auth-back" onClick={() => { setClientAuthStep("closed"); setAuthError(""); setAuthMessage(""); }}>← {clientAuthPurpose === "enroll" ? "Plus tard" : "Retour"}</button>
             <span className="eyebrow">{clientAuthPurpose === "enroll" ? "Faster next time" : "Welcome back"}</span>
             <h3>{clientAuthStep === "phone" ? clientAuthPurpose === "enroll" ? "Utiliser ce téléphone la prochaine fois." : "Retrouvez votre profil." : "Entrez votre code."}</h3>
@@ -492,12 +477,12 @@ export function BookingExperience({ storefrontSlug = "", locationSlug = "" }: { 
             </form>}
             <div className="auth-alternatives">{clientAuthPurpose === "signin" ? <><button type="button" onClick={openEmailAccess}>Use email instead</button><span aria-hidden="true">or</span><button type="button" onClick={continueAsGuest}>Continue as guest</button></> : <button type="button" onClick={() => setClientAuthStep("closed")}>Not now</button>}</div>
           </div>}
-          {step === "search" && searchReady && clientAuthStep === "closed" && bookingContext && <div className="returning-booking"><div className="returning-heading"><span className="eyebrow">Bon retour</span><h3>Bonjour {bookingContext.firstName}, qui vient nous voir ?</h3><p>Choisissez votre animal pour retrouver les soins qui lui conviennent.</p></div>{fastAccessNotice && <div className="fast-access-notice" role="status">✓ {fastAccessNotice}</div>}{bookingContext.pets.length ? <div className="returning-pets">{bookingContext.pets.map((item, index) => <button type="button" key={item.id} className={selectedPetId === item.id ? "selected" : ""} onClick={() => bookAgain(item)}><span className={`pet-medallion small tone-${index % 3}`}>{item.name.slice(0,1)}</span><span><strong>{item.name}</strong><small>{item.breed}</small><em>{item.recommendation ? `${careLabel(item.recommendation.serviceName)} · ${item.recommendation.locationName}` : "Choisir ses soins"}</em></span><b>Choisir ses soins →</b></button>)}</div> : <div className="returning-empty"><span className="pet-medallion">♡</span><p>Ajoutez un animal dans votre profil avant de réserver.</p><button type="button" onClick={() => window.location.assign("/portal")}>Ouvrir mon profil</button></div>}<div className="returning-actions"><button type="button" className="secondary-button" disabled={!bookingContext.pets.length} onClick={openServices}>Choisir les soins</button>{smsDeliveryConfigured && bookingContext.fastPhoneSignInEnabled === false && <button type="button" className="fast-access-button" onClick={() => openClientAuth("enroll")}>Use this mobile next time</button>}</div></div>}
-          {welcomeVisible && <BookingWelcome salonName={salonName} onStart={() => setWelcome("done")} onSignIn={() => { setWelcome("done"); openClientAuth("signin"); }}/>}
-          {step === "search" && searchReady && clientAuthStep === "closed" && !bookingContext && welcome === "done" && (newProfile ? <BookingIntake salonSlug={storefrontSlug} locationSlug={locationSlug} onBack={() => setNewProfile(false)} onSignIn={(address) => { setManageEmail(address); openEmailAccess(); }} onCreated={async () => { const context = await loadBookingContext(); if (!context) throw new Error("Votre profil est enregistré. Ouvrez-le avec votre courriel pour continuer."); setNewProfile(false); setStep("services"); }}/> : <div className="profile-choice"><span className="eyebrow">Bienvenue</span><h3 data-booking-step-heading tabIndex={-1}>On se connaît déjà ?</h3><p>Commencez par votre profil. Les soins et les disponibilités viendront ensuite.</p>
+          {step === "search" && contextChecked && clientAuthStep === "closed" && bookingContext && <div className="returning-booking"><div className="returning-heading"><span className="eyebrow">Bon retour</span><h3>Bonjour {bookingContext.firstName}, qui vient nous voir ?</h3><p>Choisissez votre animal pour retrouver les soins qui lui conviennent.</p></div>{fastAccessNotice && <div className="fast-access-notice" role="status">✓ {fastAccessNotice}</div>}{bookingContext.pets.length ? <div className="returning-pets">{bookingContext.pets.map((item, index) => <button type="button" key={item.id} className={selectedPetId === item.id ? "selected" : ""} onClick={() => bookAgain(item)}><span className={`pet-medallion small tone-${index % 3}`}>{item.name.slice(0,1)}</span><span><strong>{item.name}</strong><small>{item.breed}</small><em>{item.recommendation ? `${careLabel(item.recommendation.serviceName)} · ${item.recommendation.locationName}` : "Choisir ses soins"}</em></span><b>Choisir ses soins →</b></button>)}</div> : <div className="returning-empty"><span className="pet-medallion">♡</span><p>Ajoutez un animal dans votre profil avant de réserver.</p><button type="button" onClick={() => window.location.assign("/portal")}>Ouvrir mon profil</button></div>}<div className="returning-actions"><button type="button" className="secondary-button" disabled={!bookingContext.pets.length} onClick={openServices}>Choisir les soins</button>{smsDeliveryConfigured && bookingContext.fastPhoneSignInEnabled === false && <button type="button" className="fast-access-button" onClick={() => openClientAuth("enroll")}>Use this mobile next time</button>}</div></div>}
+          {step === "search" && contextChecked && clientAuthStep === "closed" && !bookingContext && (newProfile ? <BookingIntake salonSlug={storefrontSlug} locationSlug={locationSlug} onBack={() => setNewProfile(false)} onSignIn={(address) => { setManageEmail(address); openEmailAccess(); }} onCreated={async () => { const context = await loadBookingContext(); if (!context) throw new Error("Votre profil est enregistré. Ouvrez-le avec votre courriel pour continuer."); setNewProfile(false); setStep("services"); }}/> : <div className="profile-choice">
+            <BookingHero tone="plum" eyebrow={salonName.length <= 18 ? `Bienvenue chez ${salonName}` : "Bienvenue"} art={<DogArt/>} title={<h3 data-booking-step-heading tabIndex={-1}>Un soin pensé pour <em>votre</em> animal</h3>} text="Commencez par votre profil. Les soins et les disponibilités viendront ensuite."/>
+            <p className="profile-choice-question">On se connaît déjà ?</p>
             <button className="profile-choice-button" onClick={() => openClientAuth("signin")}><i className="choice-icon returning" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 21c-3.6 0-6-2.1-6-4.6 0-2.4 2.7-4.4 6-4.4s6 2 6 4.4C18 18.9 15.6 21 12 21Z" fill="currentColor"/><circle cx="6.2" cy="9.4" r="2" fill="currentColor"/><circle cx="17.8" cy="9.4" r="2" fill="currentColor"/><circle cx="9.3" cy="5.6" r="2.1" fill="currentColor"/><circle cx="14.7" cy="5.6" r="2.1" fill="currentColor"/></svg></i><span className="choice-text"><strong>Je suis déjà client</strong><span>Ouvrir mon profil et retrouver mes animaux</span></span><b aria-hidden="true">›</b></button>
             <button className="profile-choice-button" onClick={() => setNewProfile(true)}><i className="choice-icon new" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 4v16M4 12h16" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" fill="none"/></svg></i><span className="choice-text"><strong>C’est ma première visite</strong><span>Créer mon profil et ajouter mon animal</span></span><b aria-hidden="true">›</b></button>
-            <button type="button" className="returning-link" onClick={() => setWelcome("show")}>Revoir la présentation</button>
             {isDevelopmentPreview && <button className="returning-link" disabled={demoReturningBusy} onClick={() => void previewReturningCustomer()}>Preview returning client (local only) →</button>}</div>)}
           {!catalog && bookingError && <div className="booking-error" role="alert"><p>{bookingError}</p><button className="secondary-button" onClick={() => { setBookingError(""); setCatalogVersion((value) => value + 1); }}>Réessayer</button></div>}
           {step === "services" && (selectedOwnedPet && catalog ? <CareChoices key={selectedOwnedPet.id} pet={selectedOwnedPet} services={catalog.services} currency={catalog.location.currency} contactPhone={catalog.organization.contactPhone} onChoose={chooseService} onBack={() => setStep("search")}/> : <p role="status">Chargement de votre animal…</p>)}

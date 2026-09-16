@@ -130,41 +130,44 @@ test("operational navigation and dialogs expose accessible state", async () => {
   assert.match(styles, /\.sidebar-more-button/);
 });
 
-test("first-time booking visitors get a mobile-first welcome tour that deep links and returning clients skip", async () => {
-  const [booking, welcome, intake, styles, layout] = await Promise.all([
+test("the booking flow keeps its steps and carries the public information form's exact questions", async () => {
+  const [booking, intake, hero, careChoices, careOptions, publicForm, styles, layout] = await Promise.all([
     source("../app/booking-experience.tsx"),
-    source("../app/booking-welcome.tsx"),
     source("../app/booking-intake.tsx"),
+    source("../app/booking-hero.tsx"),
+    source("../app/care-choices.tsx"),
+    source("../lib/care-options.ts"),
+    source("../../web/fiche-informations.html"),
     source("../app/globals.css"),
     source("../app/layout.tsx"),
   ]);
 
-  // The tour only appears once the private context check has finished, never for a recognised client or a deep link.
-  assert.match(booking, /const searchReady = contextChecked && welcome !== "pending"/);
-  assert.match(booking, /setWelcome\(bookingContext \|\| deepLink \|\| welcomeAlreadySeen\(\) \? "done" : "show"\)/);
-  assert.match(booking, /const deepLinkKeys = \["pet", "service", "date", "startsAt", "portal"\]/);
-  assert.match(booking, /welcome === "done" && \(newProfile \? <BookingIntake/);
-  assert.match(booking, /onSignIn=\{\(\) => \{ setWelcome\("done"\); openClientAuth\("signin"\); \}\}/);
-  assert.match(booking, /className=\{`app-shell guided-booking\$\{welcomeVisible \? " welcome-active" : ""\}`\}/);
-
-  // The tour is swipeable, keyboard-operable, skippable, and remembered without ever throwing on blocked storage.
-  assert.match(welcome, /scroll-snap|welcome-track/);
-  assert.match(welcome, /event\.key === "ArrowRight"/);
-  assert.match(welcome, /className="welcome-skip"/);
-  assert.match(welcome, /try \{ window\.localStorage\.setItem\(WELCOME_STORAGE_KEY, "1"\); \}/);
-  assert.match(welcome, /prefers-reduced-motion: reduce/);
-  assert.match(welcome, /aria-hidden=\{position !== index\}/);
-  assert.match(styles, /\.welcome-track \{[^}]*scroll-snap-type: x mandatory/);
-  assert.match(styles, /\.welcome-active \.booking-intro \{ display: none; \}/);
+  // Same flow as before: the illustrated banner only dresses the profile choice, it never adds a step.
+  assert.doesNotMatch(booking, /BookingWelcome|welcomeAlreadySeen|welcome-active/);
+  assert.match(booking, /<BookingHero tone="plum"[\s\S]{0,200}?title=\{<h3 data-booking-step-heading tabIndex=\{-1\}>/);
+  assert.match(booking, /<p className="profile-choice-question">On se connaît déjà \?<\/p>/);
+  assert.match(hero, /export function BookingHero/);
   assert.match(styles, /\.guided-progress-label \{ display: flex/);
   assert.match(layout, /viewportFit: "cover"/);
 
-  // Profile creation is split in two screens but still submits every field natively.
-  assert.match(intake, /hidden=\{panel !== 1\}/);
-  assert.match(intake, /hidden=\{panel !== 2\}/);
-  assert.match(intake, /control\.reportValidity\(\)/);
-  assert.match(intake, /<button key="continue" type="button"/);
-  assert.match(intake, /<button key="submit" type="submit"/);
-  assert.match(intake, /name="espece" value=\{choice\.value\}/);
+  // The in-app profile form is the website « Fiche d'informations »: same fields, values and required flags.
+  const publicFormMarkup = publicForm.slice(publicForm.indexOf('data-formspree="intake"'), publicForm.indexOf("</form>"));
+  for (const name of ["proprietaire", "telephone", "email", "nom_animal", "anniversaire", "espece", "race", "taille", "sante", "comportement", "sterilise", "gateries", "photos", "marketing"]) {
+    assert.match(publicFormMarkup, new RegExp(`name="${name}"`));
+    assert.match(intake, new RegExp(`name="${name}"`));
+  }
+  for (const name of ["proprietaire", "telephone", "email", "nom_animal"]) assert.match(intake, new RegExp(`name="${name}"[^>]*required`));
+  assert.match(intake, /name="sante" rows=\{4\} required/);
+  for (const name of ["anniversaire", "race", "comportement", "sterilise", "gateries", "photos", "marketing"]) assert.doesNotMatch(intake, new RegExp(`name="${name}"[^>]*required`));
+  for (const value of publicFormMarkup.matchAll(/<option value="([^"]+)"|name="(?:espece|taille)" value="([^"]+)"/g)) { const choice = (value[1] || value[2]).replace(/\u00a0/g, "\\u00a0"); assert.ok(intake.includes(`"${choice}"`), `${choice} missing from the booking form`); }
+  assert.match(intake, /const speciesChoices = \["Chien", "Chat", "Petit animal"\]/);
+  assert.match(intake, /name="marketing" value="oui"/);
+  assert.doesNotMatch(intake, /name="website"/);
+  assert.match(intake, /fetch\("\/api\/public\/intake"/);
+  assert.doesNotMatch(intake, /hidden=\{panel/);
+
+  // Website size labels and short size keys both pre-select the care size.
+  assert.match(careOptions, /export function sizeKeyFromLabel/);
+  assert.match(careChoices, /useState\(sizeKeyFromLabel\(pet\.sizeLabel\)\)/);
   assert.match(styles, /\.guided-fields fieldset\[hidden\] \{ display: none; \}/);
 });
