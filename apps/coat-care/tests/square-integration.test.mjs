@@ -113,3 +113,19 @@ test("the website intake endpoint stores no raw contact or care payload in its d
   assert.match(intake, /contentLength > 24_000/);
   assert.match(intake, /recent\.length >= 8/);
 });
+
+test("Square booking matches the chosen opening even though Square omits milliseconds in start_at", async () => {
+  const { sameSquareInstant } = await import("../lib/square-instant.ts");
+  const squareStartAt = "2026-09-17T14:00:00Z";
+  const selectedStartsAt = new Date(squareStartAt).toISOString();
+  assert.notEqual(squareStartAt, selectedStartsAt, "the raw strings differ, which is exactly why a string compare always failed");
+  assert.equal(sameSquareInstant(squareStartAt, selectedStartsAt), true);
+  assert.equal(sameSquareInstant(squareStartAt, "2026-09-17T10:00:00-04:00"), true);
+  assert.equal(sameSquareInstant(squareStartAt, "2026-09-17T14:30:00Z"), false);
+  assert.equal(sameSquareInstant(squareStartAt, "not-a-date"), false);
+  assert.equal(sameSquareInstant(undefined, selectedStartsAt), false);
+  const publicBooking = await source("../lib/square-public-booking.ts");
+  assert.match(publicBooking, /availabilities\.find\(\(slot\) => sameSquareInstant\(slot\.start_at, input\.startsAt\)\)/);
+  assert.doesNotMatch(publicBooking, /slot\.start_at === requestedStart\.toISOString\(\)/);
+  assert.match(publicBooking, /const startsAt = new Date\(rawStartsAt\)\.toISOString\(\);/);
+});
