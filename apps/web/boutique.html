@@ -79,203 +79,193 @@
         <div class="shop-intro"><h2>Les essentiels du quotidien</h2><p>Cueillette au salon · 38 avenue Gatineau</p></div>
         <div class="shop-notice" data-catalog-notice role="status">Chargement de la boutique…</div>
         <noscript><p>Activez JavaScript pour utiliser le panier. Les produits ci-dessous sont un aperçu; contactez le salon pour connaître les disponibilités.</p></noscript>
-        <div class="shop-controls">
+        <ul class="shop-cats" data-shop-filters data-shop-chrome role="group" aria-label="Filtrer par catégorie">
+          <li><button class="shop-cat shop-cat--all" type="button" data-filter="tous" aria-pressed="true"><span class="shop-cat__label">Tous les produits</span></button></li>
+          <li><button class="shop-cat" type="button" data-filter="soins" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/chat-toilettage-complet-480.webp 480w, images/chat-toilettage-complet-900.webp 900w" sizes="160px"><img src="images/chat-toilettage-complet-480.jpg" srcset="images/chat-toilettage-complet-480.jpg 480w, images/chat-toilettage-complet-900.jpg 900w" sizes="160px" width="480" height="360" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Soins &amp; shampooings</span></button></li>
+          <li><button class="shop-cat" type="button" data-filter="outils" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/chien-brossage-480.webp 480w, images/chien-brossage-900.webp 900w" sizes="160px"><img src="images/chien-brossage-480.jpg" srcset="images/chien-brossage-480.jpg 480w, images/chien-brossage-900.jpg 900w" sizes="160px" width="480" height="360" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Brosses &amp; outils</span></button></li>
+          <li><button class="shop-cat" type="button" data-filter="gateries" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/chiots-endormis-800.webp"><img src="images/chiots-endormis-800.jpg" width="800" height="600" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Gâteries</span></button></li>
+          <li><button class="shop-cat" type="button" data-filter="accessoires" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/chat-cache-griffes-480.webp 480w, images/chat-cache-griffes-900.webp 900w" sizes="160px"><img src="images/chat-cache-griffes-480.jpg" srcset="images/chat-cache-griffes-480.jpg 480w, images/chat-cache-griffes-900.jpg 900w" sizes="160px" width="480" height="360" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Accessoires</span></button></li>
+          <li><button class="shop-cat" type="button" data-filter="coffrets" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/boutique-interieur-400.webp 400w, images/boutique-interieur-800.webp 800w" sizes="160px"><img src="images/boutique-interieur-400.jpg" srcset="images/boutique-interieur-400.jpg 400w, images/boutique-interieur-800.jpg 800w" sizes="160px" width="400" height="300" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Coffrets</span></button></li>
+        </ul>
+        <div class="shop-controls" data-shop-chrome>
           <label class="shop-search" for="shop-search"><span>Rechercher un produit</span><input id="shop-search" type="search" placeholder="Shampooing, brosse, gâterie…" autocomplete="off" data-shop-search></label>
           <label class="shop-sort" for="shop-sort"><span>Trier par</span><select id="shop-sort" data-shop-sort><option value="selection">Notre sélection</option><option value="price-asc">Prix croissant</option><option value="price-desc">Prix décroissant</option><option value="name">Nom : A à Z</option></select></label>
         </div>
-        <div class="shop-toolbar">
-          <ul class="shop-filters" data-shop-filters role="group" aria-label="Filtrer par catégorie">
-            <li><button class="shop-filter" type="button" data-filter="tous" aria-pressed="true">Tous</button></li>
-            <li><button class="shop-filter" type="button" data-filter="soins" aria-pressed="false">Soins &amp; shampooings</button></li>
-            <li><button class="shop-filter" type="button" data-filter="outils" aria-pressed="false">Brosses &amp; outils</button></li>
-            <li><button class="shop-filter" type="button" data-filter="gateries" aria-pressed="false">Gâteries</button></li>
-            <li><button class="shop-filter" type="button" data-filter="accessoires" aria-pressed="false">Accessoires</button></li>
-            <li><button class="shop-filter" type="button" data-filter="coffrets" aria-pressed="false">Coffrets</button></li>
-          </ul>
+        <div class="shop-toolbar" data-shop-chrome>
           <p class="shop-count" data-shop-count aria-live="polite">10 produits</p>
         </div>
 
         <div class="shop-empty" data-shop-empty hidden><h3>Aucun produit trouvé</h3><p>Essayez un autre mot ou explorez toutes les catégories.</p><button class="btn btn--filled btn--small" type="button" data-shop-reset>Voir tous les produits</button></div>
         <div class="shop-grid" data-shop-grid aria-busy="true">
 
-          <article class="product-card" data-product data-id="shampoing-doux" data-name="Shampooing doux hypoallergénique" data-price="2400" data-cat="soins" data-tint="#f3ecf1" data-ink="#b14f7e">
-            <div class="product-card__media" style="--tint:#f3ecf1;--tint-ink:#b14f7e">
-              <span class="product-card__badge">Soins</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5h5"/><path d="M11 2.5v3M13 2.5v3"/><rect x="7.5" y="5.5" width="9" height="16" rx="2.5"/><path d="M7.5 11h9"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Shampooing doux hypoallergénique</h2>
-              <p class="product-card__desc">Formule sans savon au pH équilibré, pensée pour les peaux sensibles. Nettoie en douceur sans assécher le pelage.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:0;--tint:#f3ecf1;--tint-ink:#b14f7e" data-product data-id="shampoing-doux" data-name="Shampooing doux hypoallergénique" data-price="2400" data-cat="soins" data-desc="Formule sans savon au pH équilibré, pensée pour les peaux sensibles. Nettoie en douceur sans assécher le pelage.">
+            <button class="product-card__hit" type="button" data-open-product="shampoing-doux" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Shampooing doux hypoallergénique">
+              <span class="product-card__media">
+                <span class="product-card__badge">Soins</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5h5"/><path d="M11 2.5v3M13 2.5v3"/><rect x="7.5" y="5.5" width="9" height="16" rx="2.5"/><path d="M7.5 11h9"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Shampooing doux hypoallergénique</span>
                 <span class="product-card__price">24,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="shampoing-doux" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="shampoing-doux" aria-label="Ajouter au panier : Shampooing doux hypoallergénique">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
-          <article class="product-card" data-product data-id="apres-shampoing" data-name="Après-shampooing démêlant" data-price="2200" data-cat="soins" data-tint="#f3ecf1" data-ink="#b14f7e">
-            <div class="product-card__media" style="--tint:#f3ecf1;--tint-ink:#b14f7e">
-              <span class="product-card__badge">Soins</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.2c3.8 4 6 7 6 10a6 6 0 1 1-12 0c0-3 2.2-6 6-10Z"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Après-shampooing démêlant</h2>
-              <p class="product-card__desc">Facilite le brossage, réduit les nœuds et laisse un fini soyeux entre deux visites au salon.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:1;--tint:#f3ecf1;--tint-ink:#b14f7e" data-product data-id="apres-shampoing" data-name="Après-shampooing démêlant" data-price="2200" data-cat="soins" data-desc="Facilite le brossage, réduit les nœuds et laisse un fini soyeux entre deux visites au salon.">
+            <button class="product-card__hit" type="button" data-open-product="apres-shampoing" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Après-shampooing démêlant">
+              <span class="product-card__media">
+                <span class="product-card__badge">Soins</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.2c3.8 4 6 7 6 10a6 6 0 1 1-12 0c0-3 2.2-6 6-10Z"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Après-shampooing démêlant</span>
                 <span class="product-card__price">22,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="apres-shampoing" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="apres-shampoing" aria-label="Ajouter au panier : Après-shampooing démêlant">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
-          <article class="product-card" data-product data-id="spray-demelant" data-name="Spray démêlant &amp; brillance" data-price="1900" data-cat="soins" data-tint="#f3ecf1" data-ink="#b14f7e">
-            <div class="product-card__media" style="--tint:#f3ecf1;--tint-ink:#b14f7e">
-              <span class="product-card__badge">Soins</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7.5" y="8" width="7" height="13.5" rx="2"/><path d="M7.5 8V6a2 2 0 0 1 2-2h1.5V8"/><path d="M14.5 5h4M14.5 7h3.2"/><path d="M18.5 3.4v4.2"/><path d="M8 12h6"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Spray démêlant &amp; brillance</h2>
-              <p class="product-card__desc">Un voile léger qui démêle, hydrate et fait briller le poil au quotidien.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:2;--tint:#f3ecf1;--tint-ink:#b14f7e" data-product data-id="spray-demelant" data-name="Spray démêlant &amp; brillance" data-price="1900" data-cat="soins" data-desc="Un voile léger qui démêle, hydrate et fait briller le poil au quotidien.">
+            <button class="product-card__hit" type="button" data-open-product="spray-demelant" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Spray démêlant et brillance">
+              <span class="product-card__media">
+                <span class="product-card__badge">Soins</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7.5" y="8" width="7" height="13.5" rx="2"/><path d="M7.5 8V6a2 2 0 0 1 2-2h1.5V8"/><path d="M14.5 5h4M14.5 7h3.2"/><path d="M18.5 3.4v4.2"/><path d="M8 12h6"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Spray démêlant &amp; brillance</span>
                 <span class="product-card__price">19,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="spray-demelant" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="spray-demelant" aria-label="Ajouter au panier : Spray démêlant et brillance">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
-          <article class="product-card" data-product data-id="brosse-carde" data-name="Brosse carde double face" data-price="2800" data-cat="outils" data-tint="#e9f0ef" data-ink="#1d3c41">
-            <div class="product-card__media" style="--tint:#e9f0ef;--tint-ink:#1d3c41">
-              <span class="product-card__badge">Outils</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="13.5" width="17" height="5" rx="2.5"/><path d="M7 13.5v-2.5M10.5 13.5v-3.5M14 13.5v-3.5M17.5 13.5v-2.5"/><path d="M12 4.5v6"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Brosse carde double face</h2>
-              <p class="product-card__desc">Carde d'un côté, poils souples de l'autre : retire le sous-poil mort et lisse la finition.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:3;--tint:#e9f0ef;--tint-ink:#1d3c41" data-product data-id="brosse-carde" data-name="Brosse carde double face" data-price="2800" data-cat="outils" data-desc="Carde d'un côté, poils souples de l'autre : retire le sous-poil mort et lisse la finition.">
+            <button class="product-card__hit" type="button" data-open-product="brosse-carde" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Brosse carde double face">
+              <span class="product-card__media">
+                <span class="product-card__badge">Outils</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="13.5" width="17" height="5" rx="2.5"/><path d="M7 13.5v-2.5M10.5 13.5v-3.5M14 13.5v-3.5M17.5 13.5v-2.5"/><path d="M12 4.5v6"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Brosse carde double face</span>
                 <span class="product-card__price">28,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="brosse-carde" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="brosse-carde" aria-label="Ajouter au panier : Brosse carde double face">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
-          <article class="product-card" data-product data-id="peigne-acier" data-name="Peigne en acier inoxydable" data-price="1800" data-cat="outils" data-tint="#e9f0ef" data-ink="#1d3c41">
-            <div class="product-card__media" style="--tint:#e9f0ef;--tint-ink:#1d3c41">
-              <span class="product-card__badge">Outils</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8h17v3.2h-17z"/><path d="M6 11.2v6M9 11.2v5M12 11.2v6M15 11.2v5M18 11.2v6"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Peigne en acier inoxydable</h2>
-              <p class="product-card__desc">Dents fines et larges pour vérifier les nœuds et peaufiner la finition après le brossage.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:4;--tint:#e9f0ef;--tint-ink:#1d3c41" data-product data-id="peigne-acier" data-name="Peigne en acier inoxydable" data-price="1800" data-cat="outils" data-desc="Dents fines et larges pour vérifier les nœuds et peaufiner la finition après le brossage.">
+            <button class="product-card__hit" type="button" data-open-product="peigne-acier" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Peigne en acier inoxydable">
+              <span class="product-card__media">
+                <span class="product-card__badge">Outils</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8h17v3.2h-17z"/><path d="M6 11.2v6M9 11.2v5M12 11.2v6M15 11.2v5M18 11.2v6"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Peigne en acier inoxydable</span>
                 <span class="product-card__price">18,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="peigne-acier" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="peigne-acier" aria-label="Ajouter au panier : Peigne en acier inoxydable">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
-          <article class="product-card" data-product data-id="coupe-griffes" data-name="Coupe-griffes professionnel" data-price="2000" data-cat="outils" data-tint="#e9f0ef" data-ink="#1d3c41">
-            <div class="product-card__media" style="--tint:#e9f0ef;--tint-ink:#1d3c41">
-              <span class="product-card__badge">Outils</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="6.5" r="2.4"/><circle cx="6.5" cy="17.5" r="2.4"/><path d="M8.6 7.8 20 16.5"/><path d="M8.6 16.2 20 7.5"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Coupe-griffes professionnel</h2>
-              <p class="product-card__desc">Lames précises et butée de sécurité pour des griffes nettes, sans stress.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:5;--tint:#e9f0ef;--tint-ink:#1d3c41" data-product data-id="coupe-griffes" data-name="Coupe-griffes professionnel" data-price="2000" data-cat="outils" data-desc="Lames précises et butée de sécurité pour des griffes nettes, sans stress.">
+            <button class="product-card__hit" type="button" data-open-product="coupe-griffes" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Coupe-griffes professionnel">
+              <span class="product-card__media">
+                <span class="product-card__badge">Outils</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="6.5" r="2.4"/><circle cx="6.5" cy="17.5" r="2.4"/><path d="M8.6 7.8 20 16.5"/><path d="M8.6 16.2 20 7.5"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Coupe-griffes professionnel</span>
                 <span class="product-card__price">20,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="coupe-griffes" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="coupe-griffes" aria-label="Ajouter au panier : Coupe-griffes professionnel">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
-          <article class="product-card" data-product data-id="gateries-poulet" data-name="Gâteries naturelles au poulet" data-price="1200" data-cat="gateries" data-tint="#f7f0e0" data-ink="#8a6a1e">
-            <div class="product-card__media" style="--tint:#f7f0e0;--tint-ink:#8a6a1e">
-              <span class="product-card__badge">Gâteries</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="10" r=".9"/><circle cx="14.2" cy="9.6" r=".9"/><circle cx="13.2" cy="14.4" r=".9"/><circle cx="9" cy="14" r=".9"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Gâteries naturelles au poulet</h2>
-              <p class="product-card__desc">Petites bouchées cuites au four, sans colorant ni agent de conservation artificiel.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:6;--tint:#f7f0e0;--tint-ink:#8a6a1e" data-product data-id="gateries-poulet" data-name="Gâteries naturelles au poulet" data-price="1200" data-cat="gateries" data-desc="Petites bouchées cuites au four, sans colorant ni agent de conservation artificiel.">
+            <button class="product-card__hit" type="button" data-open-product="gateries-poulet" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Gâteries naturelles au poulet">
+              <span class="product-card__media">
+                <span class="product-card__badge">Gâteries</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="10" r=".9"/><circle cx="14.2" cy="9.6" r=".9"/><circle cx="13.2" cy="14.4" r=".9"/><circle cx="9" cy="14" r=".9"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Gâteries naturelles au poulet</span>
                 <span class="product-card__price">12,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="gateries-poulet" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="gateries-poulet" aria-label="Ajouter au panier : Gâteries naturelles au poulet">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
-          <article class="product-card" data-product data-id="bandana-bopoil" data-name="Bandana BOPOIL réversible" data-price="1500" data-cat="accessoires" data-tint="#eef2f5" data-ink="#141414">
-            <div class="product-card__media" style="--tint:#eef2f5;--tint-ink:#141414">
-              <span class="product-card__badge">Accessoires</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-8 11z"/><path d="M4 8l3.5-2.2M20 8l-3.5-2.2"/><path d="M7.5 5.8 12 8l4.5-2.2"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Bandana BOPOIL réversible</h2>
-              <p class="product-card__desc">Le petit accessoire signature du salon, en coton doux : deux motifs en un.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:7;--tint:#eef2f5;--tint-ink:#141414" data-product data-id="bandana-bopoil" data-name="Bandana BOPOIL réversible" data-price="1500" data-cat="accessoires" data-desc="Le petit accessoire signature du salon, en coton doux : deux motifs en un.">
+            <button class="product-card__hit" type="button" data-open-product="bandana-bopoil" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Bandana BOPOIL réversible">
+              <span class="product-card__media">
+                <span class="product-card__badge">Accessoires</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-8 11z"/><path d="M4 8l3.5-2.2M20 8l-3.5-2.2"/><path d="M7.5 5.8 12 8l4.5-2.2"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Bandana BOPOIL réversible</span>
                 <span class="product-card__price">15,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="bandana-bopoil" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="bandana-bopoil" aria-label="Ajouter au panier : Bandana BOPOIL réversible">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
-          <article class="product-card" data-product data-id="jouet-corde" data-name="Jouet corde résistant" data-price="1400" data-cat="accessoires" data-tint="#eef2f5" data-ink="#141414">
-            <div class="product-card__media" style="--tint:#eef2f5;--tint-ink:#141414">
-              <span class="product-card__badge">Accessoires</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M4.4 10c5 2 10.2 2 15.2 0"/><path d="M8 4.9c-1.6 4-1.6 10.2 0 14.2M16 4.9c1.6 4 1.6 10.2 0 14.2"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Jouet corde résistant</h2>
-              <p class="product-card__desc">Corde de coton tressé qui nettoie les dents en jouant. Résiste aux mâchouilleurs enthousiastes.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:8;--tint:#eef2f5;--tint-ink:#141414" data-product data-id="jouet-corde" data-name="Jouet corde résistant" data-price="1400" data-cat="accessoires" data-desc="Corde de coton tressé qui nettoie les dents en jouant. Résiste aux mâchouilleurs enthousiastes.">
+            <button class="product-card__hit" type="button" data-open-product="jouet-corde" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Jouet corde résistant">
+              <span class="product-card__media">
+                <span class="product-card__badge">Accessoires</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M4.4 10c5 2 10.2 2 15.2 0"/><path d="M8 4.9c-1.6 4-1.6 10.2 0 14.2M16 4.9c1.6 4 1.6 10.2 0 14.2"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Jouet corde résistant</span>
                 <span class="product-card__price">14,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="jouet-corde" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="jouet-corde" aria-label="Ajouter au panier : Jouet corde résistant">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
-          <article class="product-card" data-product data-id="coffret-maison" data-name="Coffret toilettage maison" data-price="6500" data-cat="coffrets" data-tint="#ede7ea" data-ink="#b14f7e">
-            <div class="product-card__media" style="--tint:#ede7ea;--tint-ink:#b14f7e">
-              <span class="product-card__badge">Coffret</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9.5" width="16" height="10.5" rx="1.2"/><path d="M3.2 9.5h17.6"/><path d="M12 9.5V20"/><path d="M12 9.5C10.6 5.8 6.6 6.2 8 8.8c.7 1.1 4 .7 4 .7ZM12 9.5c1.4-3.7 5.4-3.3 4-.7-.7 1.1-4 .7-4 .7Z"/></svg>
-            </div>
-            <div class="product-card__body">
-              <h2 class="product-card__title">Coffret toilettage maison</h2>
-              <p class="product-card__desc">Shampooing, après-shampooing, brosse et bandana réunis dans un coffret cadeau prêt à offrir.</p>
-              <div class="product-card__foot">
+          <article class="product-card" style="--i:9;--tint:#ede7ea;--tint-ink:#b14f7e" data-product data-id="coffret-maison" data-name="Coffret toilettage maison" data-price="6500" data-cat="coffrets" data-desc="Shampooing, après-shampooing, brosse et bandana réunis dans un coffret cadeau prêt à offrir.">
+            <button class="product-card__hit" type="button" data-open-product="coffret-maison" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : Coffret toilettage maison">
+              <span class="product-card__media">
+                <span class="product-card__badge">Coffret</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9.5" width="16" height="10.5" rx="1.2"/><path d="M3.2 9.5h17.6"/><path d="M12 9.5V20"/><path d="M12 9.5C10.6 5.8 6.6 6.2 8 8.8c.7 1.1 4 .7 4 .7ZM12 9.5c1.4-3.7 5.4-3.3 4-.7-.7 1.1-4 .7-4 .7Z"/></svg>
+                <span class="product-card__view">Voir le produit</span>
+              </span>
+              <span class="product-card__body">
+                <span class="product-card__title">Coffret toilettage maison</span>
                 <span class="product-card__price">65,00&nbsp;$</span>
-                <button class="btn btn--filled btn--small product-card__add" type="button" data-add="coffret-maison" data-label="Ajouter">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  <span class="product-card__add-label">Ajouter</span>
-                </button>
-              </div>
-            </div>
+              </span>
+            </button>
+            <button class="product-card__quick" type="button" data-add="coffret-maison" aria-label="Ajouter au panier : Coffret toilettage maison">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </article>
 
         </div>
@@ -313,6 +303,32 @@
     </section>
   </main>
 
+  <div class="product-overlay" data-product-overlay></div>
+  <div class="product-sheet" id="product-sheet" data-product-sheet role="dialog" aria-modal="true" aria-labelledby="product-sheet-title" aria-hidden="true" inert>
+    <div class="product-sheet__panel">
+      <button class="product-sheet__close cart-close" type="button" data-product-close aria-label="Fermer le produit">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <div class="product-sheet__media" data-product-media></div>
+      <div class="product-sheet__body">
+        <p class="product-sheet__cat" data-product-category></p>
+        <h2 id="product-sheet-title" data-product-title></h2>
+        <p class="product-sheet__price" data-product-price></p>
+        <div class="product-sheet__desc" data-product-desc></div>
+        <div class="product-sheet__actions">
+          <div class="qty-stepper" role="group" aria-label="Quantité">
+            <button type="button" data-product-dec aria-label="Diminuer la quantité">−</button>
+            <span class="qty-stepper__val" data-product-qty>1</span>
+            <button type="button" data-product-inc aria-label="Augmenter la quantité">+</button>
+          </div>
+          <button class="btn btn--filled product-sheet__add" type="button" data-add data-product-add>
+            <span class="product-card__add-label">Ajouter au panier</span>
+          </button>
+        </div>
+        <p class="product-sheet__note">Cueillette au 38 avenue Gatineau après confirmation du salon.</p>
+      </div>
+    </div>
+  </div>
   <div class="cart-overlay" data-cart-overlay></div>
   <aside class="cart-drawer" id="cart-drawer" data-cart-drawer role="dialog" aria-modal="true"
          aria-label="Votre panier" aria-hidden="true" inert>
