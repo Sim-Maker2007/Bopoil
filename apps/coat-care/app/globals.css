@@ -793,3 +793,13 @@ footer > span { color: rgba(255,255,255,.45); text-align: right; font-size: 11px
 @media (prefers-reduced-motion: reduce) {
   .hero-shape { animation: none; }
 }
+
+/* Reservation pause page (ONLINE_BOOKING_ENABLED not set). */
+.booking-pause { display: grid; place-items: center; min-height: 100vh; min-height: 100dvh; padding: 24px 16px; background: var(--bk-paper); }
+.booking-pause-card { display: grid; gap: 18px; width: min(520px, 100%); border-radius: 28px; padding: 22px; background: white; box-shadow: var(--bk-shadow); }
+.booking-pause-card .booking-hero .hero-copy h1 { margin: 0; color: white; font: 400 clamp(28px, 6.4vw, 34px)/1.08 var(--bk-serif); letter-spacing: -.5px; }
+.booking-pause-card .booking-hero .hero-copy h1 em { font-style: italic; color: var(--hero-accent); }
+.booking-pause-actions { display: grid; gap: 10px; }
+.booking-pause-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; text-decoration: none; font-size: 15px; font-weight: 800; }
+.booking-pause-hours { margin: 0; color: var(--bk-muted); font-size: 14px; text-align: center; }
+.booking-pause-home { justify-self: center; color: var(--bk-plum-deep); font-size: 14px; font-weight: 700; text-decoration: none; }

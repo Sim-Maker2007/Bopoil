@@ -1,7 +1,7 @@
 import { cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { boutiqueEnabled, transformPublicFile } from "./public-site-boutique.mjs";
+import { boutiqueEnabled, onlineBookingEnabled, transformPublicFile } from "./public-site-boutique.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = join(root, "apps", "web");
@@ -26,3 +26,4 @@ console.log(
     ? "BOPOIL public website synchronized with the boutique published."
     : "BOPOIL public website synchronized with the boutique hidden (set BOUTIQUE_ENABLED=true to publish it).",
 );
+if (!onlineBookingEnabled()) console.log("Online reservations are paused (set ONLINE_BOOKING_ENABLED=true to reopen them).");

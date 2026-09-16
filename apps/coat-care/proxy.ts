@@ -4,14 +4,34 @@ import {
   BOUTIQUE_PREVIEW_COOKIE_MAX_AGE,
   decideBoutiqueAccess,
 } from "./lib/boutique-gate";
+import { BOOKING_PAUSE_PATH, decideBookingAccess } from "./lib/booking-gate";
 
-// Keeps the boutique invisible until BOUTIQUE_ENABLED=true. See lib/boutique-gate.ts.
+// Keeps the boutique invisible until BOUTIQUE_ENABLED=true (lib/boutique-gate.ts)
+// and pauses online reservations until ONLINE_BOOKING_ENABLED=true
+// (lib/booking-gate.ts).
 export const config = {
-  matcher: ["/boutique", "/boutique.html", "/css/boutique.css", "/js/boutique.js", "/api/public/shop/:path*"],
+  matcher: [
+    "/boutique", "/boutique.html", "/css/boutique.css", "/js/boutique.js", "/api/public/shop/:path*",
+    "/book", "/book/:path*", "/api/bookings", "/api/square-bookings", "/api/availability", "/api/catalog", "/api/booking-context", "/api/client-auth/:path*",
+  ],
 };
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  const booking = decideBookingAccess({ pathname });
+  if (booking.action === "pause-api") {
+    return NextResponse.json(
+      { error: "La réservation en ligne est temporairement indisponible. Appelez-nous au (819) 968-2827." },
+      { status: 503, headers: { "cache-control": "no-store", "retry-after": "3600" } },
+    );
+  }
+  if (booking.action === "pause-page") {
+    const paused = NextResponse.rewrite(new URL(BOOKING_PAUSE_PATH, request.url));
+    paused.headers.set("cache-control", "no-store");
+    return paused;
+  }
+
   const access = decideBoutiqueAccess({
     pathname,
     search,

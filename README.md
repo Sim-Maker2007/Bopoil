@@ -31,6 +31,16 @@ Set `SALON_OWNER_EMAIL` to the owner’s sign-in address. On the first secure si
 
 The configured 15-minute operations job and hourly Square reconciliation require a Vercel Pro project; Vercel Hobby projects only permit daily cron jobs.
 
+### Reservation gate
+
+Online booking is switched off the same way. `ONLINE_BOOKING_ENABLED=true` opens the reservation flow; any other value, or no value, pauses it everywhere:
+
+- every `/book…` page shows a short French notice with the salon phone, text and email (`apps/coat-care/app/reservation-pause/page.tsx`);
+- the booking APIs (`/api/bookings`, `/api/square-bookings`, `/api/availability`, `/api/catalog`, `/api/booking-context`, `/api/client-auth/*`) answer 503;
+- at build time the **Réserver en ligne** button on `rendez-vous.html` becomes the same notice.
+
+The website's information form, the client portal, the salon workspace and Square webhooks keep working. Set the variable on Preview and Development while the flow is being finished, and on Production (then redeploy) to reopen reservations. Implemented by `apps/coat-care/lib/booking-gate.ts`, `apps/coat-care/proxy.ts` and `scripts/public-site-boutique.mjs`.
+
 ### Boutique gate
 
 The store ships in every deployment but stays invisible until it is switched on. Two environment variables control it, and both are read at build time and at request time, so set them in Vercel → Settings → Environment Variables and redeploy after changing them:
