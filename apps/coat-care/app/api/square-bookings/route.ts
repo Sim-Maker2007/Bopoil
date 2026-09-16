@@ -1,3 +1,4 @@
+import { isPublicCareService } from "../../../lib/care-options";
 import { and, eq } from "drizzle-orm";
 import { consentRecords, pets, services } from "../../../db/schema";
 import { issuePortalEmailSession, resolvePortalSession } from "../../../db/client-portal";
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
       )).limit(1),
     ]);
     if (!pet || !service) return Response.json({ error: "The selected pet or service is no longer available." }, { status: 404 });
+    if (!isPublicCareService(service.name)) return Response.json({ error: "Ce soin se réserve par téléphone. Veuillez appeler le salon." }, { status: 400 });
     const appointment = await createSquareAppointment({
       db: storefront.db,
       organizationId: storefront.organization.id,
