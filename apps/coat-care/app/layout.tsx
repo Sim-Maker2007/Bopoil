@@ -1,5 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+// Booking is used mostly on phones: let the layout extend under the notch and
+// home indicator so sticky bars can pad themselves with env(safe-area-inset-*).
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.DELIVERY_PUBLIC_URL || "https://www.bopoil.ca"),

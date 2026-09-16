@@ -25,3 +25,4 @@ test('unknown and mixed breeds require an explicit coat choice', () => {
   assert.equal(suggestedCoat('Race inconnue'), '');
   assert.equal(careLabel(services[0].name), 'Bain et soins de base');
 });
+

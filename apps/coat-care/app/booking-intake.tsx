@@ -1,11 +1,17 @@
 "use client";
 import { useRef, useState } from "react";
+import { BookingHero, PhoneArt } from "./booking-hero";
+
+// The questions below are the BOPOIL « Fiche d'informations » from the public
+// website (apps/web/fiche-informations.html), kept identical field for field:
+// tests/booking-intake-parity.test.mjs compares the two. Only the shell around
+// them (banner, chips, typography) belongs to the booking flow.
 export function BookingIntake({ salonSlug, locationSlug, onCreated, onSignIn, onBack }: {
   salonSlug: string; locationSlug: string; onCreated: () => Promise<void>; onSignIn: (email: string) => void; onBack: () => void;
 }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   const submissionId = useRef("");
-  return <form className="guided-fields" onSubmit={async (event) => {
+  return <form className="guided-fields intake-form" onSubmit={async (event) => {
     event.preventDefault(); setBusy(true); setError("");
     const values = Object.fromEntries(new FormData(event.currentTarget));
     submissionId.current ||= crypto.randomUUID();
@@ -18,10 +24,9 @@ export function BookingIntake({ salonSlug, locationSlug, onCreated, onSignIn, on
     } catch (error) { setError(error instanceof Error ? error.message : "Impossible de créer le profil."); }
     finally { setBusy(false); }
   }}>
-    <button type="button" className="mini-link" disabled={busy} onClick={onBack}>← Retour</button>
-    <h3 data-booking-step-heading tabIndex={-1}>Bienvenue chez BOPOIL</h3>
-    <p>Créez votre profil, puis choisissez les soins de votre animal.</p>
-    <p>Les champs marqués d’un * sont obligatoires.</p>
+    <button type="button" className="mini-link intake-back" disabled={busy} onClick={onBack}><span aria-hidden="true">‹</span> Retour</button>
+    <BookingHero tone="teal" compact eyebrow="Bienvenue chez BOPOIL" art={<PhoneArt/>} title={<h3 data-booking-step-heading tabIndex={-1}>Fiche d’informations</h3>} text="Créez votre profil, puis choisissez les soins de votre animal."/>
+    <p className="intake-required-note">Les champs marqués d’un <span className="req" aria-hidden="true">*</span> sont obligatoires.</p>
     <fieldset className="intake-questions" disabled={busy}><legend className="sr-only">Fiche d’informations</legend>
             <input className="intake-honeypot" type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true"/>
             <div className="form-field">

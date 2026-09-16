@@ -129,3 +129,31 @@ test("operational navigation and dialogs expose accessible state", async () => {
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(styles, /\.sidebar-more-button/);
 });
+
+test("the booking flow keeps its steps and carries the public information form's exact questions", async () => {
+  const [booking, intake, hero, careChoices, styles, layout] = await Promise.all([
+    source("../app/booking-experience.tsx"),
+    source("../app/booking-intake.tsx"),
+    source("../app/booking-hero.tsx"),
+    source("../app/care-choices.tsx"),
+    source("../app/globals.css"),
+    source("../app/layout.tsx"),
+  ]);
+
+  // Same flow as before: the illustrated banner only dresses the profile choice, it never adds a step.
+  assert.doesNotMatch(booking, /BookingWelcome|welcomeAlreadySeen|welcome-active/);
+  assert.match(booking, /<BookingHero tone="plum"[\s\S]{0,200}?title=\{<h3 data-booking-step-heading tabIndex=\{-1\}>/);
+  assert.match(booking, /<p className="profile-choice-question">On se connaît déjà \?<\/p>/);
+  assert.match(hero, /export function BookingHero/);
+  assert.match(styles, /\.guided-progress-label \{ display: flex/);
+  assert.match(layout, /viewportFit: "cover"/);
+
+  // The profile form keeps PR #18's website questionnaire markup (checked by booking-intake-parity.test.mjs) inside the restyled shell.
+  assert.match(intake, /import \{ BookingHero, PhoneArt \} from "\.\/booking-hero"/);
+  assert.match(intake, /className="guided-fields intake-form"/);
+  assert.match(intake, /name="website"/);
+  assert.match(intake, /fetch\("\/api\/public\/intake"/);
+  assert.doesNotMatch(intake, /hidden=\{panel|defaultChecked|defaultValue/);
+  assert.match(careChoices, /useState\(savedSizeChoice\(pet\.sizeLabel\)\)/);
+  assert.match(styles, /\.guided-booking \.intake-form \.field-group \.intake-choice input:checked \+ span/);
+});
