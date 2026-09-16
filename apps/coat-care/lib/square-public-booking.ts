@@ -3,6 +3,7 @@ import { getDb } from "../db";
 import { appointments, clients, externalEntityLinks, pets, services } from "../db/schema";
 import { normalizeClientPhone } from "./client-phone-auth";
 import { squareConfig, squareRequest } from "./square";
+import { sameSquareInstant } from "./square-instant";
 import { linkEntity, syncSquareBooking, type SquareBooking } from "./square-sync";
 import { dateKeyInZone, zonedDayBounds } from "./time-zone";
 
@@ -295,8 +296,9 @@ export async function loadSquareAvailability(input: {
     remainingCapacity: number;
   }>();
   for (const availability of availabilities) {
-    const startsAt = clean(availability.start_at, 50);
-    if (!startsAt || Number.isNaN(new Date(startsAt).valueOf())) continue;
+    const rawStartsAt = clean(availability.start_at, 50);
+    if (!rawStartsAt || Number.isNaN(new Date(rawStartsAt).valueOf())) continue;
+    const startsAt = new Date(rawStartsAt).toISOString();
     const durationMinutes = Math.max(1, (availability.appointment_segments || []).reduce((total, segment) => total + Number(segment.duration_minutes || 0) + Number(segment.intermission_minutes || 0), 0));
     const existing = slots.get(startsAt);
     const teamMemberId = clean(availability.appointment_segments?.[0]?.team_member_id, 100);
@@ -343,7 +345,7 @@ export async function createSquareAppointment(input: {
   const searchStart = new Date(requestedStart.getTime() - 60 * 60_000);
   const searchEnd = new Date(searchStart.getTime() + 25 * 60 * 60_000);
   const availabilities = await searchAvailability(config.externalLocationId, externalServiceId, searchStart, searchEnd);
-  const availability = availabilities.find((slot) => slot.start_at === requestedStart.toISOString());
+  const availability = availabilities.find((slot) => sameSquareInstant(slot.start_at, input.startsAt));
   if (!availability?.appointment_segments?.length) throw new Error("That Square opening is no longer available. Choose another time.");
   const squareCustomerId = await ensureSquareCustomer(input.db, input.organizationId, input.locationId, input.clientId);
   const response = await squareRequest<{ booking?: SquareBooking }>("bookings", {
