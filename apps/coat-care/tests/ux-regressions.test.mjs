@@ -129,3 +129,42 @@ test("operational navigation and dialogs expose accessible state", async () => {
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(styles, /\.sidebar-more-button/);
 });
+
+test("first-time booking visitors get a mobile-first welcome tour that deep links and returning clients skip", async () => {
+  const [booking, welcome, intake, styles, layout] = await Promise.all([
+    source("../app/booking-experience.tsx"),
+    source("../app/booking-welcome.tsx"),
+    source("../app/booking-intake.tsx"),
+    source("../app/globals.css"),
+    source("../app/layout.tsx"),
+  ]);
+
+  // The tour only appears once the private context check has finished, never for a recognised client or a deep link.
+  assert.match(booking, /const searchReady = contextChecked && welcome !== "pending"/);
+  assert.match(booking, /setWelcome\(bookingContext \|\| deepLink \|\| welcomeAlreadySeen\(\) \? "done" : "show"\)/);
+  assert.match(booking, /const deepLinkKeys = \["pet", "service", "date", "startsAt", "portal"\]/);
+  assert.match(booking, /welcome === "done" && \(newProfile \? <BookingIntake/);
+  assert.match(booking, /onSignIn=\{\(\) => \{ setWelcome\("done"\); openClientAuth\("signin"\); \}\}/);
+  assert.match(booking, /className=\{`app-shell guided-booking\$\{welcomeVisible \? " welcome-active" : ""\}`\}/);
+
+  // The tour is swipeable, keyboard-operable, skippable, and remembered without ever throwing on blocked storage.
+  assert.match(welcome, /scroll-snap|welcome-track/);
+  assert.match(welcome, /event\.key === "ArrowRight"/);
+  assert.match(welcome, /className="welcome-skip"/);
+  assert.match(welcome, /try \{ window\.localStorage\.setItem\(WELCOME_STORAGE_KEY, "1"\); \}/);
+  assert.match(welcome, /prefers-reduced-motion: reduce/);
+  assert.match(welcome, /aria-hidden=\{position !== index\}/);
+  assert.match(styles, /\.welcome-track \{[^}]*scroll-snap-type: x mandatory/);
+  assert.match(styles, /\.welcome-active \.booking-intro \{ display: none; \}/);
+  assert.match(styles, /\.guided-progress-label \{ display: flex/);
+  assert.match(layout, /viewportFit: "cover"/);
+
+  // Profile creation is split in two screens but still submits every field natively.
+  assert.match(intake, /hidden=\{panel !== 1\}/);
+  assert.match(intake, /hidden=\{panel !== 2\}/);
+  assert.match(intake, /control\.reportValidity\(\)/);
+  assert.match(intake, /<button key="continue" type="button"/);
+  assert.match(intake, /<button key="submit" type="submit"/);
+  assert.match(intake, /name="espece" value=\{choice\.value\}/);
+  assert.match(styles, /\.guided-fields fieldset\[hidden\] \{ display: none; \}/);
+});
