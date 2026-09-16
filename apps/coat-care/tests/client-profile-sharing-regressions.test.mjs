@@ -16,7 +16,7 @@ test("portal connection and every online appointment require separate confirmati
   assert.match(access, /form\.get\("policyAcknowledged"\) !== "yes"/);
   assert.match(access, /type: "portal_policy_acknowledgement"/);
   assert.match(bookingUi, /informationCurrent/);
-  assert.match(bookingUi, /contact and pet information is up to date/);
+  assert.match(bookingUi, /mes coordonnées et les renseignements de mon animal sont à jour/);
   for (const route of [bookings, squareBookings]) {
     assert.match(route, /if \(!payload\.informationCurrent\)/);
     assert.match(route, /type: "client_information_current"/);
