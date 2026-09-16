@@ -764,9 +764,7 @@ body[data-product-open="true"] { overflow: hidden; }
   .boutique-page .sms-pill { display: none; }
 }
 @media (hover: none) {
-  .product-card__quick,
-  .product-card__view { opacity: 1; transform: none; }
-  .product-card__view { inset: auto; left: 10px; right: auto; bottom: 10px; min-height: 36px; padding: 0 12px; font-size: .7rem; }
+  .product-card__quick { opacity: 1; transform: none; }
   .shop-cat:hover { transform: none; }
 }
 
