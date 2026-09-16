@@ -50,6 +50,20 @@ type PaymentLinkResult = { payment_link?: { id?: string; url?: string; long_url?
 
 export type ShopConfig = ReturnType<typeof shopConfig>;
 
+// Square's French dashboard labels the default variation "Article de base".
+// English dashboards use Regular / Default. None of those belong on a storefront title.
+const GENERIC_VARIATION = /^(regular|r[ée]gulier|default|standard|article de base)(\s+(item|variation))?$/i;
+
+function genericVariationName(name = "") {
+  return GENERIC_VARIATION.test(name.trim());
+}
+
+function shopDisplayName(itemName = "", variationName = "") {
+  const base = itemName.replace(/\s*[—–-]\s*article de base\s*$/i, "").trim() || "Article";
+  if (!variationName || genericVariationName(variationName)) return base;
+  return `${base} — ${variationName}`;
+}
+
 export function shopConfig(config = squareConfig()) {
   return {
     hasToken: Boolean(config.accessToken),
@@ -89,11 +103,10 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
       if (override?.sold_out) continue;
       const price = override?.price_money || data.price_money;
       if (!price || !Number.isSafeInteger(price.amount) || price.amount! < 0) continue;
-      const variationName = data.name && !/^(regular|régulier|default)$/i.test(data.name) ? data.name : "";
       products.push({
         id: variation.id,
         itemId: object.id,
-        name: (item.name || "Article") + (variationName ? ` — ${variationName}` : ""),
+        name: shopDisplayName(item.name || "Article", data.name || ""),
         description: item.description_plaintext || (item.description || "").replace(/<[^>]*>/g, ""),
         priceCents: price.amount!,
         currency: price.currency || "CAD",

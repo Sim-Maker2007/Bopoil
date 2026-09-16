@@ -180,6 +180,41 @@ test("createShopCheckout rejects a cart with no valid Square items", async () =>
 });
 
 
+test("normalizeCatalog omits Square's default variation label from product titles", () => {
+  const products = normalizeCatalog(
+    [
+      {
+        id: "ITEM_BASE",
+        type: "ITEM",
+        item_data: {
+          name: "BUCO+ Gel dentaire",
+          variations: [{ id: "VAR_BASE", item_variation_data: { name: "Article de base", price_money: { amount: 2099, currency: "CAD" } } }],
+        },
+      },
+      {
+        id: "ITEM_BAKED",
+        type: "ITEM",
+        item_data: {
+          name: "BUCO+ Trousse 15kg + — Article de base",
+          variations: [{ id: "VAR_BAKED", item_variation_data: { name: "Article de base", price_money: { amount: 8500, currency: "CAD" } } }],
+        },
+      },
+      {
+        id: "ITEM_SIZE",
+        type: "ITEM",
+        item_data: {
+          name: "LOONA Concentré",
+          variations: [{ id: "VAR_SIZE", item_variation_data: { name: "1 L", price_money: { amount: 3809, currency: "CAD" } } }],
+        },
+      },
+    ],
+    [],
+  );
+  assert.equal(products[0].name, "BUCO+ Gel dentaire");
+  assert.equal(products[1].name, "BUCO+ Trousse 15kg +");
+  assert.equal(products[2].name, "LOONA Concentré — 1 L");
+});
+
 test("retail catalog includes all sizes and excludes services, archived and unavailable products", () => {
   const retail = structuredClone(sampleCatalog.objects[0]);
   retail.item_data.variations.push({ id: "VAR_LARGE", item_variation_data: { name: "500 ml", price_money: { amount: 3200, currency: "CAD" } } });
