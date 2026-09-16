@@ -21,6 +21,14 @@ anciennes adresses (`home.html`, `contact.html`, `services.html`,
 Le dossier reste du HTML statique pur : il peut aussi être copié tel quel sur
 n'importe quel hébergement statique pour un aperçu.
 
+**Boutique en ligne.** La page `boutique.html` est publiée seulement lorsque la
+variable d'environnement `BOUTIQUE_ENABLED=true` est définie sur Vercel. Sinon,
+le script de synchronisation retire le lien « Boutique » du menu et l'entrée du
+plan de site, et `apps/coat-care/proxy.ts` répond 404 pour la page, ses fichiers
+et l'API de la boutique. Une clé `BOUTIQUE_PREVIEW_KEY` permet de déverrouiller
+la boutique sur un navigateur donné (`boutique.html?apercu=<clé>`). Les fichiers
+de ce dossier ne sont jamais modifiés ; voir le README à la racine du dépôt.
+
 ### Prévisualiser sur votre ordinateur
 
 ```bash
