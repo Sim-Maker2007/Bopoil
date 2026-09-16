@@ -1,6 +1,5 @@
 "use client";
 import { useRef, useState } from "react";
-import { sizeOptions } from "../lib/care-options";
 export function BookingIntake({ salonSlug, locationSlug, onCreated, onSignIn, onBack }: {
   salonSlug: string; locationSlug: string; onCreated: () => Promise<void>; onSignIn: (email: string) => void; onBack: () => void;
 }) {
@@ -22,18 +21,85 @@ export function BookingIntake({ salonSlug, locationSlug, onCreated, onSignIn, on
     <button type="button" className="mini-link" disabled={busy} onClick={onBack}>← Retour</button>
     <h3 data-booking-step-heading tabIndex={-1}>Bienvenue chez BOPOIL</h3>
     <p>Créez votre profil, puis choisissez les soins de votre animal.</p>
-    <fieldset disabled={busy}><legend>Vos coordonnées</legend>
-      <label>Nom complet<input name="proprietaire" autoComplete="name" minLength={2} maxLength={100} required/></label>
-      <label>Courriel<input name="email" type="email" autoComplete="email" maxLength={180} required/></label>
-      <label>Téléphone<input name="telephone" type="tel" autoComplete="tel" required/></label>
-    </fieldset>
-    <fieldset disabled={busy}><legend>Votre animal</legend>
-      <label>Son nom<input name="nom_animal" maxLength={60} required/></label>
-      <label>Espèce<select name="espece" defaultValue="chien"><option value="chien">Chien</option><option value="chat">Chat</option><option value="autre">Petit animal</option></select></label>
-      <label>Race ou croisement<input name="race" maxLength={80} placeholder="Ex. : caniche, labrador croisé…" required/></label>
-      <label>Poids<select name="taille" required defaultValue=""><option value="">Choisir</option>{sizeOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-      <label>Santé et précautions<textarea name="sante" required maxLength={2500} placeholder="Allergies, problèmes de santé, ou « Aucun »"/></label>
-      <label>Comportement (facultatif)<textarea name="comportement" maxLength={2500} placeholder="Ce qui nous aidera à prendre soin de lui"/></label>
+    <p>Les champs marqués d’un * sont obligatoires.</p>
+    <fieldset className="intake-questions" disabled={busy}><legend className="sr-only">Fiche d’informations</legend>
+            <input className="intake-honeypot" type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true"/>
+            <div className="form-field">
+              <label className="form-label" htmlFor="fiche-proprietaire">Prénom et nom du propriétaire
+                <span className="req" aria-hidden="true">*</span></label>
+              <input className="field" id="fiche-proprietaire" name="proprietaire" type="text"
+                     autoComplete="name" required/>
+            </div>
+            <div className="form-field">
+              <label className="form-label" htmlFor="fiche-telephone">Numéro de téléphone
+                <span className="req" aria-hidden="true">*</span></label>
+              <input className="field" id="fiche-telephone" name="telephone" type="tel"
+                     autoComplete="tel" required/>
+            </div>
+            <div className="form-field">
+              <label className="form-label" htmlFor="fiche-courriel">Adresse courriel
+                <span className="req" aria-hidden="true">*</span></label>
+              <input className="field" id="fiche-courriel" name="email" type="email"
+                     autoComplete="email" required/>
+            </div>
+            <div className="form-field">
+              <label className="form-label" htmlFor="fiche-animal">Nom de l&#39;animal
+                <span className="req" aria-hidden="true">*</span></label>
+              <input className="field" id="fiche-animal" name="nom_animal" type="text" required/>
+            </div>
+            <div className="form-field">
+              <label className="form-label" htmlFor="fiche-anniversaire">Date d&#39;anniversaire</label>
+              <input className="field" id="fiche-anniversaire" name="anniversaire" type="date"/>
+            </div>
+          <fieldset className="field-group">
+            <legend className="field-group__legend">Type d&#39;animal</legend>
+            <label className="intake-choice"><input type="radio" name="espece" value="Chien"/><span>Chien</span></label><label className="intake-choice"><input type="radio" name="espece" value="Chat"/><span>Chat</span></label><label className="intake-choice"><input type="radio" name="espece" value="Petit animal"/><span>Petit animal</span></label>
+          </fieldset>
+            <div className="form-field">
+              <label className="form-label" htmlFor="fiche-race">Race</label>
+              <input className="field" id="fiche-race" name="race" type="text"/>
+            </div>
+          <fieldset className="field-group">
+            <legend className="field-group__legend">Taille (poids)</legend>
+            <label className="intake-choice"><input type="radio" name="taille" value="XXS/TTP (moins de 10 lbs)"/><span>XXS/TTP (moins de 10 lbs)</span></label><label className="intake-choice"><input type="radio" name="taille" value="XS/TP (11 à 20 lbs)"/><span>XS/TP (11 à 20 lbs)</span></label><label className="intake-choice"><input type="radio" name="taille" value="S/P (21 à 40 lbs)"/><span>S/P (21 à 40 lbs)</span></label><label className="intake-choice"><input type="radio" name="taille" value="M/M (41 à 60 lbs)"/><span>M/M (41 à 60 lbs)</span></label><label className="intake-choice"><input type="radio" name="taille" value="L/G (61 à 80 lbs)"/><span>L/G (61 à 80 lbs)</span></label><label className="intake-choice"><input type="radio" name="taille" value="XL/TG (81 à 100 lbs)"/><span>XL/TG (81 à 100 lbs)</span></label><label className="intake-choice"><input type="radio" name="taille" value="XXL/TTG (101 à 120 lbs)"/><span>XXL/TTG (101 à 120 lbs)</span></label><label className="intake-choice"><input type="radio" name="taille" value="Géant (plus de 121 lbs)"/><span>Géant (plus de 121 lbs)</span></label>
+          </fieldset>
+            <div className="form-field">
+              <label className="form-label" htmlFor="fiche-sante">Informations sur la santé (troubles
+                dermatologiques, vaccins, allergies, puces ou tiques, etc.)
+                <span className="req" aria-hidden="true">*</span></label>
+              <textarea className="field" id="fiche-sante" name="sante" rows={4}
+                        required></textarea>
+            </div>
+            <div className="form-field">
+              <label className="form-label" htmlFor="fiche-comportement">Informations sur les habitudes
+                de vie ou le comportement (actif ou sédentaire, anxiété, agressivité,
+                peurs)?</label>
+              <textarea className="field" id="fiche-comportement" name="comportement"
+                        rows={4}></textarea>
+            </div>
+          <div className="form-field">
+            <label className="form-label" htmlFor="fiche-sterilise">Stérilisé(e)?</label>
+            <select className="field" id="fiche-sterilise" name="sterilise">
+              <option value="">— Choisir —</option><option value="Oui">Oui</option><option value="Non">Non</option>
+            </select>
+          </div>
+          <div className="form-field">
+            <label className="form-label" htmlFor="fiche-gateries">Autorisez-vous BOPOIL à offrir des gâteries?</label>
+            <select className="field" id="fiche-gateries" name="gateries">
+              <option value="">— Choisir —</option><option value="Oui, vous gagnerez son coeur!">Oui, vous gagnerez son coeur!</option><option value="Non, je ne préfère pas.">Non, je ne préfère pas.</option>
+            </select>
+          </div>
+          <div className="form-field">
+            <label className="form-label" htmlFor="fiche-photos">Autorisez-vous BOPOIL à photographier votre animal à des fins de marketing?</label>
+            <select className="field" id="fiche-photos" name="photos">
+              <option value="">— Choisir —</option><option value="Oui, j&#39;autorise BOPOIL.">Oui, j&#39;autorise BOPOIL.</option><option value="Non, je n&#39;autorise pas.">Non, je n&#39;autorise pas.</option>
+            </select>
+          </div>
+            <label className="intake-choice">
+              <input type="checkbox" name="marketing" value="oui"/>
+              <span>J&#39;accepte de recevoir du contenu marketing et promotionnel</span>
+            </label>
+            <p className="form-note">Vos données ne servent qu&#39;à vous répondre. Consultez notre <a href="/politique.html">politique</a>.</p>
     </fieldset>
     {error && <p className="booking-error" role="alert">{error}</p>}
     <button className="primary-button wide" disabled={busy}>{busy ? "Enregistrement…" : "Créer mon profil et choisir les soins"}</button>

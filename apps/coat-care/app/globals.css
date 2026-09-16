@@ -604,3 +604,13 @@ footer > span { color: rgba(255,255,255,.45); text-align: right; font-size: 11px
 .guided-care .option-list { margin-top: 24px; }
 .guided-booking .primary-button { text-align: center; text-decoration: none; }
 @media(max-width: 760px) { .guided-booking .booking-flow { grid-template-columns: 1fr; padding: 28px 16px; gap: 24px; } .guided-booking .booking-intro { position: static; } .guided-booking h1 { font-size: 34px; margin: 12px 0; } .guided-progress { grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; font-size: 12px; } .guided-booking .booking-card { min-height: 300px; } .guided-help { margin-bottom: 0; } }
+
+/* Match the public intake questionnaire without stretching choice controls. */
+.guided-fields .intake-questions { gap: 24px; }
+.guided-fields .intake-questions .form-field { display: grid; gap: 8px; }
+.guided-fields .intake-choice { display: flex; align-items: flex-start; gap: 10px; font-weight: 400; line-height: 1.5; cursor: pointer; }
+.guided-fields .intake-choice input { flex: 0 0 auto; width: 18px; height: 18px; min-height: 0; margin: 2px 0 0; padding: 0; accent-color: #a33120; }
+.guided-fields .intake-honeypot { display: none; }
+.guided-fields .req { color: #a33120; }
+.guided-fields .form-note { font-size: 13px; }
+.guided-fields .intake-questions .form-label { display: block; }
