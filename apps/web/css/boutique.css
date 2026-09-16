@@ -678,12 +678,16 @@ body[data-product-open="true"] { overflow: hidden; }
 .product-card:hover .product-card__dots,
 .product-card:focus-within .product-card__dots { bottom: 62px; }
 .product-card__dots i {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: rgba(20, 20, 20, .22);
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 0 0 1px rgba(20, 20, 20, .45);
 }
-.product-card__dots i[data-active="true"] { background: var(--accent-plum); }
+.product-card__dots i[data-active="true"] {
+  background: var(--accent-plum);
+  box-shadow: 0 0 0 1px rgba(177, 79, 126, .55);
+}
 
 .product-sheet__body {
   display: flex;
