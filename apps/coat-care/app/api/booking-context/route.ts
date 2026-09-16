@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { appointments, locations, pets, services } from "../../../db/schema";
+import { appointments, locations, petCareProfiles, pets, services } from "../../../db/schema";
 import { hasVerifiedPhoneIdentity } from "../../../db/client-phone-auth";
 import { resolvePortalSession } from "../../../db/client-portal";
 import { resolveStorefront } from "../../../db/public-storefront";
@@ -31,7 +31,9 @@ export async function GET(request: Request) {
         id: pets.id,
         name: pets.name,
         breed: pets.breed,
-      }).from(pets).where(and(
+        species: pets.species,
+        sizeLabel: petCareProfiles.sizeLabel,
+      }).from(pets).leftJoin(petCareProfiles, and(eq(petCareProfiles.petId, pets.id), eq(petCareProfiles.organizationId, pets.organizationId))).where(and(
         eq(pets.organizationId, client.organizationId),
         eq(pets.clientId, client.id),
       )).orderBy(asc(pets.name)),

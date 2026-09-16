@@ -577,3 +577,30 @@ footer > span { color: rgba(255,255,255,.45); text-align: right; font-size: 11px
   .employee-recent-punches article { grid-template-columns:90px 1fr }.employee-recent-punches em { grid-column:1/-1; width:max-content }
   .employee-topbar-actions { gap:4px }.employee-topbar-actions>button { padding:8px }
 }
+
+/* Guided booking keeps the active task in the first viewport. */
+.guided-booking .booking-flow { min-height: calc(100vh - 80px); align-items: start; padding: 64px clamp(20px, 6vw, 100px); gap: 64px; grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr); }
+.guided-booking .booking-intro { position: sticky; top: 110px; }
+.guided-booking h1 { font: 500 clamp(36px, 4vw, 58px)/1.08 Georgia, serif; letter-spacing: -1.5px; margin: 22px 0; }
+.guided-booking .booking-card { min-width: 0; min-height: 420px; }
+.guided-progress { list-style: none; padding: 0; margin: 32px 0; display: grid; gap: 18px; }
+.guided-progress li { display: flex; align-items: center; gap: 12px; color: #68645f; }
+.guided-progress li span { border: 1px solid #a49b8f; border-radius: 50%; width: 30px; height: 30px; display: grid; place-items: center; }
+.guided-progress [aria-current=step] { color: #a33120; font-weight: 700; }
+.guided-progress [aria-current=step] span { background: #a33120; color: white; border-color: #a33120; }
+.profile-choice { display: grid; gap: 16px; }
+.profile-choice h3, .profile-choice p { margin: 0; }
+.profile-choice-button { display: grid; gap: 8px; text-align: left; padding: 24px; background: #faf7f2; border: 1px solid #d9cdc0; border-radius: 14px; color: #292622; cursor: pointer; }
+.profile-choice-button strong { font-size: 19px; }
+.profile-choice-button span { line-height: 1.5; color: #62594f; }
+.profile-choice-button:hover { border-color: #ad3a26; background: #fff3ed; }
+.guided-fields, .guided-fields fieldset { display: grid; gap: 16px; }
+.guided-fields fieldset { border: 0; padding: 0; margin: 8px 0; min-width: 0; }
+.guided-fields legend { font-weight: 700; padding: 0 0 14px; }
+.guided-fields label { display: grid; gap: 8px; font-size: 14px; font-weight: 600; }
+.guided-fields input, .guided-fields select, .guided-fields textarea { width: 100%; min-height: 48px; padding: 12px; border: 1px solid #cfc6bc; border-radius: 8px; background: white; color: #292622; font: inherit; }
+.guided-fields textarea { min-height: 80px; resize: vertical; }
+.guided-booking button:focus-visible, .guided-booking a:focus-visible, .guided-fields :is(input,select,textarea):focus-visible { outline: 3px solid #a33120; outline-offset: 3px; }
+.guided-care .option-list { margin-top: 24px; }
+.guided-booking .primary-button { text-align: center; text-decoration: none; }
+@media(max-width: 760px) { .guided-booking .booking-flow { grid-template-columns: 1fr; padding: 28px 16px; gap: 24px; } .guided-booking .booking-intro { position: static; } .guided-booking h1 { font-size: 34px; margin: 12px 0; } .guided-progress { grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; font-size: 12px; } .guided-booking .booking-card { min-height: 300px; } .guided-help { margin-bottom: 0; } }

@@ -12,10 +12,10 @@ test("public booking never submits stale availability or overpromises delivery",
   assert.match(booking, /if \(requestId !== availabilityRequest\.current\) return/);
   assert.match(booking, /selectedDateRef\.current = date/);
   assert.match(booking, /allowOnlineBooking !== false/);
-  assert.match(booking, /disabled=\{!serviceId \|\| availabilityLoading \|\| !onlineBookingOpen/);
-  assert.match(booking, /squareManaged && !bookingContext/);
+  assert.match(booking, /disabled=\{bookingBusy \|\| availabilityLoading \|\| !selectedSlot\}/);
+  assert.match(booking, /function chooseService\(id: string\) \{ if \(!bookingContext\)/);
   assert.match(booking, /requireOnlineDeposit && service && service\.depositCents > 0/);
-  assert.match(booking, /No online deposit is due for this service/);
+  assert.match(booking, /Aucun acompte en ligne pour ce soin/);
   assert.match(booking, /delivery\?: \{ email\?: \{ configured\?: boolean \}; sms\?: \{ configured\?: boolean \} \}/);
   assert.match(booking, /Automatic email delivery is not available yet/);
   assert.doesNotMatch(booking, /Salon OS/);
@@ -33,7 +33,7 @@ test("returning clients can rebook from a minimal private context without retypi
 
   assert.doesNotMatch(booking, /useState\("Mochi"\)|useState\("Mini Poodle"\)/);
   assert.match(booking, /fetch\(`\/api\/booking-context/);
-  assert.match(booking, /Already a client\? Continue with mobile/);
+  assert.match(booking, /onClick=\{\(\) => openClientAuth\("signin"\)\}/);
   assert.match(booking, /autoComplete="one-time-code"/);
   assert.match(booking, /Send another code in \$\{authRetryAfter\}s/);
   assert.match(booking, /disabled=\{authBusy \|\| authRetryAfter > 0\}/);
@@ -45,7 +45,7 @@ test("returning clients can rebook from a minimal private context without retypi
   assert.match(booking, /authenticatedBooking[\s\S]*?\{ petId: selectedOwnedPet!\.id \}/);
   assert.match(booking, /fastPhoneSignInEnabled === false/);
   assert.match(booking, /const smsDeliveryConfigured = catalog\?\.delivery\?\.sms\?\.configured === true/);
-  assert.match(booking, /smsDeliveryConfigured \?/);
+  assert.match(booking, /catalog\?\.delivery\?\.sms\?\.configured !== true/);
   assert.doesNotMatch(booking, /setSelectedStartsAt\(first\?\.slots\[0\]\?\.startsAt/);
   assert.match(booking, /function chooseDate\(date: string\)[^{]*\{[^}]*setSelectedStartsAt\(""\)/);
   assert.match(booking, /role="group" aria-label="Available dates"/);

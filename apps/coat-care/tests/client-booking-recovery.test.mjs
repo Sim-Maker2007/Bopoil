@@ -85,11 +85,11 @@ test("public booking pages cover the full configured window in bounded accessibl
   assert.match(experience, /bookingWindowDays: number/);
   assert.match(experience, /requestAvailabilityPage\(serviceId, from\)/);
   assert.match(experience, /while \(from\)/);
-  assert.match(experience, /Find next opening/);
+  assert.match(experience, /Prochaine disponibilité/);
   assert.match(experience, /availability\.dates\.map/);
   assert.doesNotMatch(experience, /availability\.dates\.slice\(0, 10\)/);
   assert.match(experience, /aria-label=\{`\$\{dayLabel\(selectedDate\)\} at \$\{slot\.timeLabel\}/);
-  assert.match(experience, /Show all \$\{dateSlots\.length\} times/);
+  assert.match(experience, /Voir les \$\{dateSlots\.length\} heures/);
   assert.match(experience, /\["morning", "afternoon", "evening"\]/);
 });
 

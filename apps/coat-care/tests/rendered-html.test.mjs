@@ -8,7 +8,7 @@ test("ships the public grooming booking experience", async () => {
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(layout, /Coat & Care — Pet Grooming, Beautifully Simple/);
-  assert.match(page, /A happier grooming day/);
+  assert.match(page, /Votre profil et votre animal/);
   assert.match(page, /"\/api\/square-bookings" : "\/api\/bookings"/);
   assert.match(page, /policyAccepted/);
   assert.doesNotMatch(page + layout, /codex-preview|Your site is taking shape/i);
@@ -276,7 +276,7 @@ test("gives every salon and location an isolated public storefront", async () =>
     assert.match(source, /organizationId: organization\.id/);
     assert.match(source, /locationId: location\.id/);
   }
-  assert.match(experience, /Booking powered by Coat &amp; Care/);
+  assert.match(experience, /Réservation BOPOIL · Coat &amp; Care/);
   assert.match(experience, /catalog\.locations\.length > 1/);
   assert.match(salonRoute + locationRoute, /BookingExperience/);
   assert.match(dashboard, /locationSlug: locations\.slug/);
@@ -333,7 +333,8 @@ test("revalidates and atomically reserves every public booking", async () => {
   assert.match(bookingApi, /await db\.batch/);
   assert.match(schema, /appointment_reservations_resource_segment_unique/);
   assert.match(page, /\/api\/availability\?serviceId=/);
-  assert.match(page, /team skills, working hours, equipment/);
+  assert.match(page, /La disponibilité est vérifiée au moment de réserver/);
+  assert.match(page, /selectedSlot/);
   assert.doesNotMatch(page, /const timeSlots/);
 });
 
