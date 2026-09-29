@@ -94,6 +94,15 @@ possible et hors de notre contrôle —, un message et un bouton « Ouvrir la
 réservation Square » apparaissent automatiquement après quelques secondes. Le
 lien direct est de toute façon toujours visible sous le module.
 
+**Texto.** Le numéro du salon ne reçoit pas les textos. Le bouton « Contactez-nous
+par texto », comme tout lien `sms:` du site, ouvre donc le formulaire « Text us » de
+Square, comme sur l'ancien site Square Online : le message arrive dans **Square
+Messages** (tableau de bord et appli Square) et la réponse part par texto. Le module
+de Square n'est chargé que lorsqu'un visiteur s'en sert; une adresse se terminant
+par `#texto` ouvre le formulaire dès l'arrivée. Réglages dans `js/config.js` sous
+`square.textUs`. Le bouton « Text us » doit rester activé pour la réservation en
+ligne dans Square (Messages → Paramètres).
+
 Vous pouvez aussi renseigner des liens de réservation par catégorie :
 
 ```js

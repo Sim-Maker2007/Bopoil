@@ -43,7 +43,7 @@ test("the Next.js proxy pauses every booking address and serves the notice page"
   assert.match(proxy, /NextResponse\.rewrite\(new URL\(BOOKING_PAUSE_PATH, request\.url\)\)/);
   assert.equal(BOOKING_PAUSE_PATH, "/reservation-pause");
   assert.match(page, /href="tel:\+18199682827"/);
-  assert.match(page, /href="sms:\+18199682827"/);
+  assert.match(page, /href="\/contactez-nous\.html#texto"/);
   assert.match(page, /href="mailto:info@bopoil\.ca"/);
   assert.match(page, /robots: \{ index: false, follow: false \}/);
 });

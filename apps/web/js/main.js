@@ -388,6 +388,83 @@
   }
 
   /* ----------------------------------------------------------------------
+     « Contactez-nous par texto » — formulaire « Text us » de Square
+     ----------------------------------------------------------------------
+     Le numéro du salon ne reçoit pas les textos : comme sur l'ancien site
+     Square Online, chaque lien sms: ouvre plutôt le formulaire de Square. Le
+     message arrive dans Square Messages et la réponse part par texto.
+
+     Le module de Square (environ 500 ko, avec reCAPTCHA) n'est chargé qu'à
+     l'approche du bouton, ou dès l'arrivée quand l'adresse se termine par
+     #texto. S'il ne se charge pas, le visiteur est dirigé vers le
+     formulaire de contact.
+     ---------------------------------------------------------------------- */
+
+  function initTextUs() {
+    var sq = CONFIG.square || {};
+    var textUs = sq.textUs || {};
+    if (!textUs.script || !sq.locationId) return;
+    var links = document.querySelectorAll('a[href^="sms:"]');
+    var plugin = null;
+
+    function load() {
+      if (plugin) return plugin;
+      plugin = new Promise(function (resolve, reject) {
+        window.addEventListener('MessagesPluginReady', function () {
+          var form = new window.MessagesPlugin({ source: textUs.source || '' });
+          form.addEventListener('SubmitMessageSuccess', function () {
+            track('Formulaire', { type: 'texto', page: window.location.pathname });
+          });
+          resolve(form);
+        }, { once: true });
+        var script = document.createElement('script');
+        // Le module de Square retrouve sa configuration par cet id.
+        script.id = 'sq-messages-plugin';
+        script.src = textUs.script;
+        script.async = true;
+        script.dataset.sellerKey = sq.locationId;
+        // Notre bouton ouvre le formulaire : celui de Square reste caché.
+        script.dataset.autoShow = 'false';
+        script.onerror = reject;
+        document.body.appendChild(script);
+      });
+      plugin.catch(function () { /* chaque ouverture gère l'échec */ });
+      return plugin;
+    }
+
+    function fallback() {
+      var field = document.querySelector('form[data-formspree="contact"] .field');
+      if (field) field.focus();
+      else window.location.href = 'contactez-nous.html';
+    }
+
+    function open(link) {
+      var timer;
+      var giveUp = new Promise(function (resolve, reject) {
+        timer = window.setTimeout(reject, 12000);
+      });
+      if (link) link.setAttribute('aria-busy', 'true');
+      Promise.race([load(), giveUp]).then(function (form) {
+        form.openForm();
+      }, fallback).then(function () {
+        window.clearTimeout(timer);
+        if (link) link.removeAttribute('aria-busy');
+      });
+    }
+
+    links.forEach(function (link) {
+      ['pointerenter', 'touchstart', 'focus'].forEach(function (type) {
+        link.addEventListener(type, load, { once: true, passive: true });
+      });
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        open(link);
+      });
+    });
+    if (window.location.hash === '#texto') open(null);
+  }
+
+  /* ----------------------------------------------------------------------
      Divers
      ---------------------------------------------------------------------- */
 
@@ -512,6 +589,7 @@
     initMarquee();
     initBooking();
     initForms();
+    initTextUs();
     initMisc();
     initInstagram();
     initAnalytics();

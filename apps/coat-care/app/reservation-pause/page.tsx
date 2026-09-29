@@ -15,7 +15,8 @@ export default function ReservationPause() {
       <BookingHero tone="plum" eyebrow="BOPOIL Toilettage & Boutique" art={<DogArt/>} title={<h1>La réservation en ligne fait une <em>petite pause</em></h1>} text="Nous peaufinons votre nouvelle expérience de réservation. Elle sera de retour très bientôt. En attendant, nous prenons vos rendez-vous avec plaisir :"/>
       <div className="booking-pause-actions">
         <a className="primary-button" href="tel:+18199682827">Appeler le (819) 968-2827</a>
-        <a className="secondary-button" href="sms:+18199682827">Envoyer un texto</a>
+        {/* The salon line does not receive texts: #texto opens Square's "Text us" form (apps/web/js/main.js). */}
+        <a className="secondary-button" href="/contactez-nous.html#texto">Envoyer un texto</a>
         <a className="secondary-button" href="mailto:info@bopoil.ca">info@bopoil.ca</a>
       </div>
       <p className="booking-pause-hours">Du mardi au vendredi, de 9 h à 16 h.</p>

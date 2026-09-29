@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const source = (path) => readFile(new URL(path, import.meta.url), "utf8");
@@ -123,4 +123,49 @@ test("the contact form uses the shared salon inbox delivery", async () => {
   assert.match(contact, /const sent = await sendToSalonInbox\(\{[\s\S]*idempotencyKey: `bopoil:\$\{submissionKey\}`,[\s\S]*\}, delivery\.email\);/);
   assert.match(contact, /if \(!sent\) return publicFormResponse\(origin, \{ error: [^}]+\}, 502\);/);
   assert.doesNotMatch(contact, /api\.resend\.com/);
+});
+
+test("every texto link opens Square's « Text us » form, so texts land in Square Messages", async () => {
+  const [config, website, pausePage] = await Promise.all([
+    source("../../web/js/config.js"),
+    source("../../web/js/main.js"),
+    source("../app/reservation-pause/page.tsx"),
+  ]);
+  // The salon line does not receive texts; Square's own widget delivers them.
+  assert.match(config, /locationId: 'LJVHDT6T6W3XM'/);
+  assert.match(config, /script: 'https:\/\/conversations-production-f\.squarecdn\.com\/v2\/messages-plugin\.js'/);
+  assert.match(config, /source: 'APPOINTMENTS_BOOKING_SITE'/);
+
+  const textUs = website.slice(website.indexOf("function initTextUs"), website.indexOf("function initMisc"));
+  assert.match(textUs, /document\.querySelectorAll\('a\[href\^="sms:"\]'\)/);
+  assert.match(textUs, /script\.id = 'sq-messages-plugin';/);
+  assert.match(textUs, /script\.dataset\.sellerKey = sq\.locationId;/);
+  assert.match(textUs, /script\.dataset\.autoShow = 'false';/);
+  assert.match(textUs, /new window\.MessagesPlugin\(\{ source: textUs\.source \|\| '' \}\)/);
+  assert.match(textUs, /form\.openForm\(\);/);
+  assert.match(textUs, /e\.preventDefault\(\);/);
+  assert.match(textUs, /window\.location\.hash === '#texto'/);
+  assert.match(website, /initForms\(\);\s*initTextUs\(\);/);
+  // Square's module (and reCAPTCHA) only loads once a visitor reaches for the
+  // button or clicks it; its address lives in config.js.
+  assert.match(textUs, /link\.addEventListener\(type, load, \{ once: true, passive: true \}\);/);
+  assert.match(textUs, /Promise\.race\(\[load\(\), giveUp\]\)/);
+  assert.doesNotMatch(website, /squarecdn\.com/);
+
+  // The booking pause notice sends visitors to the same form.
+  assert.match(pausePage, /href="\/contactez-nous\.html#texto"/);
+  assert.doesNotMatch(pausePage, /href="sms:/);
+});
+
+test("every public page with a texto link loads the script that wires it", async () => {
+  const pages = (await readdir(new URL("../../web/", import.meta.url))).filter((name) => name.endsWith(".html"));
+  let checked = 0;
+  for (const name of pages) {
+    const html = await source(`../../web/${name}`);
+    if (!/href="sms:/.test(html)) continue;
+    checked += 1;
+    assert.match(html, /<script src="js\/config\.js"><\/script>/, name);
+    assert.match(html, /<script src="js\/main\.js" defer><\/script>/, name);
+  }
+  assert.ok(checked >= 12, `expected the texto button on every page, found ${checked}`);
 });
