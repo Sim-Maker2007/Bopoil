@@ -36,7 +36,18 @@ window.BOPOIL_CONFIG = {
     },
 
     // Boutique en ligne Square (catalogue de produits).
-    shopUrl: 'https://bopoil.square.site/'
+    shopUrl: 'https://bopoil.square.site/',
+
+    // « Contactez-nous par texto » ouvre le formulaire « Text us » de Square,
+    // comme sur l'ancien site Square Online : le message arrive dans Square
+    // Messages (tableau de bord et appli Square) et la réponse part par texto.
+    // Le module reçoit locationId et la source du site de réservation Square,
+    // dont le bouton « Text us » est activé dans Messages → Paramètres.
+    // Laissez script vide pour revenir au simple lien sms:.
+    textUs: {
+      script: 'https://conversations-production-f.squarecdn.com/v2/messages-plugin.js',
+      source: 'APPOINTMENTS_BOOKING_SITE'
+    }
   },
 
   /* ----------------------------------------------------------------------

@@ -10,7 +10,10 @@ import {
 } from "../../../../db/schema";
 import { resolveStorefront, storefrontError } from "../../../../db/public-storefront";
 import { issuePortalSession, resolvePortalSession } from "../../../../db/client-portal";
+import { onlineBookingEnabled } from "../../../../lib/booking-gate";
 import { normalizeClientPhone, portalCookie, requestSource, sha256Hex } from "../../../../lib/client-phone-auth";
+import { deliveryConfig } from "../../../../lib/message-delivery";
+import { intakeFicheEmail, salonInboxAddress, sendToSalonInbox, type IntakeFiche, type IntakeFicheOutcome } from "../../../../lib/public-form-email";
 import { portalCookieRequestIsSameOrigin, portalCookieTokenFromRequest } from "../../../../lib/portal-request";
 import { intakeOriginAllowed, squareConfig } from "../../../../lib/square";
 import { attachSolePetToSquareAppointments } from "../../../../lib/square-sync";
@@ -36,6 +39,8 @@ type IntakePayload = {
   photos?: string;
   marketing?: string | boolean;
   returnTo?: string;
+  // "website" for the public site's form, which has no sign-in step.
+  source?: string;
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -88,6 +93,7 @@ export async function POST(request: Request) {
   try {
     const payload = await request.json() as IntakePayload;
     if (clean(payload.website, 100)) return response(origin, { received: true });
+    const fromWebsite = clean(payload.source, 20) === "website";
     const config = squareConfig();
     const storefront = await resolveStorefront({
       organizationSlug: config.organizationSlug || payload.salonSlug,
@@ -110,7 +116,22 @@ export async function POST(request: Request) {
     if (email && !emailPattern.test(email)) return response(origin, { error: "Veuillez vérifier l'adresse courriel." }, 400);
     if (digits && (digits.length < 10 || digits.length > 15)) return response(origin, { error: "Veuillez vérifier le numéro de téléphone." }, 400);
     if (birthday && !isValidDateKey(birthday)) return response(origin, { error: "Veuillez vérifier la date d'anniversaire de l'animal." }, 400);
+    const marketingConsent = payload.marketing === true || clean(payload.marketing, 20).toLowerCase() === "oui";
+    const fiche: IntakeFiche = {
+      ownerName, phone: rawPhone, email, petName, birthday,
+      species: clean(payload.espece, 40), breed: clean(payload.race, 80), size: clean(payload.taille, 80),
+      sterilized: clean(payload.sterilise, 80), health: healthNotes, behavior: behaviorNotes,
+      treats: clean(payload.gateries, 120), photos: clean(payload.photos, 120), marketing: marketingConsent,
+    };
     const submissionKey = clean(payload.submissionId, 100) || crypto.randomUUID();
+    // Every accepted fiche also reaches the salon inbox, with the visitor as
+    // reply-to: nothing in the CRM announces a new website fiche.
+    const emailSalon = (outcome: IntakeFicheOutcome, options?: { contactMismatch?: boolean }) => sendToSalonInbox({
+      to: salonInboxAddress(organization),
+      replyTo: email,
+      ...intakeFicheEmail(fiche, outcome, options),
+      idempotencyKey: `bopoil:intake:${submissionKey}`,
+    }, deliveryConfig().email);
     const [sourceHash, contactHash] = await Promise.all([
       sha256Hex(`public-intake:${organization.id}:source:${requestSource(request)}`),
       sha256Hex(`public-intake:${organization.id}:contact:${email || digits.slice(-10)}`),
@@ -136,17 +157,42 @@ export async function POST(request: Request) {
       ),
     )).limit(3);
     const uniqueMatches = [...new Map(matches.map((client) => [client.id, client])).values()];
-    if (uniqueMatches.length > 1) return response(origin, { error: "Ces coordonnées correspondent à plus d'un dossier. Veuillez communiquer avec le salon pour que nous mettions à jour le bon profil." }, 409);
+    // The public website has no sign-in step, so a fiche it sends for contact
+    // details that already belong to a profile cannot be applied. The salon
+    // receives it for review instead and the stored profile stays untouched;
+    // the booking app answers the same cases with its secure sign-in.
+    const forwardForReview = async (clientId: string | null) => {
+      if (!await emailSalon("review")) return response(origin, { error: "La fiche n'a pas pu être transmise. Veuillez réessayer ou nous appeler au (819) 968-2827." }, 502);
+      await db.batch([
+        db.insert(publicIntakeSubmissions).values({
+          id: crypto.randomUUID(), organizationId: organization.id, locationId: location.id,
+          clientId, submissionKey, sourceHash, contactHash, status: "review",
+        }),
+        db.insert(auditEvents).values({
+          id: crypto.randomUUID(), organizationId: organization.id, actorType: "client",
+          action: "intake.forwarded_for_review", entityType: clientId ? "client" : "organization", entityId: clientId || organization.id,
+          detailsJson: JSON.stringify({ source: "bopoil.ca", locationId: location.id, matchingProfiles: uniqueMatches.length }),
+        }),
+      ]);
+      return response(origin, { received: true });
+    };
+    if (uniqueMatches.length > 1) {
+      if (fromWebsite) return forwardForReview(null);
+      return response(origin, { error: "Ces coordonnées correspondent à plus d'un dossier. Veuillez communiquer avec le salon pour que nous mettions à jour le bon profil." }, 409);
+    }
     const existingClient = uniqueMatches[0];
     if (existingClient) {
       const access = portalCookieRequestIsSameOrigin(request)
         ? await resolvePortalSession(portalCookieTokenFromRequest(request))
         : { client: null };
-      if (access.client?.id !== existingClient.id) return response(origin, {
-        intent: "secure_access_required",
-        error: "This contact information already belongs to a BOPOIL profile. Open it securely from the booking page before updating pet or health information.",
-        accessUrl: "/book/bopoil/gatineau",
-      }, 409);
+      if (access.client?.id !== existingClient.id) {
+        if (fromWebsite) return forwardForReview(existingClient.id);
+        return response(origin, {
+          intent: "secure_access_required",
+          error: "This contact information already belongs to a BOPOIL profile. Open it securely from the booking page before updating pet or health information.",
+          accessUrl: "/book/bopoil/gatineau",
+        }, 409);
+      }
     }
     const clientId = existingClient?.id || crypto.randomUUID();
     const [existingPet] = existingClient ? await db.select().from(pets).where(and(
@@ -156,7 +202,6 @@ export async function POST(request: Request) {
     )).limit(1) : [undefined];
     const petId = existingPet?.id || crypto.randomUUID();
     const now = new Date().toISOString();
-    const marketingConsent = payload.marketing === true || clean(payload.marketing, 20).toLowerCase() === "oui";
     const sterilizedRaw = clean(payload.sterilise, 80).toLowerCase();
     const sterilized = sterilizedRaw.startsWith("oui") ? "yes" as const : sterilizedRaw.startsWith("non") ? "no" as const : "unknown" as const;
     const treatsAllowed = booleanAnswer(clean(payload.gateries, 120), ["oui"]);
@@ -222,6 +267,8 @@ export async function POST(request: Request) {
     if (treatsAllowed !== null) statements.push(db.insert(consentRecords).values({ id: crypto.randomUUID(), organizationId: organization.id, clientId, type: "pet_treats", policyVersion: "bopoil-website-2026-08", accepted: treatsAllowed, source: "bopoil_website_intake" }));
     if (marketingPhotosAllowed !== null) statements.push(db.insert(consentRecords).values({ id: crypto.randomUUID(), organizationId: organization.id, clientId, type: "pet_marketing_photos", policyVersion: "bopoil-website-2026-08", accepted: marketingPhotosAllowed, source: "bopoil_website_intake" }));
     await db.batch(statements as [DbBatchItem, ...DbBatchItem[]]);
+    // The fiche is saved; a delivery failure is logged and does not undo it.
+    await emailSalon(existingClient ? "updated" : "created", { contactMismatch: needsReview });
     const reassigned = await attachSolePetToSquareAppointments(db, organization.id, clientId, petId);
     if (reassigned) await db.insert(auditEvents).values({ id: crypto.randomUUID(), organizationId: organization.id, actorType: "system", action: "integration.square_pet_assigned_from_intake", entityType: "pet", entityId: petId, detailsJson: JSON.stringify({ appointments: reassigned }) });
     const requestedReturnTo = clean(payload.returnTo, 300);
@@ -233,7 +280,9 @@ export async function POST(request: Request) {
       const onboardingSession = await issuePortalSession(db, clientId, 30 / (24 * 60));
       headers.append("set-cookie", portalCookie(onboardingSession.token, 30 * 60));
     }
-    return Response.json({ received: true, bookingUrl }, { headers });
+    // While online booking is paused, the visitor stays on the form and sees its
+    // confirmation instead of being sent to the pause notice.
+    return Response.json({ received: true, ...(onlineBookingEnabled() ? { bookingUrl } : {}) }, { headers });
   } catch (error) {
     if (error instanceof SyntaxError) return response(origin, { error: "La fiche n'a pas pu être lue." }, 400);
     const handled = storefrontError(error, "La fiche n'a pas pu être enregistrée. Veuillez réessayer ou nous appeler.");

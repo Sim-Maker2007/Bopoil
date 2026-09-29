@@ -129,3 +129,27 @@ test("Square booking matches the chosen opening even though Square omits millise
   assert.doesNotMatch(publicBooking, /slot\.start_at === requestedStart\.toISOString\(\)/);
   assert.match(publicBooking, /const startsAt = new Date\(rawStartsAt\)\.toISOString\(\);/);
 });
+
+test("Square booking reconciliation reads its window in slices Square accepts", async () => {
+  const { squareBookingRanges } = await import("../lib/square-booking-window.ts");
+  const now = new Date("2026-09-29T02:00:00.000Z");
+  const day = 86_400_000;
+  const ranges = squareBookingRanges(now).map(({ startAtMin, startAtMax }) => ({ min: Date.parse(startAtMin), max: Date.parse(startAtMax) }));
+  assert.equal(ranges.length, 7);
+  // Square answers "Time range can be at most 31 days in length" beyond this.
+  for (const range of ranges) assert.ok(range.max > range.min && range.max - range.min <= 31 * day, JSON.stringify(range));
+  // Upcoming appointments first, then the past month.
+  assert.equal(ranges[0].min, now.getTime());
+  assert.equal(ranges.at(-1).max, now.getTime());
+  // Together the slices cover 30 days back to 180 days ahead without gaps.
+  const sorted = [...ranges].sort((a, b) => a.min - b.min);
+  assert.equal(sorted[0].min, now.getTime() - 30 * day);
+  assert.equal(sorted.at(-1).max, now.getTime() + 180 * day);
+  for (let index = 1; index < sorted.length; index += 1) assert.equal(sorted[index].min, sorted[index - 1].max);
+
+  const sync = await source("../lib/square-sync.ts");
+  const reconcile = sync.slice(sync.indexOf("export async function reconcileSquareBookings"), sync.indexOf("export async function squareManagedAppointmentIds"));
+  assert.match(reconcile, /for \(const range of squareBookingRanges\(now\)\)/);
+  assert.match(reconcile, /start_at_min: range\.startAtMin, start_at_max: range\.startAtMax/);
+  assert.doesNotMatch(reconcile, /180 \* 86400000/);
+});

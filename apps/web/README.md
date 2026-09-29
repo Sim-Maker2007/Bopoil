@@ -94,6 +94,15 @@ possible et hors de notre contrôle —, un message et un bouton « Ouvrir la
 réservation Square » apparaissent automatiquement après quelques secondes. Le
 lien direct est de toute façon toujours visible sous le module.
 
+**Texto.** Le numéro du salon ne reçoit pas les textos. Le bouton « Contactez-nous
+par texto », comme tout lien `sms:` du site, ouvre donc le formulaire « Text us » de
+Square, comme sur l'ancien site Square Online : le message arrive dans **Square
+Messages** (tableau de bord et appli Square) et la réponse part par texto. Le module
+de Square n'est chargé que lorsqu'un visiteur s'en sert; une adresse se terminant
+par `#texto` ouvre le formulaire dès l'arrivée. Réglages dans `js/config.js` sous
+`square.textUs`. Le bouton « Text us » doit rester activé pour la réservation en
+ligne dans Square (Messages → Paramètres).
+
 Vous pouvez aussi renseigner des liens de réservation par catégorie :
 
 ```js
@@ -110,7 +119,7 @@ Les trois formulaires du site parlent au CRM, sans changer leur apparence :
 
 | Formulaire | Point d'entrée | Ce que fait le CRM |
 |---|---|---|
-| Fiche d'informations | `intakeUrl` (`/api/public/intake`) | Crée ou met à jour le client, l'animal, son profil de soins et ses consentements. Une fiche dont le nom, le courriel ou le téléphone diffère d'un dossier existant est marquée « à réviser » plutôt qu'écrasée. |
+| Fiche d'informations | `intakeUrl` (`/api/public/intake`) | Crée le client, l'animal, son profil de soins et ses consentements, puis envoie la fiche par courriel au salon (Resend). Une fiche dont le courriel ou le téléphone correspond déjà à un dossier est seulement transmise au salon, « à réviser », sans modifier ce dossier. |
 | Contact | `contactUrl` (`/api/public/contact`) | Transmet le message par courriel au salon (Resend), avec le visiteur en réponse. Le message n'est pas conservé. |
 | Infolettre | `newsletterUrl` (`/api/public/newsletter`) | Crée ou met à jour le client avec son consentement marketing et une preuve de consentement datée. |
 
