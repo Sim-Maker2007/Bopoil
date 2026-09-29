@@ -323,6 +323,9 @@
           if (key === 'intake') values.marketing = values.marketing === 'oui';
           values.salonSlug = coatCare.salonSlug || '';
           values.locationSlug = coatCare.locationSlug || '';
+          // Le site n'a pas d'étape de connexion : une fiche qui correspond à
+          // un dossier existant est transmise au salon pour révision.
+          values.source = 'website';
           values.returnTo = new URLSearchParams(window.location.search).get('continue') || '';
           values.submissionId = window.crypto && window.crypto.randomUUID
             ? window.crypto.randomUUID()

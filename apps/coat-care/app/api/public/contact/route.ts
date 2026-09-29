@@ -2,7 +2,7 @@ import type { DbBatchItem } from "../../../../db";
 import { auditEvents, publicIntakeSubmissions } from "../../../../db/schema";
 import { resolveStorefront, storefrontError } from "../../../../db/public-storefront";
 import { deliveryConfig } from "../../../../lib/message-delivery";
-import { emailHtml } from "../../../../lib/message-provider-payloads";
+import { salonInboxAddress, sendToSalonInbox } from "../../../../lib/public-form-email";
 import { cleanText, emailPattern, publicFormPreflight, publicFormResponse, publicSubmissionGate } from "../../../../lib/public-forms";
 import { intakeOriginAllowed, squareConfig } from "../../../../lib/square";
 
@@ -43,30 +43,21 @@ export async function POST(request: Request) {
       organizationSlug: config.organizationSlug || payload.salonSlug,
       locationSlug: config.locationSlug || payload.locationSlug,
     });
-    const to = organization.contactEmail || process.env.SALON_OWNER_EMAIL?.trim() || "";
+    const to = salonInboxAddress(organization);
     if (!to) return publicFormResponse(origin, { error: UNAVAILABLE }, 503);
     const submissionKey = `contact:${cleanText(payload.submissionId, 100) || crypto.randomUUID()}`;
     const gate = await publicSubmissionGate(db, { organizationId: organization.id, request, submissionKey, contact: email, kind: "contact", limit: 5 });
     if (gate.duplicate) return publicFormResponse(origin, { received: true });
     if (gate.limited) return publicFormResponse(origin, { error: "Veuillez patienter avant d'envoyer un autre message." }, 429);
     const text = `Nom : ${name}\nCourriel : ${email}\n\nMessage :\n${message}\n\n— Formulaire de contact, bopoil.ca`;
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${delivery.email.apiKey}`,
-        "content-type": "application/json",
-        "idempotency-key": `bopoil:${submissionKey}`,
-      },
-      body: JSON.stringify({
-        from: delivery.email.from,
-        to: [to],
-        reply_to: email,
-        subject: `Message du site bopoil.ca — ${name}`,
-        text,
-        html: emailHtml(text),
-      }),
-    });
-    if (!response.ok) return publicFormResponse(origin, { error: "Le message n'a pas pu être transmis. Écrivez-nous à info@bopoil.ca." }, 502);
+    const sent = await sendToSalonInbox({
+      to,
+      replyTo: email,
+      subject: `Message du site bopoil.ca — ${name}`,
+      text,
+      idempotencyKey: `bopoil:${submissionKey}`,
+    }, delivery.email);
+    if (!sent) return publicFormResponse(origin, { error: "Le message n'a pas pu être transmis. Écrivez-nous à info@bopoil.ca." }, 502);
     const statements: [DbBatchItem, ...DbBatchItem[]] = [
       db.insert(publicIntakeSubmissions).values({
         id: crypto.randomUUID(), organizationId: organization.id, locationId: location.id,

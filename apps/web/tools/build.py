@@ -1410,8 +1410,8 @@ FICHE_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .45;">
             <p>Afin de mieux planifier votre premier rendez-vous avec nous, s'il vous plaît,
               compléter cette fiche d'informations. Le tout nous permettra d'adapter les soins
               offerts selon les besoins de votre animal.</p>
-            <p>Déjà client? Ouvrez d'abord votre profil sécurisé depuis la page de réservation
-              avant de modifier la fiche de votre animal.</p>
+            <p>Déjà client? Remplissez simplement la fiche : notre équipe la recevra et
+              mettra le dossier de votre animal à jour.</p>
             <p>Pour toutes questions, n'hésitez pas à
               <a href="contactez-nous.html">communiquer avec nous</a>.</p>
           </div>

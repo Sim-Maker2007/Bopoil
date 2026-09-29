@@ -110,7 +110,7 @@ Les trois formulaires du site parlent au CRM, sans changer leur apparence :
 
 | Formulaire | Point d'entrée | Ce que fait le CRM |
 |---|---|---|
-| Fiche d'informations | `intakeUrl` (`/api/public/intake`) | Crée ou met à jour le client, l'animal, son profil de soins et ses consentements. Une fiche dont le nom, le courriel ou le téléphone diffère d'un dossier existant est marquée « à réviser » plutôt qu'écrasée. |
+| Fiche d'informations | `intakeUrl` (`/api/public/intake`) | Crée le client, l'animal, son profil de soins et ses consentements, puis envoie la fiche par courriel au salon (Resend). Une fiche dont le courriel ou le téléphone correspond déjà à un dossier est seulement transmise au salon, « à réviser », sans modifier ce dossier. |
 | Contact | `contactUrl` (`/api/public/contact`) | Transmet le message par courriel au salon (Resend), avec le visiteur en réponse. Le message n'est pas conservé. |
 | Infolettre | `newsletterUrl` (`/api/public/newsletter`) | Crée ou met à jour le client avec son consentement marketing et une preuve de consentement datée. |
 
