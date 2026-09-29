@@ -15,6 +15,7 @@ import {
 } from "../db/schema";
 import { normalizeClientPhone } from "./client-phone-auth";
 import { squareConfig, squareRequest } from "./square";
+import { squareBookingRanges } from "./square-booking-window";
 
 export type SquareBooking = {
   id?: string;
@@ -356,26 +357,24 @@ export async function reconcileSquareBookings(db: Db = getDb(), now = new Date()
   const stateId = state?.id || crypto.randomUUID();
   await db.insert(integrationSyncStates).values({ id: stateId, organizationId: organization.id, locationId: location.id, provider: "square", status: "running", lastStartedAt: startedAt, updatedAt: startedAt }).onConflictDoUpdate({ target: [integrationSyncStates.provider, integrationSyncStates.locationId], set: { status: "running", lastStartedAt: startedAt, error: "", updatedAt: startedAt } });
   try {
-    let cursor = "";
     let synced = 0;
     let unchanged = 0;
-    for (let page = 0; page < 10; page += 1) {
-      const query = new URLSearchParams({
-        limit: "100",
-        start_at_min: new Date(now.getTime() - 30 * 86400000).toISOString(),
-        start_at_max: new Date(now.getTime() + 180 * 86400000).toISOString(),
-      });
-      if (config.externalLocationId) query.set("location_id", config.externalLocationId);
-      if (cursor) query.set("cursor", cursor);
-      const response = await squareRequest<{ bookings?: SquareBooking[]; cursor?: string }>("bookings", { query });
-      for (const booking of response.bookings || []) {
-        const result = await syncSquareBooking(db, booking);
-        if (!result.handled) continue;
-        if ("unchanged" in result && result.unchanged) unchanged += 1;
-        else synced += 1;
+    for (const range of squareBookingRanges(now)) {
+      let cursor = "";
+      for (let page = 0; page < 10; page += 1) {
+        const query = new URLSearchParams({ limit: "100", start_at_min: range.startAtMin, start_at_max: range.startAtMax });
+        if (config.externalLocationId) query.set("location_id", config.externalLocationId);
+        if (cursor) query.set("cursor", cursor);
+        const response = await squareRequest<{ bookings?: SquareBooking[]; cursor?: string }>("bookings", { query });
+        for (const booking of response.bookings || []) {
+          const result = await syncSquareBooking(db, booking);
+          if (!result.handled) continue;
+          if ("unchanged" in result && result.unchanged) unchanged += 1;
+          else synced += 1;
+        }
+        cursor = response.cursor || "";
+        if (!cursor) break;
       }
-      cursor = response.cursor || "";
-      if (!cursor) break;
     }
     const completedAt = new Date().toISOString();
     await db.update(integrationSyncStates).set({ status: "succeeded", lastSyncedAt: completedAt, error: "", updatedAt: completedAt }).where(eq(integrationSyncStates.id, stateId));
