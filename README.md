@@ -25,7 +25,7 @@ Set the Vercel project's **Root Directory** to `apps/coat-care` and leave **Incl
 
 The Vercel project needs a Supabase Postgres database (`DATABASE_URL`, using the pooled Supavisor connection string) and a private Vercel Blob store (`BLOB_READ_WRITE_TOKEN`). Provider credentials such as Square and Resend belong in Vercel environment variables, never in the repository.
 
-If a deployment stops at **Provisioning Integrations**, inspect the connected Supabase resource. A paused database must be resumed in the Supabase dashboard before retrying the deployment. A **No Next.js version detected** error means the Vercel Root Directory should be checked against `apps/coat-care/package.json`.
+The app reads only `DATABASE_URL`, which points at the BOPOIL Supabase project (`fcnfvxhrmvnhvxugxmkx`); it uses none of the variables a Vercel Storage integration adds. Keep no other Supabase database connected to the Vercel project: Vercel provisions every connected database on each deployment, and Supabase pauses idle free databases after a week, so a forgotten one fails every new deployment within seconds at **Provisioning Integrations**. Disconnect such a database from the project instead of resuming it. A **No Next.js version detected** error means the Vercel Root Directory should be checked against `apps/coat-care/package.json`.
 
 Set `SALON_OWNER_EMAIL` to the owner’s sign-in address. On the first secure sign-in, that address receives the BOPOIL owner profile for the Gatineau location. Set the Square tenant slugs to `bopoil` and `gatineau`.
 
