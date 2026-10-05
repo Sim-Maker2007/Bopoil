@@ -14,7 +14,8 @@ export type ShopProduct = {
   currency: string;
   imageUrl: string;
   imageUrls: string[];
-  category: string;
+  category: string; // primary (reporting) category, shown on the product badge
+  categories: string[]; // every Square category the item is filed under, primary first
 };
 
 type Money = { amount?: number; currency?: string };
@@ -146,7 +147,12 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
     const item = object.item_data;
     // Appointment services, gift cards and archived items are not retail goods.
     if (!item || item.is_archived || (item.product_type && item.product_type !== "REGULAR")) continue;
-    const categoryId = item.reporting_category?.id || item.categories?.[0]?.id || item.category_id || "";
+    const categoryNames = uniqueIds([
+      item.reporting_category?.id,
+      ...(item.categories || []).map((entry) => entry.id),
+      item.category_id,
+    ].map((id) => (id && categories.get(id)) || ""));
+    const itemCategories = categoryNames.length ? categoryNames : ["Boutique"];
     for (const variation of item.variations || []) {
       const data = variation.item_variation_data;
       if (!availableAt(variation, locationId) || !data || data.sellable === false || data.pricing_type === "VARIABLE_PRICING") continue;
@@ -164,7 +170,8 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
         currency: price.currency || "CAD",
         imageUrl: imageUrls[0] || "",
         imageUrls,
-        category: categories.get(categoryId) || "Boutique",
+        category: itemCategories[0],
+        categories: itemCategories,
       });
     }
   }
@@ -180,7 +187,9 @@ export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProd
     const result = await squareRequest<CatalogSearchResult>("catalog/search", {
       method: "POST",
       fetcher,
-      body: { object_types: ["ITEM"], include_related_objects: true, include_deleted_objects: false, ...(cursor ? { cursor } : {}) },
+      // Square's related_objects only carry an item's reporting category, so the
+      // categories themselves are listed too to name every category an item is in.
+      body: { object_types: ["ITEM", "CATEGORY"], include_related_objects: true, include_deleted_objects: false, ...(cursor ? { cursor } : {}) },
     });
     objects.push(...result.objects || []);
     related.push(...result.related_objects || []);

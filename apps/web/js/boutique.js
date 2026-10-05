@@ -267,7 +267,8 @@
     var shown = 0;
     sorted.forEach(function (card) {
       var haystack = normalized([card.dataset.name, card.dataset.cat, card.dataset.desc].join(' '));
-      var match = (activeCategory === 'tous' || card.dataset.cat === activeCategory) && haystack.includes(query);
+      var inCategory = activeCategory === 'tous' || (card.dataset.cat || '').split(' ').indexOf(activeCategory) !== -1;
+      var match = inCategory && haystack.includes(query);
       card.hidden = !match;
       if (match) {
         card.style.setProperty('--i', String(shown));
@@ -308,12 +309,12 @@
   function renderFilters(categories) {
     var html = '<li><button class="shop-cat shop-cat--all" type="button" data-filter="tous" aria-pressed="true"><span class="shop-cat__label">Tous les produits</span></button></li>';
     var i = 0;
-    // Map#forEach passes (value, key): the Square category name, then its slug.
-    categories.forEach(function (label, key) {
+    // Entries are [slug, Square category name], listed alphabetically like the Square dashboard.
+    Array.from(categories).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); }).forEach(function (entry) {
       var photo = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
-      html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(key) + '" aria-pressed="false">' +
+      html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' +
         '<span class="shop-cat__media"><img src="' + photo + '" alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
-        '<span class="shop-cat__label">' + escapeHtml(label) + '</span></button></li>';
+        '<span class="shop-cat__label">' + escapeHtml(entry[1]) + '</span></button></li>';
     });
     filtersEl.innerHTML = html;
   }
@@ -347,8 +348,13 @@
   function renderSquareCatalog(list) {
     var categories = new Map();
     grid.innerHTML = list.map(function (p, index) {
-      var category = slug(p.category);
-      categories.set(category, p.category);
+      // A product is listed under every Square category it belongs to.
+      var names = Array.isArray(p.categories) && p.categories.length ? p.categories : [p.category];
+      var slugs = names.map(function (name) {
+        var key = slug(name);
+        categories.set(key, name);
+        return key;
+      });
       var urls = (Array.isArray(p.imageUrls) ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : [])).filter(allowedImageUrl);
       var image = urls[0] ? '<img src="' + escapeHtml(urls[0]) + '" alt="' + escapeHtml(p.name) + '" loading="lazy" decoding="async">' : paw();
       return cardHTML({
@@ -358,7 +364,7 @@
         priceCents: p.priceCents,
         currency: p.currency,
         category: p.category,
-        cat: category,
+        cat: slugs.join(' '),
         imageHtml: image,
         imageUrls: urls
       }, index);

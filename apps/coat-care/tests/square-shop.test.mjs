@@ -73,7 +73,43 @@ test("normalizeCatalog maps items to priced products with images and categories"
     imageUrl: "https://squarecdn.test/img1.jpg",
     imageUrls: ["https://squarecdn.test/img1.jpg"],
     category: "Soins",
+    categories: ["Soins"],
   });
+});
+
+test("normalizeCatalog files a product under every Square category, reporting category first", () => {
+  const products = normalizeCatalog(
+    [
+      {
+        id: "ITEM_TREAT",
+        type: "ITEM",
+        item_data: {
+          name: "Gâterie au saumon",
+          reporting_category: { id: "CAT_BRAND" },
+          categories: [{ id: "CAT_TREATS" }, { id: "CAT_BRAND" }, { id: "CAT_DOGS" }, { id: "CAT_GONE" }],
+          variations: [{ id: "VAR_T", item_variation_data: { price_money: { amount: 899, currency: "CAD" } } }],
+        },
+      },
+      {
+        id: "ITEM_UNREPORTED",
+        type: "ITEM",
+        item_data: {
+          name: "Brosse",
+          categories: [{ id: "CAT_DOGS" }],
+          variations: [{ id: "VAR_B", item_variation_data: { price_money: { amount: 1999, currency: "CAD" } } }],
+        },
+      },
+      // Categories listed by the search itself, not only the related objects.
+      { id: "CAT_TREATS", type: "CATEGORY", category_data: { name: "Gâteries" } },
+      { id: "CAT_DOGS", type: "CATEGORY", category_data: { name: "Chiens" } },
+    ],
+    [{ id: "CAT_BRAND", type: "CATEGORY", category_data: { name: "Lucky Bones" } }],
+  );
+  assert.equal(products.length, 2, "category objects are not products");
+  assert.equal(products[0].category, "Lucky Bones");
+  assert.deepEqual(products[0].categories, ["Lucky Bones", "Gâteries", "Chiens"]);
+  assert.equal(products[1].category, "Chiens", "an item without a reporting category keeps its own categories");
+  assert.deepEqual(products[1].categories, ["Chiens"]);
 });
 
 test("normalizeCatalog falls back gracefully when image/category are missing", () => {
@@ -84,6 +120,7 @@ test("normalizeCatalog falls back gracefully when image/category are missing", (
   assert.equal(products[0].imageUrl, "");
   assert.deepEqual(products[0].imageUrls, []);
   assert.equal(products[0].category, "Boutique");
+  assert.deepEqual(products[0].categories, ["Boutique"]);
   assert.equal(products[0].currency, "USD");
 });
 
@@ -139,7 +176,7 @@ test("fetchShopCatalog posts a catalog search and returns normalized products", 
   assert.match(calls[0].url, /catalog\/search$/);
   assert.equal(calls[0].init.method, "POST");
   const sent = JSON.parse(calls[0].init.body);
-  assert.deepEqual(sent.object_types, ["ITEM"]);
+  assert.deepEqual(sent.object_types, ["ITEM", "CATEGORY"]);
   assert.equal(sent.include_related_objects, true);
   assert.equal(products.length, 1);
   assert.equal(products[0].id, "VAR_1");
