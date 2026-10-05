@@ -308,11 +308,12 @@
   function renderFilters(categories) {
     var html = '<li><button class="shop-cat shop-cat--all" type="button" data-filter="tous" aria-pressed="true"><span class="shop-cat__label">Tous les produits</span></button></li>';
     var i = 0;
-    categories.forEach(function (entry) {
+    // Map#forEach passes (value, key): the Square category name, then its slug.
+    categories.forEach(function (label, key) {
       var photo = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
-      html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' +
+      html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(key) + '" aria-pressed="false">' +
         '<span class="shop-cat__media"><img src="' + photo + '" alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
-        '<span class="shop-cat__label">' + escapeHtml(entry[1]) + '</span></button></li>';
+        '<span class="shop-cat__label">' + escapeHtml(label) + '</span></button></li>';
     });
     filtersEl.innerHTML = html;
   }
