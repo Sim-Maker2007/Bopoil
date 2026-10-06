@@ -18,6 +18,10 @@ export type ShopProduct = {
   categories: string[]; // every Square category the item is filed under, primary first
 };
 
+// A category used by at least one listed product, with the photo set on the
+// category in Square ("" when it has none).
+export type ShopCategory = { name: string; imageUrl: string };
+
 type Money = { amount?: number; currency?: string };
 
 type Availability = {
@@ -44,7 +48,7 @@ type CatalogObject = Availability & {
     variations?: Array<Availability & { id: string; item_variation_data?: { name?: string; sellable?: boolean; pricing_type?: string; price_money?: Money; image_ids?: string[]; location_overrides?: Array<{ location_id?: string; price_money?: Money; sold_out?: boolean }> } }>;
   };
   image_data?: { url?: string };
-  category_data?: { name?: string };
+  category_data?: { name?: string; image_ids?: string[] };
 };
 
 type CatalogSearchResult = { objects?: CatalogObject[]; related_objects?: CatalogObject[]; cursor?: string };
@@ -97,6 +101,7 @@ function variationImageIds(item: NonNullable<CatalogObject["item_data"]>, variat
 
 function catalogImageIds(objects: CatalogObject[] = []) {
   return uniqueIds(objects.flatMap((object) => {
+    if (object.type === "CATEGORY") return object.category_data?.image_ids || [];
     if (object.type !== "ITEM" || !object.item_data) return [];
     return [
       ...(object.item_data.image_ids || []),
@@ -178,7 +183,19 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
   return products;
 }
 
-export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProduct[]> {
+export function normalizeCategories(objects: CatalogObject[] = [], related: CatalogObject[] = [], products: ShopProduct[] = []): ShopCategory[] {
+  const images = indexCatalogImages([...related, ...objects]);
+  const used = new Set(products.flatMap((product) => product.categories));
+  const photos = new Map<string, string>();
+  for (const object of [...related, ...objects]) {
+    const name = object.type === "CATEGORY" ? object.category_data?.name || "" : "";
+    if (!used.has(name) || photos.get(name)) continue;
+    photos.set(name, (object.category_data?.image_ids || []).map((id) => images.get(id) || "").find(Boolean) || "");
+  }
+  return [...used].map((name) => ({ name, imageUrl: photos.get(name) || "" }));
+}
+
+export async function fetchShop(fetcher?: typeof fetch): Promise<{ products: ShopProduct[]; categories: ShopCategory[] }> {
   const objects: CatalogObject[] = [];
   const related: CatalogObject[] = [];
   let cursor: string | undefined;
@@ -205,7 +222,12 @@ export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProd
     // are worth a second fetch, but the catalog should still load without them.
   }
   related.push(...[...images.entries()].map(([id, url]) => ({ id, type: "IMAGE", image_data: { url } })));
-  return normalizeCatalog(objects, related, shopConfig().locationId);
+  const products = normalizeCatalog(objects, related, shopConfig().locationId);
+  return { products, categories: normalizeCategories(objects, related, products) };
+}
+
+export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProduct[]> {
+  return (await fetchShop(fetcher)).products;
 }
 
 export type CheckoutItem = { id: string; quantity: number };

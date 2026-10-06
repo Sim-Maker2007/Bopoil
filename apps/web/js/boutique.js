@@ -314,17 +314,23 @@
       '<button class="product-card__quick" type="button" data-add="' + id + '" aria-label="Ajouter au panier : ' + name + '">' + PLUS + '</button>' +
     '</article>';
   }
-  function renderFilters(categories) {
+  function renderFilters(categories, photos) {
     var html = '<li><button class="shop-cat shop-cat--all" type="button" data-filter="tous" aria-pressed="true"><span class="shop-cat__label">Tous les produits</span></button></li>';
     var i = 0;
     // Entries are [slug, Square category name], listed alphabetically like the Square dashboard.
+    // Each card shows the photo set on the category in Square; a category without
+    // one (or whose photo fails to load) gets one of the salon photos instead.
     Array.from(categories).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); }).forEach(function (entry) {
-      var photo = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
+      var fallback = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
+      var photo = photos[entry[0]] || fallback;
       html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' +
-        '<span class="shop-cat__media"><img src="' + photo + '" alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
+        '<span class="shop-cat__media"><img src="' + escapeHtml(photo) + '"' + (photo !== fallback ? ' data-fallback="' + fallback + '"' : '') + ' alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
         '<span class="shop-cat__label">' + escapeHtml(entry[1]) + '</span></button></li>';
     });
     filtersEl.innerHTML = html;
+    filtersEl.querySelectorAll('img[data-fallback]').forEach(function (img) {
+      img.addEventListener('error', function () { img.src = img.dataset.fallback; img.removeAttribute('data-fallback'); }, { once: true });
+    });
   }
   function hydrate() {
     products = Object.create(null);
@@ -353,8 +359,13 @@
     filterProducts();
     syncProductFromUrl();
   }
-  function renderSquareCatalog(list) {
+  function renderSquareCatalog(list, categoryList) {
     var categories = new Map();
+    var photos = Object.create(null);
+    categoryList.forEach(function (c) {
+      var key = c && slug(c.name);
+      if (key && !photos[key] && /^https:\/\//i.test(c.imageUrl || '')) photos[key] = c.imageUrl;
+    });
     grid.innerHTML = list.map(function (p, index) {
       // A product is listed under every Square category it belongs to.
       var names = Array.isArray(p.categories) && p.categories.length ? p.categories : [p.category];
@@ -377,7 +388,7 @@
         imageUrls: urls
       }, index);
     }).join('');
-    renderFilters(categories);
+    renderFilters(categories, photos);
     grid.querySelectorAll('.product-card__media img').forEach(function (img) {
       img.addEventListener('error', function () { img.outerHTML = paw(); });
     });
@@ -414,7 +425,7 @@
       activeCategory = 'tous';
       if (data.configured) {
         mode = 'square';
-        renderSquareCatalog(data.products);
+        renderSquareCatalog(data.products, Array.isArray(data.categories) ? data.categories : []);
         notice.textContent = data.products.length ? 'Paiement sécurisé avec Square · Cueillette au salon' : 'La boutique se prépare. Aucun produit n’est disponible en ligne pour le moment. Contactez le salon pour être conseillé.';
       } else {
         mode = 'preview';
