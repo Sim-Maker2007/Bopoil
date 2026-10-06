@@ -281,6 +281,14 @@
     countEl.textContent = count + (count > 1 ? ' produits' : ' produit');
     emptyEl.hidden = count !== 0 || mode === 'error' || !cards.length;
   }
+  // On phones and tablets the categories are a swipeable row: bring a half-hidden card fully into view.
+  function revealFilter(btn) {
+    if (!btn || filtersEl.scrollWidth <= filtersEl.clientWidth) return;
+    var row = filtersEl.getBoundingClientRect();
+    var box = btn.getBoundingClientRect();
+    if (box.left >= row.left + 24 && box.right <= row.right - 24) return;
+    filtersEl.scrollBy({ left: box.left - row.left - (row.width - box.width) / 2, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  }
   function cardHTML(p, index) {
     var id = escapeHtml(p.id);
     var name = escapeHtml(p.name);
@@ -490,8 +498,8 @@
       if (!replacement) replacement = itemsEl.querySelectorAll('li')[Math.max(0, lineIndex - 1)]?.querySelector('button:not(:disabled)');
       (replacement || drawer.querySelector('.cart-close')).focus();
     }
-    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter; filterProducts(); }
-    if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; searchEl.value = ''; sortEl.value = 'selection'; filterProducts(); searchEl.focus(); }
+    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter; filterProducts(); revealFilter(btn); }
+    if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; searchEl.value = ''; sortEl.value = 'selection'; filterProducts(); revealFilter(filtersEl.querySelector('[data-filter="tous"]')); searchEl.focus(); }
   });
   overlay.addEventListener('click', closeCart);
   productOverlay.addEventListener('click', function () { closeProduct(); });
