@@ -8,6 +8,8 @@ process.env.SQUARE_API_VERSION = "2026-07-15";
 
 const {
   normalizeCatalog,
+  normalizeCategories,
+  fetchShop,
   buildPaymentLinkBody,
   sanitizeCartItems,
   fetchShopCatalog,
@@ -73,7 +75,43 @@ test("normalizeCatalog maps items to priced products with images and categories"
     imageUrl: "https://squarecdn.test/img1.jpg",
     imageUrls: ["https://squarecdn.test/img1.jpg"],
     category: "Soins",
+    categories: ["Soins"],
   });
+});
+
+test("normalizeCatalog files a product under every Square category, reporting category first", () => {
+  const products = normalizeCatalog(
+    [
+      {
+        id: "ITEM_TREAT",
+        type: "ITEM",
+        item_data: {
+          name: "Gâterie au saumon",
+          reporting_category: { id: "CAT_BRAND" },
+          categories: [{ id: "CAT_TREATS" }, { id: "CAT_BRAND" }, { id: "CAT_DOGS" }, { id: "CAT_GONE" }],
+          variations: [{ id: "VAR_T", item_variation_data: { price_money: { amount: 899, currency: "CAD" } } }],
+        },
+      },
+      {
+        id: "ITEM_UNREPORTED",
+        type: "ITEM",
+        item_data: {
+          name: "Brosse",
+          categories: [{ id: "CAT_DOGS" }],
+          variations: [{ id: "VAR_B", item_variation_data: { price_money: { amount: 1999, currency: "CAD" } } }],
+        },
+      },
+      // Categories listed by the search itself, not only the related objects.
+      { id: "CAT_TREATS", type: "CATEGORY", category_data: { name: "Gâteries" } },
+      { id: "CAT_DOGS", type: "CATEGORY", category_data: { name: "Chiens" } },
+    ],
+    [{ id: "CAT_BRAND", type: "CATEGORY", category_data: { name: "Lucky Bones" } }],
+  );
+  assert.equal(products.length, 2, "category objects are not products");
+  assert.equal(products[0].category, "Lucky Bones");
+  assert.deepEqual(products[0].categories, ["Lucky Bones", "Gâteries", "Chiens"]);
+  assert.equal(products[1].category, "Chiens", "an item without a reporting category keeps its own categories");
+  assert.deepEqual(products[1].categories, ["Chiens"]);
 });
 
 test("normalizeCatalog falls back gracefully when image/category are missing", () => {
@@ -84,7 +122,28 @@ test("normalizeCatalog falls back gracefully when image/category are missing", (
   assert.equal(products[0].imageUrl, "");
   assert.deepEqual(products[0].imageUrls, []);
   assert.equal(products[0].category, "Boutique");
+  assert.deepEqual(products[0].categories, ["Boutique"]);
   assert.equal(products[0].currency, "USD");
+});
+
+test("normalizeCategories returns the Square photo of each category a listed product uses", () => {
+  const objects = [
+    { id: "ITEM_A", type: "ITEM", item_data: { name: "A", categories: [{ id: "CAT_TREATS" }, { id: "CAT_DOGS" }], variations: [{ id: "VAR_A", item_variation_data: { price_money: { amount: 500, currency: "CAD" } } }] } },
+    { id: "ITEM_B", type: "ITEM", item_data: { name: "B", variations: [{ id: "VAR_B", item_variation_data: { price_money: { amount: 700, currency: "CAD" } } }] } },
+    { id: "CAT_TREATS", type: "CATEGORY", category_data: { name: "Gâteries", image_ids: ["IMG_MISSING", "IMG_TREATS"] } },
+    { id: "CAT_DOGS", type: "CATEGORY", category_data: { name: "Chiens" } },
+    { id: "CAT_EMPTY", type: "CATEGORY", category_data: { name: "Vide", image_ids: ["IMG_EMPTY"] } },
+  ];
+  const related = [
+    { id: "IMG_TREATS", type: "IMAGE", image_data: { url: "https://squarecdn.test/treats.jpg" } },
+    { id: "IMG_EMPTY", type: "IMAGE", image_data: { url: "https://squarecdn.test/empty.jpg" } },
+  ];
+  const products = normalizeCatalog(objects, related);
+  assert.deepEqual(normalizeCategories(objects, related, products), [
+    { name: "Gâteries", imageUrl: "https://squarecdn.test/treats.jpg" },
+    { name: "Chiens", imageUrl: "" },
+    { name: "Boutique", imageUrl: "" },
+  ]);
 });
 
 test("sanitizeCartItems merges duplicates, clamps quantity and filters unknown ids", () => {
@@ -139,7 +198,7 @@ test("fetchShopCatalog posts a catalog search and returns normalized products", 
   assert.match(calls[0].url, /catalog\/search$/);
   assert.equal(calls[0].init.method, "POST");
   const sent = JSON.parse(calls[0].init.body);
-  assert.deepEqual(sent.object_types, ["ITEM"]);
+  assert.deepEqual(sent.object_types, ["ITEM", "CATEGORY"]);
   assert.equal(sent.include_related_objects, true);
   assert.equal(products.length, 1);
   assert.equal(products[0].id, "VAR_1");
@@ -307,6 +366,29 @@ test("fetchShopCatalog retrieves Square photos missing from the search related o
     "https://squarecdn.test/two.jpg",
     "https://squarecdn.test/three.jpg",
   ]);
+});
+
+test("fetchShop retrieves category photos Square leaves out of the search results", async () => {
+  const retrieved = [];
+  const { products, categories } = await fetchShop(async (url, init) => {
+    const href = String(url);
+    if (href.endsWith("catalog/search")) {
+      return jsonResponse({
+        objects: [
+          { id: "ITEM_T", type: "ITEM", item_data: { name: "Gâterie", categories: [{ id: "CAT_T" }], variations: [{ id: "VAR_T", item_variation_data: { price_money: { amount: 899, currency: "CAD" } } }] } },
+          { id: "CAT_T", type: "CATEGORY", category_data: { name: "Gâteries", image_ids: ["IMG_CAT"] } },
+        ],
+      });
+    }
+    if (href.endsWith("catalog/batch-retrieve")) {
+      retrieved.push(...JSON.parse(init.body).object_ids);
+      return jsonResponse({ objects: [{ id: "IMG_CAT", type: "IMAGE", image_data: { url: "https://squarecdn.test/cat.jpg" } }] });
+    }
+    throw new Error(`unexpected request: ${href}`);
+  });
+  assert.deepEqual(retrieved, ["IMG_CAT"]);
+  assert.equal(products.length, 1);
+  assert.deepEqual(categories, [{ name: "Gâteries", imageUrl: "https://squarecdn.test/cat.jpg" }]);
 });
 
 test("fetchShopCatalog still returns the catalog if extra Square photos cannot be retrieved", async () => {

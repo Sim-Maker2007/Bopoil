@@ -1,4 +1,4 @@
-import { fetchShopCatalog, shopConfig } from "../../../../lib/square-shop";
+import { fetchShop, shopConfig } from "../../../../lib/square-shop";
 
 // Public storefront catalog. Products, prices and images are served straight
 // from the salon's Square catalog. Until Square is configured the endpoint
@@ -16,9 +16,9 @@ export async function GET() {
   }
 
   try {
-    const products = await fetchShopCatalog();
+    const { products, categories } = await fetchShop();
     return Response.json(
-      { configured: true, checkout: "square", currency: products[0]?.currency || "CAD", products },
+      { configured: true, checkout: "square", currency: products[0]?.currency || "CAD", products, categories },
       { headers: cacheable },
     );
   } catch (error) {

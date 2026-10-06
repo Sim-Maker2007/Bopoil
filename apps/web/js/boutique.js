@@ -267,7 +267,8 @@
     var shown = 0;
     sorted.forEach(function (card) {
       var haystack = normalized([card.dataset.name, card.dataset.cat, card.dataset.desc].join(' '));
-      var match = (activeCategory === 'tous' || card.dataset.cat === activeCategory) && haystack.includes(query);
+      var inCategory = activeCategory === 'tous' || (card.dataset.cat || '').split(' ').indexOf(activeCategory) !== -1;
+      var match = inCategory && haystack.includes(query);
       card.hidden = !match;
       if (match) {
         card.style.setProperty('--i', String(shown));
@@ -279,6 +280,14 @@
     filtersEl.querySelectorAll('[data-filter]').forEach(function (el) { el.setAttribute('aria-pressed', String(el.dataset.filter === activeCategory)); });
     countEl.textContent = count + (count > 1 ? ' produits' : ' produit');
     emptyEl.hidden = count !== 0 || mode === 'error' || !cards.length;
+  }
+  // On phones and tablets the categories are a swipeable row: bring a half-hidden card fully into view.
+  function revealFilter(btn) {
+    if (!btn || filtersEl.scrollWidth <= filtersEl.clientWidth) return;
+    var row = filtersEl.getBoundingClientRect();
+    var box = btn.getBoundingClientRect();
+    if (box.left >= row.left + 24 && box.right <= row.right - 24) return;
+    filtersEl.scrollBy({ left: box.left - row.left - (row.width - box.width) / 2, behavior: reduceMotion() ? 'auto' : 'smooth' });
   }
   function cardHTML(p, index) {
     var id = escapeHtml(p.id);
@@ -305,16 +314,23 @@
       '<button class="product-card__quick" type="button" data-add="' + id + '" aria-label="Ajouter au panier : ' + name + '">' + PLUS + '</button>' +
     '</article>';
   }
-  function renderFilters(categories) {
+  function renderFilters(categories, photos) {
     var html = '<li><button class="shop-cat shop-cat--all" type="button" data-filter="tous" aria-pressed="true"><span class="shop-cat__label">Tous les produits</span></button></li>';
     var i = 0;
-    categories.forEach(function (entry) {
-      var photo = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
+    // Entries are [slug, Square category name], listed alphabetically like the Square dashboard.
+    // Each card shows the photo set on the category in Square; a category without
+    // one (or whose photo fails to load) gets one of the salon photos instead.
+    Array.from(categories).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); }).forEach(function (entry) {
+      var fallback = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
+      var photo = photos[entry[0]] || fallback;
       html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' +
-        '<span class="shop-cat__media"><img src="' + photo + '" alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
+        '<span class="shop-cat__media"><img src="' + escapeHtml(photo) + '"' + (photo !== fallback ? ' data-fallback="' + fallback + '"' : '') + ' alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
         '<span class="shop-cat__label">' + escapeHtml(entry[1]) + '</span></button></li>';
     });
     filtersEl.innerHTML = html;
+    filtersEl.querySelectorAll('img[data-fallback]').forEach(function (img) {
+      img.addEventListener('error', function () { img.src = img.dataset.fallback; img.removeAttribute('data-fallback'); }, { once: true });
+    });
   }
   function hydrate() {
     products = Object.create(null);
@@ -343,11 +359,21 @@
     filterProducts();
     syncProductFromUrl();
   }
-  function renderSquareCatalog(list) {
+  function renderSquareCatalog(list, categoryList) {
     var categories = new Map();
+    var photos = Object.create(null);
+    categoryList.forEach(function (c) {
+      var key = c && slug(c.name);
+      if (key && !photos[key] && /^https:\/\//i.test(c.imageUrl || '')) photos[key] = c.imageUrl;
+    });
     grid.innerHTML = list.map(function (p, index) {
-      var category = slug(p.category);
-      categories.set(category, p.category);
+      // A product is listed under every Square category it belongs to.
+      var names = Array.isArray(p.categories) && p.categories.length ? p.categories : [p.category];
+      var slugs = names.map(function (name) {
+        var key = slug(name);
+        categories.set(key, name);
+        return key;
+      });
       var urls = (Array.isArray(p.imageUrls) ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : [])).filter(allowedImageUrl);
       var image = urls[0] ? '<img src="' + escapeHtml(urls[0]) + '" alt="' + escapeHtml(p.name) + '" loading="lazy" decoding="async">' : paw();
       return cardHTML({
@@ -357,12 +383,12 @@
         priceCents: p.priceCents,
         currency: p.currency,
         category: p.category,
-        cat: category,
+        cat: slugs.join(' '),
         imageHtml: image,
         imageUrls: urls
       }, index);
     }).join('');
-    renderFilters(categories);
+    renderFilters(categories, photos);
     grid.querySelectorAll('.product-card__media img').forEach(function (img) {
       img.addEventListener('error', function () { img.outerHTML = paw(); });
     });
@@ -399,7 +425,7 @@
       activeCategory = 'tous';
       if (data.configured) {
         mode = 'square';
-        renderSquareCatalog(data.products);
+        renderSquareCatalog(data.products, Array.isArray(data.categories) ? data.categories : []);
         notice.textContent = data.products.length ? 'Paiement sécurisé avec Square · Cueillette au salon' : 'La boutique se prépare. Aucun produit n’est disponible en ligne pour le moment. Contactez le salon pour être conseillé.';
       } else {
         mode = 'preview';
@@ -483,8 +509,8 @@
       if (!replacement) replacement = itemsEl.querySelectorAll('li')[Math.max(0, lineIndex - 1)]?.querySelector('button:not(:disabled)');
       (replacement || drawer.querySelector('.cart-close')).focus();
     }
-    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter; filterProducts(); }
-    if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; searchEl.value = ''; sortEl.value = 'selection'; filterProducts(); searchEl.focus(); }
+    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter; filterProducts(); revealFilter(btn); }
+    if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; searchEl.value = ''; sortEl.value = 'selection'; filterProducts(); revealFilter(filtersEl.querySelector('[data-filter="tous"]')); searchEl.focus(); }
   });
   overlay.addEventListener('click', closeCart);
   productOverlay.addEventListener('click', function () { closeProduct(); });

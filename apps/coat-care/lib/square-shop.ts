@@ -14,8 +14,13 @@ export type ShopProduct = {
   currency: string;
   imageUrl: string;
   imageUrls: string[];
-  category: string;
+  category: string; // primary (reporting) category, shown on the product badge
+  categories: string[]; // every Square category the item is filed under, primary first
 };
+
+// A category used by at least one listed product, with the photo set on the
+// category in Square ("" when it has none).
+export type ShopCategory = { name: string; imageUrl: string };
 
 type Money = { amount?: number; currency?: string };
 
@@ -43,7 +48,7 @@ type CatalogObject = Availability & {
     variations?: Array<Availability & { id: string; item_variation_data?: { name?: string; sellable?: boolean; pricing_type?: string; price_money?: Money; image_ids?: string[]; location_overrides?: Array<{ location_id?: string; price_money?: Money; sold_out?: boolean }> } }>;
   };
   image_data?: { url?: string };
-  category_data?: { name?: string };
+  category_data?: { name?: string; image_ids?: string[] };
 };
 
 type CatalogSearchResult = { objects?: CatalogObject[]; related_objects?: CatalogObject[]; cursor?: string };
@@ -96,6 +101,7 @@ function variationImageIds(item: NonNullable<CatalogObject["item_data"]>, variat
 
 function catalogImageIds(objects: CatalogObject[] = []) {
   return uniqueIds(objects.flatMap((object) => {
+    if (object.type === "CATEGORY") return object.category_data?.image_ids || [];
     if (object.type !== "ITEM" || !object.item_data) return [];
     return [
       ...(object.item_data.image_ids || []),
@@ -146,7 +152,12 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
     const item = object.item_data;
     // Appointment services, gift cards and archived items are not retail goods.
     if (!item || item.is_archived || (item.product_type && item.product_type !== "REGULAR")) continue;
-    const categoryId = item.reporting_category?.id || item.categories?.[0]?.id || item.category_id || "";
+    const categoryNames = uniqueIds([
+      item.reporting_category?.id,
+      ...(item.categories || []).map((entry) => entry.id),
+      item.category_id,
+    ].map((id) => (id && categories.get(id)) || ""));
+    const itemCategories = categoryNames.length ? categoryNames : ["Boutique"];
     for (const variation of item.variations || []) {
       const data = variation.item_variation_data;
       if (!availableAt(variation, locationId) || !data || data.sellable === false || data.pricing_type === "VARIABLE_PRICING") continue;
@@ -164,14 +175,27 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
         currency: price.currency || "CAD",
         imageUrl: imageUrls[0] || "",
         imageUrls,
-        category: categories.get(categoryId) || "Boutique",
+        category: itemCategories[0],
+        categories: itemCategories,
       });
     }
   }
   return products;
 }
 
-export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProduct[]> {
+export function normalizeCategories(objects: CatalogObject[] = [], related: CatalogObject[] = [], products: ShopProduct[] = []): ShopCategory[] {
+  const images = indexCatalogImages([...related, ...objects]);
+  const used = new Set(products.flatMap((product) => product.categories));
+  const photos = new Map<string, string>();
+  for (const object of [...related, ...objects]) {
+    const name = object.type === "CATEGORY" ? object.category_data?.name || "" : "";
+    if (!used.has(name) || photos.get(name)) continue;
+    photos.set(name, (object.category_data?.image_ids || []).map((id) => images.get(id) || "").find(Boolean) || "");
+  }
+  return [...used].map((name) => ({ name, imageUrl: photos.get(name) || "" }));
+}
+
+export async function fetchShop(fetcher?: typeof fetch): Promise<{ products: ShopProduct[]; categories: ShopCategory[] }> {
   const objects: CatalogObject[] = [];
   const related: CatalogObject[] = [];
   let cursor: string | undefined;
@@ -180,7 +204,9 @@ export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProd
     const result = await squareRequest<CatalogSearchResult>("catalog/search", {
       method: "POST",
       fetcher,
-      body: { object_types: ["ITEM"], include_related_objects: true, include_deleted_objects: false, ...(cursor ? { cursor } : {}) },
+      // Square's related_objects only carry an item's reporting category, so the
+      // categories themselves are listed too to name every category an item is in.
+      body: { object_types: ["ITEM", "CATEGORY"], include_related_objects: true, include_deleted_objects: false, ...(cursor ? { cursor } : {}) },
     });
     objects.push(...result.objects || []);
     related.push(...result.related_objects || []);
@@ -196,7 +222,12 @@ export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProd
     // are worth a second fetch, but the catalog should still load without them.
   }
   related.push(...[...images.entries()].map(([id, url]) => ({ id, type: "IMAGE", image_data: { url } })));
-  return normalizeCatalog(objects, related, shopConfig().locationId);
+  const products = normalizeCatalog(objects, related, shopConfig().locationId);
+  return { products, categories: normalizeCategories(objects, related, products) };
+}
+
+export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProduct[]> {
+  return (await fetchShop(fetcher)).products;
 }
 
 export type CheckoutItem = { id: string; quantity: number };
