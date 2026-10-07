@@ -16,6 +16,7 @@ export type ShopProduct = {
   imageUrls: string[];
   category: string; // primary (reporting) category, shown on the product badge
   categories: string[]; // every Square category the item is filed under, primary first
+  brands: string[]; // brand read from the item name, plus any category named after a brand
 };
 
 // A category used by at least one listed product, with the photo set on the
@@ -68,6 +69,60 @@ function shopDisplayName(itemName = "", variationName = "") {
   const base = itemName.replace(/\s*[—–-]\s*article de base\s*$/i, "").trim() || "Article";
   if (!variationName || genericVariationName(variationName)) return base;
   return `${base} — ${variationName}`;
+}
+
+// Square has no brand field. The salon names retail items "BRAND Product"
+// (« SMACK Chiens Poulet — 25g », « DOGMÄ Lotion Yeux 120ml »), so the brand is
+// the run of words in capitals that opens the name. Abbreviations used in
+// item names are spelled out here, keyed by the whole brand or its first word.
+const BRAND_ALIASES: Record<string, string> = {
+  LB: "Lucky Bones",
+  "LB-C": "Lucky Bones",
+  "LB-D": "Lucky Bones",
+  TRIX: "TRIXIE",
+  GF: "GF PET",
+};
+const BRAND_FIRST_WORD = /^[\p{Lu}\d][\p{Lu}\d'’+.-]*$/u;
+const BRAND_NEXT_WORD = /^(&|\p{Lu}[\p{Lu}'’-]*)$/u;
+
+export function brandFromName(name = "") {
+  const words = name.replace(/^[^\p{L}\d]+/u, "").split(/\s+/);
+  // A name made of the brand alone has no product part to tell them apart.
+  if (words.length < 2 || !BRAND_FIRST_WORD.test(words[0]) || !/\p{Lu}/u.test(words[0])) return "";
+  let end = 1;
+  while (end < words.length - 1 && BRAND_NEXT_WORD.test(words[end])) end++;
+  while (words[end - 1] === "&") end--;
+  const brand = words.slice(0, end).join(" ");
+  return BRAND_ALIASES[brand] || BRAND_ALIASES[words[0]] || brand;
+}
+
+function brandKey(name: string) {
+  return name.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+// Settles each product's brands across the whole catalog: « BACI » and
+// « BACI+ » are one brand shown with its most common spelling, a line such as
+// « ZEUS NOSH » files under « ZEUS », and a Square category named after a
+// brand (« Lucky Bones ») adds its products to that brand.
+function groupBrands(products: ShopProduct[]) {
+  const keys = new Set(products.flatMap((product) => product.brands.map(brandKey)));
+  const grouped = (brand: string) => {
+    const first = brand.split(" ")[0];
+    return first !== brand && keys.has(brandKey(first)) ? first : brand;
+  };
+  const spellings = new Map<string, Map<string, number>>();
+  for (const product of products) {
+    for (const brand of product.brands.map(grouped)) {
+      const counts = spellings.get(brandKey(brand)) || new Map<string, number>();
+      counts.set(brand, (counts.get(brand) || 0) + 1);
+      spellings.set(brandKey(brand), counts);
+    }
+  }
+  const display = new Map([...spellings].map(([key, counts]) => [key, [...counts].sort((a, b) => b[1] - a[1])[0][0]]));
+  for (const product of products) {
+    product.brands = uniqueIds([...product.brands.map(grouped), ...product.categories].map((name) => display.get(brandKey(name))));
+  }
+  return products;
 }
 
 function httpsUrl(url = "") {
@@ -158,6 +213,7 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
       item.category_id,
     ].map((id) => (id && categories.get(id)) || ""));
     const itemCategories = categoryNames.length ? categoryNames : ["Boutique"];
+    const nameBrand = brandFromName(item.name);
     for (const variation of item.variations || []) {
       const data = variation.item_variation_data;
       if (!availableAt(variation, locationId) || !data || data.sellable === false || data.pricing_type === "VARIABLE_PRICING") continue;
@@ -177,10 +233,11 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
         imageUrls,
         category: itemCategories[0],
         categories: itemCategories,
+        brands: nameBrand ? [nameBrand] : [],
       });
     }
   }
-  return products;
+  return groupBrands(products);
 }
 
 export function normalizeCategories(objects: CatalogObject[] = [], related: CatalogObject[] = [], products: ShopProduct[] = []): ShopCategory[] {

@@ -29,6 +29,14 @@ et l'API de la boutique. Une clé `BOUTIQUE_PREVIEW_KEY` permet de déverrouille
 la boutique sur un navigateur donné (`boutique.html?apercu=<clé>`). Les fichiers
 de ce dossier ne sont jamais modifiés ; voir le README à la racine du dépôt.
 
+Les filtres de la boutique viennent de Square. La rangée de catégories reprend
+les catégories Square, sauf « Boutique », qui regroupe presque tout. La rangée
+de marques lit la marque au début du nom de l'article, écrite en majuscules
+(« SMACK Chiens Poulet », « DOGMÄ Lotion Yeux ») ; « LB » devient Lucky Bones.
+Un article dont le nom ne commence pas par sa marque en majuscules n'a pas de
+marque. Une catégorie Square qui porte le nom d'une marque passe dans la rangée
+de marques, avec tous ses articles.
+
 ### Prévisualiser sur votre ordinateur
 
 ```bash

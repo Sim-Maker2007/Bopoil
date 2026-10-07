@@ -161,6 +161,38 @@
 
 .shop-count { font-size: var(--font-step--1); color: var(--color-gray-60); margin: 0; }
 
+/* Brands: one row of pills under the categories that scrolls sideways at
+   every width. Only the brands found in the chosen category are listed. */
+.shop-brands {
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  margin: -18px -8px 12px;
+  padding: 8px; /* room for the focus outline */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.shop-brands > li { flex: 0 0 auto; }
+.shop-brand {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--color-gray-20);
+  border-radius: 999px;
+  background: var(--pure-white);
+  color: var(--near-black);
+  font-family: var(--body-font);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease, color .2s ease;
+}
+.shop-brand:hover { border-color: var(--near-black); }
+.shop-brand[aria-pressed="true"] { background: var(--accent-plum); border-color: var(--accent-plum); color: var(--pure-white); }
+
 /* --------------------------------------------------------------------------
    GRILLE DE PRODUITS — image, titre, prix. La description vit dans la fiche.
    -------------------------------------------------------------------------- */
@@ -380,6 +412,13 @@
   .shop-cat:hover { transform: none; }
   .shop-cat__label { left: 6px; right: 6px; bottom: 8px; font-size: .72rem; letter-spacing: .01em; line-height: 1.2; }
   .shop-cat--all .shop-cat__label { padding-inline: 6px; }
+  .shop-brands {
+    margin: -20px -24px 12px;
+    padding-inline: 24px;
+    scroll-padding-inline: 24px;
+    scrollbar-width: none;
+  }
+  .shop-brands::-webkit-scrollbar { display: none; }
 }
 
 /* --------------------------------------------------------------------------
@@ -772,11 +811,8 @@ body[data-product-open="true"] { overflow: hidden; }
 .shop-hero .page-hero__media::after { background: linear-gradient(90deg, rgba(0,0,0,.85), rgba(0,0,0,.22)); opacity: 1; }
 .shop-hero__title { text-transform: none; font-size: clamp(2.25rem, 4vw, 3.6rem); line-height: 1.08; }
 .shop-hero__lead { margin: 14px 0 0; max-width: 48ch; }
-.shop-hero__link { display: inline-flex; gap: 28px; align-items: center; margin-top: 22px; color: white; text-underline-offset: 6px; }
+.shop-hero__tag { margin: 22px 0 0; font-family: var(--body-font); font-size: var(--font-step--1); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: white; }
 .shop-catalog { padding-block: 36px 56px; scroll-margin-top: 140px; }
-.shop-intro { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
-.shop-intro h2 { font-size: 1.65rem; margin: 0; text-transform: none; }
-.shop-intro p { margin: 0; font-size: .875rem; color: #555; }
 .shop-notice { background: #fff; border-left: 3px solid var(--accent-plum); padding: 12px 16px; margin-bottom: 24px; font-size: .875rem; line-height: 1.6; }
 .shop-notice button { margin-left: 12px; background: none; border: 0; text-decoration: underline; cursor: pointer; font: inherit; min-height: 44px; }
 .shop-controls { display: flex; gap: 20px; margin-bottom: 20px; }
@@ -805,7 +841,7 @@ body[data-product-open="true"] { overflow: hidden; }
 .shop-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 42; display: flex; gap: 24px; align-items: center; max-width: calc(100vw - 32px); width: max-content; padding: 12px 18px; border-radius: 10px; box-shadow: 0 8px 32px #0003; background: #1d3c41; color: white; font-size: .875rem; }
 .shop-toast button { flex-shrink: 0; min-height: 44px; color: white; background: none; border: 0; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; font: inherit; }
 .boutique-page :focus-visible { outline: 3px solid #a84776; outline-offset: 4px; }
-@media (max-width: 1023px) { .shop-hero .page-hero__inner { padding-inline: 24px; } .shop-intro { display: block; } .shop-intro p { margin-top: 10px; } }
+@media (max-width: 1023px) { .shop-hero .page-hero__inner { padding-inline: 24px; } }
 @media (max-width: 640px) {
   .shop-hero { min-height: 280px; }
   .shop-hero .page-hero__inner { padding: 28px 20px; }
@@ -838,11 +874,10 @@ body[data-product-open="true"] { overflow: hidden; }
 @media (min-width: 1024px) {
   .shop-hero { min-height: 0; }
   .shop-hero .page-hero__inner { padding-block: 24px; }
-  .shop-hero .eyebrow { margin-bottom: 8px; }
   .shop-hero__title { font-size: 2.6rem; }
   .shop-hero__title br { display: none; }
   .shop-hero__lead { max-width: 65ch; margin-top: 10px; }
-  .shop-hero__link { margin-top: 14px; }
+  .shop-hero__tag { margin-top: 14px; }
   .shop-catalog { padding-top: 28px; }
 }
 .boutique-page .sms-pill { display: none; }
