@@ -66,17 +66,16 @@
         <picture><source type="image/webp" srcset="images/boutique-interieur-800.webp 800w, images/boutique-interieur-1600.webp 1600w" sizes="100vw"><img src="images/boutique-interieur-1600.jpg" srcset="images/boutique-interieur-800.jpg 800w, images/boutique-interieur-1600.jpg 1600w" sizes="100vw" width="1440" height="1920" alt="Rayons de la boutique BOPOIL" loading="eager" fetchpriority="high" decoding="async"></picture>
       </div>
       <div class="page-hero__inner">
-        <p class="eyebrow">Boutique en ligne</p>
         <h1 class="page-hero__title shop-hero__title">Le soin continue <br>à la maison.</h1>
         <p class="shop-hero__lead">Brosses, soins et petites attentions pour votre compagnon. Retrouvez vos essentiels, avec les conseils de notre équipe à Gatineau.</p>
-        <a class="shop-hero__link" href="#produits">Explorer la boutique <span aria-hidden="true">↓</span></a>
+        <p class="shop-hero__tag">Nouvelle boutique en ligne</p>
       </div>
     </section>
 
-    <section class="section profile-primary-light-neutral shop-catalog" id="produits" aria-label="Nos produits">
+    <section class="section profile-primary-light-neutral shop-catalog" id="produits" aria-labelledby="produits-titre">
       <div class="container">
         <p class="form-status" data-order-status role="status" hidden></p>
-        <div class="shop-intro"><h2>Les essentiels du quotidien</h2><p>Cueillette au salon · 38 avenue Gatineau</p></div>
+        <h2 class="visually-hidden" id="produits-titre">Nos produits</h2>
         <div class="shop-notice" data-catalog-notice role="status">Chargement de la boutique…</div>
         <noscript><p>Activez JavaScript pour utiliser le panier. Les produits ci-dessous sont un aperçu; contactez le salon pour connaître les disponibilités.</p></noscript>
         <ul class="shop-cats" data-shop-filters data-shop-chrome role="group" aria-label="Filtrer par catégorie">
@@ -87,9 +86,10 @@
           <li><button class="shop-cat" type="button" data-filter="accessoires" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/chat-cache-griffes-480.webp 480w, images/chat-cache-griffes-900.webp 900w" sizes="160px"><img src="images/chat-cache-griffes-480.jpg" srcset="images/chat-cache-griffes-480.jpg 480w, images/chat-cache-griffes-900.jpg 900w" sizes="160px" width="480" height="360" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Accessoires</span></button></li>
           <li><button class="shop-cat" type="button" data-filter="coffrets" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/boutique-interieur-400.webp 400w, images/boutique-interieur-800.webp 800w" sizes="160px"><img src="images/boutique-interieur-400.jpg" srcset="images/boutique-interieur-400.jpg 400w, images/boutique-interieur-800.jpg 800w" sizes="160px" width="400" height="300" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Coffrets</span></button></li>
         </ul>
+        <ul class="shop-brands" data-shop-brands role="group" aria-label="Filtrer par marque" hidden></ul>
         <div class="shop-controls" data-shop-chrome>
           <label class="shop-search" for="shop-search"><span>Rechercher un produit</span><input id="shop-search" type="search" placeholder="Shampooing, brosse, gâterie…" autocomplete="off" data-shop-search></label>
-          <label class="shop-sort" for="shop-sort"><span>Trier par</span><select id="shop-sort" data-shop-sort><option value="selection">Notre sélection</option><option value="price-asc">Prix croissant</option><option value="price-desc">Prix décroissant</option><option value="name">Nom : A à Z</option></select></label>
+          <label class="shop-sort" for="shop-sort"><span>Trier par</span><select id="shop-sort" data-shop-sort><option value="name">Nom : A à Z</option><option value="price-asc">Prix croissant</option><option value="price-desc">Prix décroissant</option></select></label>
         </div>
         <div class="shop-toolbar" data-shop-chrome>
           <p class="shop-count" data-shop-count aria-live="polite">10 produits</p>

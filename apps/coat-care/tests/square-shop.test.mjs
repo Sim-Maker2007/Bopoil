@@ -7,6 +7,7 @@ process.env.SQUARE_LOCATION_ID = "LOC123";
 process.env.SQUARE_API_VERSION = "2026-07-15";
 
 const {
+  brandFromName,
   normalizeCatalog,
   normalizeCategories,
   fetchShop,
@@ -76,6 +77,7 @@ test("normalizeCatalog maps items to priced products with images and categories"
     imageUrls: ["https://squarecdn.test/img1.jpg"],
     category: "Soins",
     categories: ["Soins"],
+    brands: [],
   });
 });
 
@@ -124,6 +126,58 @@ test("normalizeCatalog falls back gracefully when image/category are missing", (
   assert.equal(products[0].category, "Boutique");
   assert.deepEqual(products[0].categories, ["Boutique"]);
   assert.equal(products[0].currency, "USD");
+});
+
+test("brandFromName reads the brand written in capitals at the start of an item name", () => {
+  assert.equal(brandFromName("SMACK Chiens Poulet"), "SMACK");
+  assert.equal(brandFromName("DOGMÄ Lotion Yeux 120ml"), "DOGMÄ");
+  assert.equal(brandFromName("BACI+ 3 en 1 Chiens 150g"), "BACI+");
+  assert.equal(brandFromName("*SAFARI SW416"), "SAFARI", "a leading mark and a model number are not part of the brand");
+  assert.equal(brandFromName("CATIT 2.0 Balle Fireball"), "CATIT");
+  assert.equal(brandFromName("WILD & WOOFY Serviette en microfibre"), "WILD & WOOFY");
+  assert.equal(brandFromName("K9 PRAVENTA 360 (XL) 1 tube"), "K9 PRAVENTA");
+  assert.equal(brandFromName("LB Yak Bleuet"), "Lucky Bones");
+  assert.equal(brandFromName("LB-C Fémur de boeuf"), "Lucky Bones");
+  assert.equal(brandFromName("LB - Tresse De Chameau et Buffle"), "Lucky Bones");
+  assert.equal(brandFromName("GF Pet Manteau Uni"), "GF PET");
+  assert.equal(brandFromName("Zippy Paws Jouet Oiseau"), "", "a name that does not open in capitals has no brand");
+  assert.equal(brandFromName("Chamois"), "");
+  assert.equal(brandFromName("KONG"), "", "a name with no product part has no brand");
+});
+
+test("normalizeCatalog groups brand spellings and adds products of a category named after a brand", () => {
+  const item = (id, name, categories = []) => ({
+    id,
+    type: "ITEM",
+    item_data: { name, categories: categories.map((cat) => ({ id: cat })), variations: [{ id: `V_${id}`, item_variation_data: { price_money: { amount: 500, currency: "CAD" } } }] },
+  });
+  const products = normalizeCatalog(
+    [
+      item("ZEUS", "ZEUS Laisse — M Bleu"),
+      item("NOSH", "ZEUS NOSH Os Robuste, Bacon (G)"),
+      item("BACI1", "BACI+ Probio Chats 28g"),
+      item("BACI2", "BACI+ Probio Chiens 42g"),
+      item("BACI3", "BACI Chien Trousse Gut Boost"),
+      item("LB", "LB Yak Menthe", ["CAT_LB"]),
+      item("LITTER", "Litière World's Best 8 lbs", ["CAT_HOME", "CAT_LB"]),
+      item("PLAIN", "Brosse douce", ["CAT_HOME"]),
+    ],
+    [
+      { id: "CAT_LB", type: "CATEGORY", category_data: { name: "Lucky Bones" } },
+      { id: "CAT_HOME", type: "CATEGORY", category_data: { name: "Maison et entretien" } },
+    ],
+  );
+  assert.deepEqual(products.map((p) => p.brands), [
+    ["ZEUS"],
+    ["ZEUS"],
+    ["BACI+"],
+    ["BACI+"],
+    ["BACI+"],
+    ["Lucky Bones"],
+    ["Lucky Bones"],
+    [],
+  ]);
+  assert.deepEqual(products[6].categories, ["Maison et entretien", "Lucky Bones"], "categories are left as Square has them");
 });
 
 test("normalizeCategories returns the Square photo of each category a listed product uses", () => {

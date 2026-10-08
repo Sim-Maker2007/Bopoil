@@ -7,6 +7,7 @@
   var fallbackHTML = grid.innerHTML;
   var filtersEl = document.querySelector('[data-shop-filters]');
   var fallbackFilters = filtersEl.innerHTML;
+  var brandsEl = document.querySelector('[data-shop-brands]');
   var countEl = document.querySelector('[data-shop-count]');
   var notice = document.querySelector('[data-catalog-notice]');
   var emptyEl = document.querySelector('[data-shop-empty]');
@@ -37,6 +38,7 @@
   var cart = Object.create(null);
   var cards = [];
   var activeCategory = 'tous';
+  var activeBrand = 'toutes';
   var lastFocus;
   var inerted = [];
   var toastTimer;
@@ -54,6 +56,8 @@
     'images/chien-traitement-mue-900.jpg',
     'images/approche-chat-chien-800.jpg'
   ];
+  // Square's catch-all category holds most of the store, so it is no use as a filter.
+  var HIDDEN_CATEGORIES = ['boutique'];
   var PLUS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
   function escapeHtml(value) {
@@ -103,6 +107,7 @@
   }
   function chromeHidden(hidden) {
     document.querySelectorAll('[data-shop-chrome]').forEach(function (el) { el.hidden = hidden; });
+    brandsEl.hidden = hidden || !brandsEl.childElementCount;
   }
   function renderCart() {
     var ids = Object.keys(cart);
@@ -256,19 +261,32 @@
     }
     if (sheet && sheet.dataset.open === 'true') closeProduct({ updateUrl: false });
   }
+  function inActiveCategory(card) {
+    return activeCategory === 'tous' || (card.dataset.cat || '').split(' ').indexOf(activeCategory) !== -1;
+  }
+  function cardBrands(card) {
+    return (card.dataset.brand || '').split(' ').filter(Boolean);
+  }
   function filterProducts() {
     if (mode !== 'square' && mode !== 'preview') return;
     var query = normalized(searchEl.value.trim());
     var sorted = cards.slice();
     if (sortEl.value === 'price-asc') sorted.sort(function (a, b) { return Number(a.dataset.price) - Number(b.dataset.price); });
     if (sortEl.value === 'price-desc') sorted.sort(function (a, b) { return Number(b.dataset.price) - Number(a.dataset.price); });
-    if (sortEl.value === 'name') sorted.sort(function (a, b) { return a.dataset.name.localeCompare(b.dataset.name, 'fr'); });
+    // A leading mark such as « *SAFARI » must not put a product ahead of the A's.
+    if (sortEl.value === 'name') sorted.sort(function (a, b) { return a.dataset.name.localeCompare(b.dataset.name, 'fr', { ignorePunctuation: true }); });
+    // The brand row lists only the brands found in the chosen category.
+    var available = Object.create(null);
+    cards.forEach(function (card) {
+      if (inActiveCategory(card)) cardBrands(card).forEach(function (brand) { available[brand] = true; });
+    });
+    if (!available[activeBrand]) activeBrand = 'toutes';
     var count = 0;
     var shown = 0;
     sorted.forEach(function (card) {
-      var haystack = normalized([card.dataset.name, card.dataset.cat, card.dataset.desc].join(' '));
-      var inCategory = activeCategory === 'tous' || (card.dataset.cat || '').split(' ').indexOf(activeCategory) !== -1;
-      var match = inCategory && haystack.includes(query);
+      var haystack = normalized([card.dataset.name, card.dataset.cat, (card.dataset.brand || '').replace(/-/g, ' '), card.dataset.desc].join(' '));
+      var inBrand = activeBrand === 'toutes' || cardBrands(card).indexOf(activeBrand) !== -1;
+      var match = inActiveCategory(card) && inBrand && haystack.includes(query);
       card.hidden = !match;
       if (match) {
         card.style.setProperty('--i', String(shown));
@@ -278,16 +296,22 @@
       grid.appendChild(card);
     });
     filtersEl.querySelectorAll('[data-filter]').forEach(function (el) { el.setAttribute('aria-pressed', String(el.dataset.filter === activeCategory)); });
+    brandsEl.querySelectorAll('[data-brand-filter]').forEach(function (el) {
+      var brand = el.dataset.brandFilter;
+      el.parentNode.hidden = brand !== 'toutes' && !available[brand];
+      el.setAttribute('aria-pressed', String(brand === activeBrand));
+    });
     countEl.textContent = count + (count > 1 ? ' produits' : ' produit');
     emptyEl.hidden = count !== 0 || mode === 'error' || !cards.length;
   }
-  // On phones and tablets the categories are a swipeable row: bring a half-hidden card fully into view.
-  function revealFilter(btn) {
-    if (!btn || filtersEl.scrollWidth <= filtersEl.clientWidth) return;
-    var row = filtersEl.getBoundingClientRect();
+  // On phones and tablets the categories are a swipeable row, and the brands
+  // always are: bring a half-hidden filter fully into view.
+  function revealFilter(list, btn) {
+    if (!btn || list.scrollWidth <= list.clientWidth) return;
+    var row = list.getBoundingClientRect();
     var box = btn.getBoundingClientRect();
     if (box.left >= row.left + 24 && box.right <= row.right - 24) return;
-    filtersEl.scrollBy({ left: box.left - row.left - (row.width - box.width) / 2, behavior: reduceMotion() ? 'auto' : 'smooth' });
+    list.scrollBy({ left: box.left - row.left - (row.width - box.width) / 2, behavior: reduceMotion() ? 'auto' : 'smooth' });
   }
   function cardHTML(p, index) {
     var id = escapeHtml(p.id);
@@ -300,7 +324,7 @@
     var dots = images.length > 1
       ? '<span class="product-card__dots" aria-hidden="true">' + images.map(function (_, index) { return '<i' + (index === 0 ? ' data-active="true"' : '') + '></i>'; }).join('') + '</span>'
       : '';
-    return '<article class="product-card" style="--i:' + index + (p.tint ? ';--tint:' + escapeHtml(p.tint) + ';--tint-ink:' + escapeHtml(p.ink || '') : '') + '" data-product data-id="' + id + '" data-name="' + name + '" data-price="' + p.priceCents + '" data-currency="' + escapeHtml(p.currency || 'CAD') + '" data-cat="' + cat + '" data-desc="' + desc + '" data-images="' + escapeHtml(images.join('|')) + '">' +
+    return '<article class="product-card" style="--i:' + index + (p.tint ? ';--tint:' + escapeHtml(p.tint) + ';--tint-ink:' + escapeHtml(p.ink || '') : '') + '" data-product data-id="' + id + '" data-name="' + name + '" data-price="' + p.priceCents + '" data-currency="' + escapeHtml(p.currency || 'CAD') + '" data-cat="' + cat + '" data-brand="' + escapeHtml(p.brand || '') + '" data-desc="' + desc + '" data-images="' + escapeHtml(images.join('|')) + '">' +
       '<button class="product-card__hit" type="button" data-open-product="' + id + '" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : ' + name + '">' +
         '<span class="product-card__media">' +
           '<span class="product-card__badge">' + category + '</span>' + image + dots +
@@ -314,13 +338,16 @@
       '<button class="product-card__quick" type="button" data-add="' + id + '" aria-label="Ajouter au panier : ' + name + '">' + PLUS + '</button>' +
     '</article>';
   }
-  function renderFilters(categories, photos) {
+  function renderFilters(categories, photos, brands) {
     var html = '<li><button class="shop-cat shop-cat--all" type="button" data-filter="tous" aria-pressed="true"><span class="shop-cat__label">Tous les produits</span></button></li>';
     var i = 0;
     // Entries are [slug, Square category name], listed alphabetically like the Square dashboard.
     // Each card shows the photo set on the category in Square; a category without
     // one (or whose photo fails to load) gets one of the salon photos instead.
-    Array.from(categories).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); }).forEach(function (entry) {
+    // A category named after a brand is offered in the brand row instead.
+    Array.from(categories).filter(function (entry) {
+      return HIDDEN_CATEGORIES.indexOf(entry[0]) === -1 && !brands.has(entry[0]);
+    }).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); }).forEach(function (entry) {
       var fallback = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
       var photo = photos[entry[0]] || fallback;
       html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' +
@@ -331,6 +358,13 @@
     filtersEl.querySelectorAll('img[data-fallback]').forEach(function (img) {
       img.addEventListener('error', function () { img.src = img.dataset.fallback; img.removeAttribute('data-fallback'); }, { once: true });
     });
+  }
+  // Entries are [slug, brand name]; no brands (the preview catalog) leaves the row out.
+  function renderBrands(brands) {
+    brandsEl.innerHTML = brands.size ? '<li><button class="shop-brand" type="button" data-brand-filter="toutes" aria-pressed="true">Toutes les marques</button></li>' +
+      Array.from(brands).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr', { sensitivity: 'base' }); }).map(function (entry) {
+        return '<li><button class="shop-brand" type="button" data-brand-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' + escapeHtml(entry[1]) + '</button></li>';
+      }).join('') : '';
   }
   function hydrate() {
     products = Object.create(null);
@@ -361,6 +395,7 @@
   }
   function renderSquareCatalog(list, categoryList) {
     var categories = new Map();
+    var brands = new Map();
     var photos = Object.create(null);
     categoryList.forEach(function (c) {
       var key = c && slug(c.name);
@@ -374,6 +409,11 @@
         categories.set(key, name);
         return key;
       });
+      var brandSlugs = (Array.isArray(p.brands) ? p.brands : []).map(function (name) {
+        var key = slug(name);
+        brands.set(key, name);
+        return key;
+      });
       var urls = (Array.isArray(p.imageUrls) ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : [])).filter(allowedImageUrl);
       var image = urls[0] ? '<img src="' + escapeHtml(urls[0]) + '" alt="' + escapeHtml(p.name) + '" loading="lazy" decoding="async">' : paw();
       return cardHTML({
@@ -384,11 +424,13 @@
         currency: p.currency,
         category: p.category,
         cat: slugs.join(' '),
+        brand: brandSlugs.join(' '),
         imageHtml: image,
         imageUrls: urls
       }, index);
     }).join('');
-    renderFilters(categories, photos);
+    renderFilters(categories, photos, brands);
+    renderBrands(brands);
     grid.querySelectorAll('.product-card__media img').forEach(function (img) {
       img.addEventListener('error', function () { img.outerHTML = paw(); });
     });
@@ -423,6 +465,7 @@
       var data = await res.json();
       if (!data || data.error || typeof data.configured !== 'boolean' || !Array.isArray(data.products)) throw new Error('catalog');
       activeCategory = 'tous';
+      activeBrand = 'toutes';
       if (data.configured) {
         mode = 'square';
         renderSquareCatalog(data.products, Array.isArray(data.categories) ? data.categories : []);
@@ -431,6 +474,7 @@
         mode = 'preview';
         grid.innerHTML = fallbackHTML;
         filtersEl.innerHTML = fallbackFilters;
+        renderBrands(new Map());
         notice.textContent = 'Aperçu de la boutique — produits et prix à confirmer. Vous pouvez essayer le panier; les commandes en ligne ne sont pas encore ouvertes.';
       }
       grid.hidden = false;
@@ -509,8 +553,9 @@
       if (!replacement) replacement = itemsEl.querySelectorAll('li')[Math.max(0, lineIndex - 1)]?.querySelector('button:not(:disabled)');
       (replacement || drawer.querySelector('.cart-close')).focus();
     }
-    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter; filterProducts(); revealFilter(btn); }
-    if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; searchEl.value = ''; sortEl.value = 'selection'; filterProducts(); revealFilter(filtersEl.querySelector('[data-filter="tous"]')); searchEl.focus(); }
+    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter; filterProducts(); revealFilter(filtersEl, btn); revealFilter(brandsEl, brandsEl.querySelector('[aria-pressed="true"]')); }
+    if (btn.hasAttribute('data-brand-filter')) { activeBrand = btn.dataset.brandFilter; filterProducts(); revealFilter(brandsEl, btn); }
+    if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; activeBrand = 'toutes'; searchEl.value = ''; sortEl.value = 'name'; filterProducts(); revealFilter(filtersEl, filtersEl.querySelector('[data-filter="tous"]')); revealFilter(brandsEl, brandsEl.querySelector('[data-brand-filter="toutes"]')); searchEl.focus(); }
   });
   overlay.addEventListener('click', closeCart);
   productOverlay.addEventListener('click', function () { closeProduct(); });
