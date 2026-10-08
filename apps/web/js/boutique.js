@@ -30,11 +30,15 @@
   var sheetCategory = document.querySelector('[data-product-category]');
   var sheetTitle = document.querySelector('[data-product-title]');
   var sheetPrice = document.querySelector('[data-product-price]');
+  var sheetOptions = document.querySelector('[data-product-options]');
   var sheetDesc = document.querySelector('[data-product-desc]');
   var sheetQty = document.querySelector('[data-product-qty]');
   var sheetAdd = document.querySelector('[data-product-add]');
   var mode = 'loading';
   var products = Object.create(null);
+  // Variation ids of each card, keyed by Square item: a product sold in several
+  // colours, sizes or formats is one card with a picker in the product sheet.
+  var groups = Object.create(null);
   var cart = Object.create(null);
   var cards = [];
   var activeCategory = 'tous';
@@ -170,12 +174,12 @@
   function requestedProductId() {
     return new URLSearchParams(window.location.search).get('produit') || '';
   }
-  function setProductParam(id) {
+  function setProductParam(id, replace) {
     var params = new URLSearchParams(window.location.search);
     if (id) params.set('produit', id); else params.delete('produit');
     var next = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
     var current = window.location.pathname + window.location.search + window.location.hash;
-    if (next !== current) history.pushState({ produit: id || '' }, '', next);
+    if (next !== current) history[replace ? 'replaceState' : 'pushState']({ produit: id || '' }, '', next);
   }
   function renderProductQty() {
     if (!sheetQty) return;
@@ -186,19 +190,85 @@
     if (inc) inc.disabled = productQty >= 99 || checkoutBusy;
     if (sheetAdd) sheetAdd.disabled = checkoutBusy || (mode !== 'square' && mode !== 'preview');
   }
-  function fillProductSheet(id) {
+  function variantsOf(id) {
+    return groups[products[id].group] || [id];
+  }
+  function optionValue(id, name) {
+    var option = products[id].options.find(function (o) { return o.name === name; });
+    return option ? option.value : '';
+  }
+  // The variation with this choice that keeps as many of the current other choices as possible.
+  function pickVariant(id, name, value) {
+    var best = '';
+    var bestScore = -1;
+    variantsOf(id).forEach(function (candidate) {
+      if (optionValue(candidate, name) !== value) return;
+      var score = products[candidate].options.filter(function (o) { return o.name !== name && optionValue(id, o.name) === o.value; }).length;
+      if (score > bestScore) { best = candidate; bestScore = score; }
+    });
+    return best;
+  }
+  function swatchAttr(swatch) {
+    if (swatch === 'camo') return ' data-swatch="camo"';
+    return /^#[0-9a-f]{6}$/i.test(swatch || '') ? ' style="--swatch:' + swatch + '"' : '';
+  }
+  // One row per choice (Couleur, Taille, Format…). Colours are round swatches when
+  // each value has its own colour; anything else is a row of toggles. A value
+  // that does not exist with the other current choices is struck through, and
+  // picking it switches the other choices to a variation that has it.
+  function optionsHTML(id) {
+    var ids = variantsOf(id);
+    if (ids.length < 2) return '';
+    var names = [];
+    ids.forEach(function (vid) {
+      products[vid].options.forEach(function (o) { if (names.indexOf(o.name) === -1) names.push(o.name); });
+    });
+    return names.map(function (name) {
+      var values = [];
+      ids.forEach(function (vid) {
+        var option = products[vid].options.find(function (o) { return o.name === name; });
+        if (option && !values.some(function (v) { return v.value === option.value; })) values.push(option);
+      });
+      var swatches = values.map(function (v) { return v.swatch; });
+      var asSwatches = swatches.every(Boolean) && swatches.every(function (sw, i) { return swatches.indexOf(sw) === i; });
+      var current = optionValue(id, name);
+      return '<fieldset class="product-option"><legend>' + escapeHtml(name) + ' : <strong>' + escapeHtml(current) + '</strong></legend><div class="product-option__values">' +
+        values.map(function (v) {
+          var target = pickVariant(id, name, v.value);
+          var exact = products[target].options.every(function (o) { return o.name === name || optionValue(id, o.name) === o.value; });
+          var label = escapeHtml(v.value) + (exact ? '' : ', offert avec un autre choix');
+          var attrs = ' type="button" data-option-name="' + escapeHtml(name) + '" data-option-value="' + escapeHtml(v.value) + '" aria-pressed="' + (v.value === current) + '"' + (exact ? '' : ' data-unavailable="true"');
+          return asSwatches
+            ? '<button class="product-option__swatch"' + attrs + swatchAttr(v.swatch) + ' aria-label="' + label + '" title="' + escapeHtml(v.value) + '"></button>'
+            : '<button class="product-option__pill"' + attrs + (exact ? '' : ' aria-label="' + label + '"') + '>' + (v.swatch ? '<span class="product-option__dot"' + swatchAttr(v.swatch) + '></span>' : '') + escapeHtml(v.value) + '</button>';
+        }).join('') + '</div></fieldset>';
+    }).join('');
+  }
+  function fillProductSheet(id, keepQty) {
     var p = products[id];
     if (!p || !sheet) return false;
     openProductId = id;
-    productQty = 1;
+    if (!keepQty) productQty = 1;
     sheetMedia.innerHTML = galleryHTML(p);
     sheetCategory.textContent = p.category || '';
-    sheetTitle.textContent = p.name;
+    sheetTitle.textContent = variantsOf(id).length > 1 ? p.itemName : p.name;
     sheetPrice.textContent = money(p.price, p.currency);
+    sheetOptions.innerHTML = optionsHTML(id);
+    sheetOptions.hidden = !sheetOptions.innerHTML;
     sheetDesc.textContent = p.description || 'Demandez conseil à l’équipe du salon pour les détails de ce produit.';
     sheetAdd.dataset.add = id;
     renderProductQty();
     return true;
+  }
+  function selectOption(name, value) {
+    var id = pickVariant(openProductId, name, value);
+    if (!id || id === openProductId) return;
+    fillProductSheet(id, true);
+    setProductParam(id, true);
+    var again = Array.prototype.find.call(sheetOptions.querySelectorAll('[data-option-name]'), function (el) {
+      return el.dataset.optionName === name && el.dataset.optionValue === value;
+    });
+    if (again) again.focus();
   }
   function allowedImageUrl(url) {
     url = String(url || '').trim();
@@ -227,6 +297,11 @@
   }
   function openProduct(id, opts) {
     if (!products[id] || !sheet) return;
+    if (sheet.dataset.open === 'true') {
+      fillProductSheet(id);
+      if (!opts || opts.updateUrl !== false) setProductParam(id, true);
+      return;
+    }
     if (drawer.dataset.open === 'true') closeCart({ restore: false });
     if (!fillProductSheet(id)) return;
     if (!opts || opts.updateUrl !== false) setProductParam(id);
@@ -284,7 +359,7 @@
     var count = 0;
     var shown = 0;
     sorted.forEach(function (card) {
-      var haystack = normalized([card.dataset.name, card.dataset.cat, (card.dataset.brand || '').replace(/-/g, ' '), card.dataset.desc].join(' '));
+      var haystack = normalized([card.dataset.name, card.dataset.variants, card.dataset.cat, (card.dataset.brand || '').replace(/-/g, ' '), card.dataset.desc].join(' '));
       var inBrand = activeBrand === 'toutes' || cardBrands(card).indexOf(activeBrand) !== -1;
       var match = inActiveCategory(card) && inBrand && haystack.includes(query);
       card.hidden = !match;
@@ -324,7 +399,10 @@
     var dots = images.length > 1
       ? '<span class="product-card__dots" aria-hidden="true">' + images.map(function (_, index) { return '<i' + (index === 0 ? ' data-active="true"' : '') + '></i>'; }).join('') + '</span>'
       : '';
-    return '<article class="product-card" style="--i:' + index + (p.tint ? ';--tint:' + escapeHtml(p.tint) + ';--tint-ink:' + escapeHtml(p.ink || '') : '') + '" data-product data-id="' + id + '" data-name="' + name + '" data-price="' + p.priceCents + '" data-currency="' + escapeHtml(p.currency || 'CAD') + '" data-cat="' + cat + '" data-brand="' + escapeHtml(p.brand || '') + '" data-desc="' + desc + '" data-images="' + escapeHtml(images.join('|')) + '">' +
+    var quick = p.choices
+      ? '<button class="product-card__quick" type="button" data-open-product="' + id + '" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Choisir les options : ' + name + '">' + PLUS + '</button>'
+      : '<button class="product-card__quick" type="button" data-add="' + id + '" aria-label="Ajouter au panier : ' + name + '">' + PLUS + '</button>';
+    return '<article class="product-card" style="--i:' + index + (p.tint ? ';--tint:' + escapeHtml(p.tint) + ';--tint-ink:' + escapeHtml(p.ink || '') : '') + '" data-product data-id="' + id + '" data-name="' + name + '" data-price="' + p.priceCents + '" data-currency="' + escapeHtml(p.currency || 'CAD') + '" data-cat="' + cat + '" data-brand="' + escapeHtml(p.brand || '') + '" data-variants="' + escapeHtml(p.variants || '') + '" data-desc="' + desc + '" data-images="' + escapeHtml(images.join('|')) + '">' +
       '<button class="product-card__hit" type="button" data-open-product="' + id + '" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : ' + name + '">' +
         '<span class="product-card__media">' +
           '<span class="product-card__badge">' + category + '</span>' + image + dots +
@@ -332,10 +410,11 @@
         '</span>' +
         '<span class="product-card__body">' +
           '<span class="product-card__title">' + name + '</span>' +
-          '<span class="product-card__price">' + money(p.priceCents, p.currency) + '</span>' +
+          '<span class="product-card__price">' + (p.fromPrice ? '<span class="product-card__from">À partir de</span> ' : '') + money(p.priceCents, p.currency) + '</span>' +
+          (p.choices || '') +
         '</span>' +
       '</button>' +
-      '<button class="product-card__quick" type="button" data-add="' + id + '" aria-label="Ajouter au panier : ' + name + '">' + PLUS + '</button>' +
+      quick +
     '</article>';
   }
   function renderFilters(categories, photos, brands) {
@@ -366,21 +445,29 @@
         return '<li><button class="shop-brand" type="button" data-brand-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' + escapeHtml(entry[1]) + '</button></li>';
       }).join('') : '';
   }
-  function hydrate() {
-    products = Object.create(null);
+  // Square products arrive already described (known); the preview cards are read from the page.
+  function hydrate(known) {
+    products = known || Object.create(null);
+    if (!known) groups = Object.create(null);
     cards = Array.prototype.slice.call(grid.querySelectorAll('[data-product]'));
     cards.forEach(function (card, index) {
       var media = card.querySelector('.product-card__media > svg, .product-card__media > img');
       var badge = card.querySelector('.product-card__badge');
-      products[card.dataset.id] = {
-        name: card.dataset.name,
-        price: Number(card.dataset.price),
-        currency: card.dataset.currency || 'CAD',
-        media: media ? media.outerHTML : paw(),
-        images: (card.dataset.images || '').split('|').filter(Boolean),
-        description: card.dataset.desc || '',
-        category: badge ? badge.textContent.trim() : ''
-      };
+      if (!products[card.dataset.id]) {
+        products[card.dataset.id] = {
+          name: card.dataset.name,
+          itemName: card.dataset.name,
+          price: Number(card.dataset.price),
+          currency: card.dataset.currency || 'CAD',
+          media: media ? media.outerHTML : paw(),
+          images: (card.dataset.images || '').split('|').filter(Boolean),
+          description: card.dataset.desc || '',
+          category: badge ? badge.textContent.trim() : '',
+          options: [],
+          group: card.dataset.id
+        };
+        groups[card.dataset.id] = [card.dataset.id];
+      }
       card.style.setProperty('--i', String(index));
       var btn = card.querySelector('[data-add]');
       if (btn) {
@@ -401,7 +488,19 @@
       var key = c && slug(c.name);
       if (key && !photos[key] && /^https:\/\//i.test(c.imageUrl || '')) photos[key] = c.imageUrl;
     });
-    grid.innerHTML = list.map(function (p, index) {
+    var known = Object.create(null);
+    var members = Object.create(null);
+    var order = [];
+    list.forEach(function (p) {
+      var key = p.itemId || p.id;
+      if (!members[key]) { members[key] = []; order.push(key); }
+      members[key].push(p);
+    });
+    groups = Object.create(null);
+    grid.innerHTML = order.map(function (key, index) {
+      var variants = members[key];
+      var p = variants[0];
+      var several = variants.length > 1;
       // A product is listed under every Square category it belongs to.
       var names = Array.isArray(p.categories) && p.categories.length ? p.categories : [p.category];
       var slugs = names.map(function (name) {
@@ -414,19 +513,41 @@
         brands.set(key, name);
         return key;
       });
-      var urls = (Array.isArray(p.imageUrls) ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : [])).filter(allowedImageUrl);
-      var image = urls[0] ? '<img src="' + escapeHtml(urls[0]) + '" alt="' + escapeHtml(p.name) + '" loading="lazy" decoding="async">' : paw();
+      var title = several ? p.itemName || p.name : p.name;
+      var cardUrls = [];
+      groups[key] = variants.map(function (v) {
+        var urls = (Array.isArray(v.imageUrls) ? v.imageUrls : (v.imageUrl ? [v.imageUrl] : [])).filter(allowedImageUrl);
+        if (!cardUrls.length) cardUrls = urls;
+        known[v.id] = {
+          name: v.name,
+          itemName: title,
+          price: v.priceCents,
+          currency: v.currency || 'CAD',
+          media: urls[0] ? '<img src="' + escapeHtml(urls[0]) + '" alt="">' : paw(),
+          images: urls,
+          description: v.description || '',
+          category: v.category || '',
+          options: several && Array.isArray(v.options) ? v.options : [],
+          group: key
+        };
+        return v.id;
+      });
+      var prices = variants.map(function (v) { return v.priceCents; });
+      var image = cardUrls[0] ? '<img src="' + escapeHtml(cardUrls[0]) + '" alt="' + escapeHtml(title) + '" loading="lazy" decoding="async">' : paw();
       return cardHTML({
         id: p.id,
-        name: p.name,
+        name: title,
         description: p.description || '',
-        priceCents: p.priceCents,
+        priceCents: Math.min.apply(null, prices),
+        fromPrice: Math.min.apply(null, prices) !== Math.max.apply(null, prices),
         currency: p.currency,
         category: p.category,
         cat: slugs.join(' '),
         brand: brandSlugs.join(' '),
+        variants: several ? variants.map(function (v) { return v.variation || ''; }).join(' ') : '',
+        choices: several ? choicesHTML(groups[key], known) : '',
         imageHtml: image,
-        imageUrls: urls
+        imageUrls: cardUrls
       }, index);
     }).join('');
     renderFilters(categories, photos, brands);
@@ -434,6 +555,27 @@
     grid.querySelectorAll('.product-card__media img').forEach(function (img) {
       img.addEventListener('error', function () { img.outerHTML = paw(); });
     });
+    return known;
+  }
+  // « 3 couleurs · 2 tailles » under the price of a card that groups variations,
+  // with the colours as small dots.
+  function choicesHTML(ids, known) {
+    var counts = [];
+    var dots = [];
+    ids.forEach(function (id) {
+      known[id].options.forEach(function (o) {
+        var entry = counts.find(function (c) { return c.name === o.name; });
+        if (!entry) counts.push(entry = { name: o.name, values: [] });
+        if (entry.values.indexOf(o.value) !== -1) return;
+        entry.values.push(o.value);
+        if (o.swatch && dots.length < 6 && dots.indexOf(o.swatch) === -1) dots.push(o.swatch);
+      });
+    });
+    var text = counts.map(function (c) {
+      var word = c.name.toLowerCase();
+      return c.values.length + ' ' + (c.values.length > 1 && !/[sxz]$/.test(word) ? word + 's' : word);
+    }).join(' · ');
+    return '<span class="product-card__choices">' + dots.map(function (sw) { return '<i' + swatchAttr(sw) + '></i>'; }).join('') + escapeHtml(text) + '</span>';
   }
   function markAdded(btn) {
     btn.dataset.added = 'true';
@@ -466,9 +608,10 @@
       if (!data || data.error || typeof data.configured !== 'boolean' || !Array.isArray(data.products)) throw new Error('catalog');
       activeCategory = 'tous';
       activeBrand = 'toutes';
+      var known = null;
       if (data.configured) {
         mode = 'square';
-        renderSquareCatalog(data.products, Array.isArray(data.categories) ? data.categories : []);
+        known = renderSquareCatalog(data.products, Array.isArray(data.categories) ? data.categories : []);
         notice.textContent = data.products.length ? 'Paiement sécurisé avec Square · Cueillette au salon' : 'La boutique se prépare. Aucun produit n’est disponible en ligne pour le moment. Contactez le salon pour être conseillé.';
       } else {
         mode = 'preview';
@@ -478,7 +621,7 @@
         notice.textContent = 'Aperçu de la boutique — produits et prix à confirmer. Vous pouvez essayer le panier; les commandes en ligne ne sont pas encore ouvertes.';
       }
       grid.hidden = false;
-      hydrate();
+      hydrate(known);
     } catch (e) {
       mode = 'error';
       grid.hidden = true;
@@ -540,6 +683,7 @@
     if (btn.hasAttribute('data-cart-close')) closeCart();
     if (btn.hasAttribute('data-product-close')) closeProduct();
     if (btn.hasAttribute('data-sheet-image')) { setSheetImage(Number(btn.dataset.sheetImage)); return; }
+    if (btn.hasAttribute('data-option-name')) { selectOption(btn.dataset.optionName, btn.dataset.optionValue); return; }
     if (btn.hasAttribute('data-catalog-retry')) loadCatalog();
     if (btn.hasAttribute('data-add')) addToCart(btn.dataset.add, btn.hasAttribute('data-product-add') ? productQty : 1, btn);
     if (btn.hasAttribute('data-product-inc')) { productQty = Math.min(99, productQty + 1); renderProductQty(); }

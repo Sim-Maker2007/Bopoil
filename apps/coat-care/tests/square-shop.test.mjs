@@ -8,6 +8,7 @@ process.env.SQUARE_API_VERSION = "2026-07-15";
 
 const {
   brandFromName,
+  parseVariationName,
   normalizeCatalog,
   normalizeCategories,
   fetchShop,
@@ -78,6 +79,9 @@ test("normalizeCatalog maps items to priced products with images and categories"
     category: "Soins",
     categories: ["Soins"],
     brands: [],
+    itemName: "Shampooing doux",
+    variation: "",
+    options: [],
   });
 });
 
@@ -180,6 +184,61 @@ test("normalizeCatalog groups brand spellings and adds products of a category na
   assert.deepEqual(products[6].categories, ["Maison et entretien", "Lucky Bones"], "categories are left as Square has them");
 });
 
+test("parseVariationName splits a variation name into colour, size and format", () => {
+  assert.deepEqual(parseVariationName("XL Bleu Foncé"), { Taille: "XL", Couleur: "Bleu Foncé" });
+  assert.deepEqual(parseVariationName("L/G bleu"), { Taille: "L/G", Couleur: "Bleu" });
+  assert.deepEqual(parseVariationName("3XL Camo"), { Taille: "3XL", Couleur: "Camo" });
+  assert.deepEqual(parseVariationName("250g"), { Format: "250g" });
+  assert.deepEqual(parseVariationName("1 L"), { Format: "1 L" }, "a volume is not a size");
+  assert.deepEqual(parseVariationName("Paquet (5)"), { Format: "Paquet (5)" });
+  assert.deepEqual(parseVariationName("Unité"), { Format: "Unité" });
+  assert.deepEqual(parseVariationName("Grand modèle"), { Modèle: "Grand modèle" });
+});
+
+test("normalizeCatalog describes each variation of an item by its choices", () => {
+  const item = (id, name, labels, extra = {}) => ({
+    id,
+    type: "ITEM",
+    item_data: {
+      name,
+      ...extra,
+      variations: labels.map((label, index) => ({
+        id: `${id}_${index}`,
+        item_variation_data: { name: label, price_money: { amount: 500 + index, currency: "CAD" }, ...(extra.values ? { item_option_values: extra.values[index] } : {}) },
+      })),
+    },
+  });
+  const products = normalizeCatalog([
+    item("LEASH", "ZEUS Laisse", ["M Vert", "M Noir", "XL Vert"]),
+    item("HARNESS", "ZEUS Harnais", ["L Vert", "L Noir"]),
+    item("TREAT", "SMACK Chiens Poulet", ["250g", "25g"]),
+    item("ODD", "Jouet", ["Petit", "Grand 6\""]),
+    item("MIXED", "Collier", ["S", "Bleu"]),
+    item("SOLO", "Brosse", ["Régulier"]),
+    item("SQUARE", "Manteau", ["Rouge, S", "Rouge, M"], {
+      values: [
+        [{ item_option_id: "OPT_COLOR", item_option_value_id: "RED" }, { item_option_id: "OPT_SIZE", item_option_value_id: "S" }],
+        [{ item_option_id: "OPT_COLOR", item_option_value_id: "RED" }, { item_option_id: "OPT_SIZE", item_option_value_id: "M" }],
+      ],
+    }),
+    { id: "OPT_COLOR", type: "ITEM_OPTION", item_option_data: { name: "Couleur", show_colors: true, values: [{ id: "RED", item_option_value_data: { name: "Rouge", color: "#aa0000ff" } }] } },
+    { id: "OPT_SIZE", type: "ITEM_OPTION", item_option_data: { name: "Taille", values: [{ id: "S", item_option_value_data: { name: "Petit" } }, { id: "M", item_option_value_data: { name: "Moyen" } }] } },
+  ]);
+  const options = Object.fromEntries(products.map((p) => [p.id, p.options]));
+  assert.deepEqual(options.LEASH_0, [{ name: "Couleur", value: "Vert", swatch: "#3c8d4a" }, { name: "Taille", value: "M", swatch: "" }]);
+  assert.deepEqual(options.LEASH_2, [{ name: "Couleur", value: "Vert", swatch: "#3c8d4a" }, { name: "Taille", value: "XL", swatch: "" }]);
+  assert.deepEqual(options.HARNESS_1, [{ name: "Couleur", value: "Noir", swatch: "#141414" }], "a size every variation shares is not a choice");
+  assert.deepEqual(options.TREAT_1, [{ name: "Format", value: "25g", swatch: "" }]);
+  assert.deepEqual(options.ODD_1, [{ name: "Modèle", value: "Grand 6\"", swatch: "" }]);
+  assert.deepEqual(options.MIXED_0, [{ name: "Modèle", value: "S", swatch: "" }], "names that do not split the same way stay whole");
+  assert.deepEqual(options.SOLO_0, []);
+  assert.deepEqual(options.SQUARE_1, [{ name: "Couleur", value: "Rouge", swatch: "#aa0000" }, { name: "Taille", value: "Moyen", swatch: "" }], "Square item options win over the name");
+  const leash = products.find((p) => p.id === "LEASH_1");
+  assert.equal(leash.itemName, "ZEUS Laisse");
+  assert.equal(leash.variation, "M Noir");
+  assert.equal(leash.name, "ZEUS Laisse — M Noir", "the cart and checkout keep the full name");
+});
+
 test("normalizeCategories returns the Square photo of each category a listed product uses", () => {
   const objects = [
     { id: "ITEM_A", type: "ITEM", item_data: { name: "A", categories: [{ id: "CAT_TREATS" }, { id: "CAT_DOGS" }], variations: [{ id: "VAR_A", item_variation_data: { price_money: { amount: 500, currency: "CAD" } } }] } },
@@ -252,7 +311,7 @@ test("fetchShopCatalog posts a catalog search and returns normalized products", 
   assert.match(calls[0].url, /catalog\/search$/);
   assert.equal(calls[0].init.method, "POST");
   const sent = JSON.parse(calls[0].init.body);
-  assert.deepEqual(sent.object_types, ["ITEM", "CATEGORY"]);
+  assert.deepEqual(sent.object_types, ["ITEM", "CATEGORY", "ITEM_OPTION"]);
   assert.equal(sent.include_related_objects, true);
   assert.equal(products.length, 1);
   assert.equal(products[0].id, "VAR_1");
