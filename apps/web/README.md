@@ -37,6 +37,13 @@ Un article dont le nom ne commence pas par sa marque en majuscules n'a pas de
 marque. Une catégorie Square qui porte le nom d'une marque passe dans la rangée
 de marques, avec tous ses articles.
 
+Un article Square offert en plusieurs variations (couleurs, tailles, formats)
+forme une seule fiche, avec un sélecteur par choix : pastilles pour les
+couleurs, boutons pour le reste. Les choix viennent des options d'article
+Square (Couleur, Taille…) quand elles sont utilisées ; sinon, ils sont lus dans
+le nom de la variation (« M Vert » : taille M, couleur verte ; « 250g » :
+format).
+
 ### Prévisualiser sur votre ordinateur
 
 ```bash

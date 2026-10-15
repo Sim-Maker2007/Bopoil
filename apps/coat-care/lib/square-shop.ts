@@ -17,7 +17,15 @@ export type ShopProduct = {
   category: string; // primary (reporting) category, shown on the product badge
   categories: string[]; // every Square category the item is filed under, primary first
   brands: string[]; // brand read from the item name, plus any category named after a brand
+  itemName: string; // the item alone, shared by all of its variations
+  variation: string; // the variation's own name ("M Vert", "250g"), "" when it has none
+  options: ShopOption[]; // what sets the variation apart from the item's others; empty for an item sold one way
 };
+
+// One choice that sets a variation apart, e.g. { name: "Couleur", value: "Bleu",
+// swatch: "#2f6db5" }. The swatch is a hex colour, "camo" for the camouflage
+// pattern, or "" when the choice is not a colour.
+export type ShopOption = { name: string; value: string; swatch: string };
 
 // A category used by at least one listed product, with the photo set on the
 // category in Square ("" when it has none).
@@ -46,10 +54,11 @@ type CatalogObject = Availability & {
     category_id?: string;
     categories?: Array<{ id?: string }>;
     reporting_category?: { id?: string };
-    variations?: Array<Availability & { id: string; item_variation_data?: { name?: string; sellable?: boolean; pricing_type?: string; price_money?: Money; image_ids?: string[]; location_overrides?: Array<{ location_id?: string; price_money?: Money; sold_out?: boolean }> } }>;
+    variations?: Array<Availability & { id: string; item_variation_data?: { name?: string; sellable?: boolean; pricing_type?: string; price_money?: Money; image_ids?: string[]; item_option_values?: Array<{ item_option_id?: string; item_option_value_id?: string }>; location_overrides?: Array<{ location_id?: string; price_money?: Money; sold_out?: boolean }> } }>;
   };
   image_data?: { url?: string };
   category_data?: { name?: string; image_ids?: string[] };
+  item_option_data?: { name?: string; display_name?: string; show_colors?: boolean; values?: Array<{ id: string; item_option_value_data?: { name?: string; color?: string } }> };
 };
 
 type CatalogSearchResult = { objects?: CatalogObject[]; related_objects?: CatalogObject[]; cursor?: string };
@@ -123,6 +132,114 @@ function groupBrands(products: ShopProduct[]) {
     product.brands = uniqueIds([...product.brands.map(grouped), ...product.categories].map((name) => display.get(brandKey(name))));
   }
   return products;
+}
+
+// Colours written in Square variation names (unaccented, lowercase), drawn as swatches.
+const SWATCHES: Record<string, string> = {
+  "bleu fonce": "#1f3466",
+  "bleu marine": "#1d2b4f",
+  "bleu pale": "#9cc3e6",
+  marine: "#1d2b4f",
+  bleu: "#2f6db5",
+  vert: "#3c8d4a",
+  noir: "#141414",
+  noire: "#141414",
+  rose: "#e58fb1",
+  rouge: "#c8312f",
+  mauve: "#9b6bb5",
+  violet: "#6e3fa3",
+  jaune: "#f2c94c",
+  beige: "#d9c7a7",
+  gris: "#9a9a9a",
+  grise: "#9a9a9a",
+  blanc: "#ffffff",
+  blanche: "#ffffff",
+  brun: "#7a4e2d",
+  brune: "#7a4e2d",
+  orange: "#ef8a2b",
+  turquoise: "#2bb3b1",
+  argent: "#c0c0c0",
+  camo: "camo",
+};
+const HEX_COLOR = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
+// Clothing sizes as the salon writes them: S, M, XL, 3XL, S/P, L/G…
+const SIZE_WORD = /^\(?(\d?X{0,3}[SML]|XXS|XS|S\/P|M\/M|L\/G|XL\/TG|TP|TG)\)?$/i;
+// Weights, volumes and packs: 250g, 1 L, 3.5 lbs, Paquet (5), Unité.
+const FORMAT = /^(\d+([.,]\d+)?\s?(mg|g|kg|ml|l|lbs?|oz)|paquets?\b.*|unites?)$/;
+const OPTION_ORDER = ["Couleur", "Taille", "Format", "Modèle"];
+
+function plain(value: string) {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+}
+
+export function colorSwatch(value = "") {
+  const words = plain(value).split(/\s+/);
+  return SWATCHES[words.slice(0, 2).join(" ")] || SWATCHES[words[0]] || "";
+}
+
+function capitalized(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+// Reads the choices out of a variation name: « M Vert » is a size and a
+// colour, « 250g » a format. Whatever is left over is a « Modèle ».
+export function parseVariationName(name = ""): Record<string, string> {
+  if (FORMAT.test(plain(name))) return { Format: name.trim() };
+  const words = name.split(/\s+/).filter(Boolean);
+  const parts: Record<string, string> = {};
+  const at = words.findIndex((word) => SIZE_WORD.test(word));
+  if (at !== -1) parts.Taille = words.splice(at, 1)[0].replace(/[()]/g, "").toUpperCase();
+  const rest = capitalized(words.join(" "));
+  if (rest) parts[FORMAT.test(plain(rest)) ? "Format" : colorSwatch(rest) ? "Couleur" : "Modèle"] = rest;
+  return parts;
+}
+
+type SquareOptions = Map<string, { name: string; colors: boolean; values: Map<string, { name: string; color: string }> }>;
+
+function indexItemOptions(objects: CatalogObject[]): SquareOptions {
+  const options: SquareOptions = new Map();
+  for (const object of objects) {
+    const data = object.type === "ITEM_OPTION" ? object.item_option_data : undefined;
+    if (!data) continue;
+    const values = new Map((data.values || []).map((value) => [value.id, { name: value.item_option_value_data?.name || "", color: value.item_option_value_data?.color || "" }]));
+    options.set(object.id, { name: data.display_name || data.name || "", colors: Boolean(data.show_colors), values });
+  }
+  return options;
+}
+
+// The choices set with Square's own item options (Couleur, Taille…), or null
+// when the variation has none or one cannot be resolved.
+function squareOptionChoices(values: Array<{ item_option_id?: string; item_option_value_id?: string }> = [], options: SquareOptions) {
+  if (!values.length) return null;
+  const choices: ShopOption[] = [];
+  for (const entry of values) {
+    const option = options.get(entry.item_option_id || "");
+    const value = option?.values.get(entry.item_option_value_id || "");
+    if (!option?.name || !value?.name) return null;
+    const swatch = option.colors && HEX_COLOR.test(value.color) ? value.color.slice(0, 7) : option.colors ? colorSwatch(value.name) : "";
+    choices.push({ name: option.name, value: value.name, swatch });
+  }
+  return choices;
+}
+
+// The choices that set each listed variation of one item apart. Square item
+// options are used when every variation has them; otherwise the variation
+// names are split into colour, size and format. When the names do not split
+// cleanly, each whole name is one choice.
+function variantOptions(variations: Array<{ label: string; square: ShopOption[] | null }>): ShopOption[][] {
+  if (variations.length < 2) return variations.map(() => []);
+  if (variations.every((variation) => variation.square)) return variations.map((variation) => variation.square!);
+  const parsed = variations.map((variation) => parseVariationName(variation.label));
+  const names = OPTION_ORDER.filter((name) => parsed.some((parts) => name in parts));
+  const varying = names.filter((name) => new Set(parsed.map((parts) => parts[name])).size > 1);
+  const keys = parsed.map((parts) => varying.map((name) => parts[name]).join("\u0000"));
+  const clean = varying.length && parsed.every((parts) => names.every((name) => name in parts)) && new Set(keys).size === keys.length;
+  if (clean) {
+    return parsed.map((parts) => varying.map((name) => ({ name, value: parts[name], swatch: name === "Couleur" ? colorSwatch(parts[name]) : "" })));
+  }
+  const kinds = new Set(parsed.map((parts) => Object.keys(parts).join()));
+  const name = kinds.size === 1 && (kinds.has("Format") || kinds.has("Couleur")) ? [...kinds][0] : "Modèle";
+  return variations.map((variation) => [{ name, value: variation.label, swatch: name === "Couleur" ? colorSwatch(variation.label) : "" }]);
 }
 
 function httpsUrl(url = "") {
@@ -201,6 +318,7 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
   for (const object of [...related, ...objects]) {
     if (object.type === "CATEGORY" && object.category_data?.name) categories.set(object.id, object.category_data.name);
   }
+  const itemOptions = indexItemOptions([...related, ...objects]);
   const products: ShopProduct[] = [];
   for (const object of objects) {
     if (object.type !== "ITEM" || !availableAt(object, locationId)) continue;
@@ -214,6 +332,7 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
     ].map((id) => (id && categories.get(id)) || ""));
     const itemCategories = categoryNames.length ? categoryNames : ["Boutique"];
     const nameBrand = brandFromName(item.name);
+    const listed: Array<{ product: ShopProduct; label: string; square: ShopOption[] | null }> = [];
     for (const variation of item.variations || []) {
       const data = variation.item_variation_data;
       if (!availableAt(variation, locationId) || !data || data.sellable === false || data.pricing_type === "VARIABLE_PRICING") continue;
@@ -222,7 +341,8 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
       const price = override?.price_money || data.price_money;
       if (!price || !Number.isSafeInteger(price.amount) || price.amount! < 0) continue;
       const imageUrls = variationImageIds(item, variation.id).map((id) => images.get(id) || "").filter(Boolean);
-      products.push({
+      const variationName = genericVariationName(data.name) ? "" : (data.name || "").trim();
+      listed.push({ label: variationName || "Standard", square: squareOptionChoices(data.item_option_values, itemOptions), product: {
         id: variation.id,
         itemId: object.id,
         name: shopDisplayName(item.name || "Article", data.name || ""),
@@ -234,8 +354,13 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
         category: itemCategories[0],
         categories: itemCategories,
         brands: nameBrand ? [nameBrand] : [],
-      });
+        itemName: shopDisplayName(item.name || "Article"),
+        variation: variationName,
+        options: [],
+      } });
     }
+    const options = variantOptions(listed);
+    listed.forEach((entry, index) => products.push({ ...entry.product, options: options[index] }));
   }
   return groupBrands(products);
 }
@@ -262,8 +387,9 @@ export async function fetchShop(fetcher?: typeof fetch): Promise<{ products: Sho
       method: "POST",
       fetcher,
       // Square's related_objects only carry an item's reporting category, so the
-      // categories themselves are listed too to name every category an item is in.
-      body: { object_types: ["ITEM", "CATEGORY"], include_related_objects: true, include_deleted_objects: false, ...(cursor ? { cursor } : {}) },
+      // categories themselves are listed too to name every category an item is in,
+      // and so are the item options (Couleur, Taille…) that name variations.
+      body: { object_types: ["ITEM", "CATEGORY", "ITEM_OPTION"], include_related_objects: true, include_deleted_objects: false, ...(cursor ? { cursor } : {}) },
     });
     objects.push(...result.objects || []);
     related.push(...result.related_objects || []);
