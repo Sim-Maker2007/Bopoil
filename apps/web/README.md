@@ -23,11 +23,17 @@ n'importe quel hébergement statique pour un aperçu.
 
 **Boutique en ligne.** La page `boutique.html` est publiée seulement lorsque la
 variable d'environnement `BOUTIQUE_ENABLED=true` est définie sur Vercel. Sinon,
-le script de synchronisation retire le lien « Boutique » du menu et l'entrée du
-plan de site, et `apps/coat-care/proxy.ts` répond 404 pour la page, ses fichiers
-et l'API de la boutique. Une clé `BOUTIQUE_PREVIEW_KEY` permet de déverrouiller
+le script de synchronisation retire le lien « Boutique » du menu, le panier des
+autres pages et l'entrée du plan de site, et `apps/coat-care/proxy.ts` répond
+404 pour la page, ses fichiers, ceux du panier et l'API de la boutique. Une clé `BOUTIQUE_PREVIEW_KEY` permet de déverrouiller
 la boutique sur un navigateur donné (`boutique.html?apercu=<clé>`). Les fichiers
 de ce dossier ne sont jamais modifiés ; voir le README à la racine du dépôt.
+
+**Panier.** Le bouton « Panier » de l'en-tête et son tiroir sont sur toutes les
+pages (`css/cart.css`, `js/cart.js`). Le panier reste sur l'appareil du
+visiteur. La boutique y enregistre le nom, le prix et la photo de chaque
+article ajouté, pour que les autres pages l'affichent sans recharger le
+catalogue; Square confirme les prix et la disponibilité au paiement.
 
 Les filtres de la boutique viennent de Square. La rangée de catégories reprend
 les catégories Square, sauf « Boutique », qui regroupe presque tout. La rangée
@@ -233,8 +239,12 @@ liens.html                page cachée « Nos liens » (code QR), hors plan de s
 
 css/tokens.css            jetons de design extraits de l'ancien site
 css/style.css             mise en page et composants
+css/cart.css              bouton et tiroir du panier, sur toutes les pages
+css/boutique.css          page boutique — catalogue, filtres, fiche produit
 js/config.js              ⚙️ configuration — Square, CRM, coordonnées, mesure d'audience
 js/main.js                carrousel, navigation, formulaires, repli réservation
+js/cart.js                panier sur toutes les pages, paiement Square
+js/boutique.js            catalogue Square de la page boutique
 images/                   photos JPEG + WebP en plusieurs largeurs (srcset) + logo
 tools/build.py            générateur de pages, données structurées, sitemap, robots
 tools/optimize-images.mjs variantes WebP et vignettes 400 px

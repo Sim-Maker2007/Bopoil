@@ -1,7 +1,7 @@
 // Build-time half of the boutique gate (the request-time half lives in
 // apps/coat-care/proxy.ts). While the store is hidden, the synchronized copy of
-// the public website carries no "Boutique" navigation link and no sitemap entry,
-// so nothing on the live site points to the page.
+// the public website carries no "Boutique" navigation link, no cart and no
+// sitemap entry, so nothing on the live site points to the page.
 
 export const BOUTIQUE_ENABLED_VARIABLE = "BOUTIQUE_ENABLED";
 // Build-time half of the reservation gate (request-time half in
@@ -10,6 +10,14 @@ export const BOUTIQUE_ENABLED_VARIABLE = "BOUTIQUE_ENABLED";
 export const ONLINE_BOOKING_ENABLED_VARIABLE = "ONLINE_BOOKING_ENABLED";
 
 const navigationItem = /\s*<li class="nav-item"><a class="nav-link" href="boutique\.html"[^>]*>Boutique<\/a><\/li>/g;
+// The cart every page carries: header button, drawer, stylesheet and script.
+// boutique.html keeps its own, for browsers unlocked with the preview key.
+const cartPieces = [
+  /\s*<link rel="stylesheet" href="css\/cart\.css">/g,
+  /\s*<button class="cart-btn"[^>]*>[\s\S]*?<\/button>/g,
+  /\s*<div class="cart-overlay"[^>]*><\/div>\s*<aside class="cart-drawer"[^>]*>[\s\S]*?<\/aside>/g,
+  /\s*<script src="js\/cart\.js" defer><\/script>/g,
+];
 const sitemapEntry = /\s*<url><loc>[^<]*\/boutique\.html<\/loc>(?:(?!<\/url>).)*<\/url>/gs;
 
 export function boutiqueEnabled(env = process.env) {
@@ -32,6 +40,10 @@ export function hideBoutiqueInHtml(html) {
   return html.replace(navigationItem, "");
 }
 
+export function hideCartInHtml(html) {
+  return cartPieces.reduce((output, piece) => output.replace(piece, ""), html);
+}
+
 export function hideBoutiqueInSitemap(xml) {
   return xml.replace(sitemapEntry, "");
 }
@@ -41,6 +53,7 @@ export function transformPublicFile(name, content, env = process.env) {
   let output = content;
   if (!boutiqueEnabled(env)) {
     if (name.endsWith(".html")) output = hideBoutiqueInHtml(output);
+    if (name.endsWith(".html") && name !== "boutique.html") output = hideCartInHtml(output);
     if (name === "sitemap.xml") output = hideBoutiqueInSitemap(output);
   }
   if (!onlineBookingEnabled(env) && name === "rendez-vous.html") output = pauseBookingInHtml(output);

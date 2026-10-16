@@ -1,9 +1,10 @@
 /* BOPOIL boutique. Live products come from Square; the unconnected catalog is
-   an explicitly labelled preview. Carts stay on this device, separately by mode. */
+   an explicitly labelled preview. The cart itself is js/cart.js, on every page. */
 (function () {
   'use strict';
   var grid = document.querySelector('[data-shop-grid]');
-  if (!grid) return;
+  var Cart = window.BopoilCart;
+  if (!grid || !Cart) return;
   var fallbackHTML = grid.innerHTML;
   var filtersEl = document.querySelector('[data-shop-filters]');
   var fallbackFilters = filtersEl.innerHTML;
@@ -14,16 +15,7 @@
   var searchEl = document.querySelector('[data-shop-search]');
   var sortEl = document.querySelector('[data-shop-sort]');
   var statusEl = document.querySelector('[data-order-status]');
-  var overlay = document.querySelector('[data-cart-overlay]');
-  var drawer = document.querySelector('[data-cart-drawer]');
-  var itemsEl = document.querySelector('[data-cart-items]');
-  var footEl = document.querySelector('[data-cart-foot]');
-  var subtotalEl = document.querySelector('[data-cart-subtotal]');
-  var confirmEl = document.querySelector('[data-cart-confirm]');
-  var noteEl = document.querySelector('[data-cart-note]');
-  var checkoutBtn = document.querySelector('[data-cart-checkout]');
   var toast = document.querySelector('[data-shop-toast]');
-  var announcement = document.querySelector('[data-shop-announcement]');
   var productOverlay = document.querySelector('[data-product-overlay]');
   var sheet = document.querySelector('[data-product-sheet]');
   var sheetMedia = document.querySelector('[data-product-media]');
@@ -39,15 +31,9 @@
   // Variation ids of each card, keyed by Square item: a product sold in several
   // colours, sizes or formats is one card with a picker in the product sheet.
   var groups = Object.create(null);
-  var cart = Object.create(null);
   var cards = [];
   var activeCategory = 'tous';
   var activeBrand = 'toutes';
-  var lastFocus;
-  var inerted = [];
-  var toastTimer;
-  var checkoutBusy = false;
-  var checkoutAttempt = null;
   var productQty = 1;
   var openProductId = '';
   var CAT_PHOTOS = [
@@ -64,112 +50,20 @@
   var HIDDEN_CATEGORIES = ['boutique'];
   var PLUS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
-  function escapeHtml(value) {
-    return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
-  function money(cents, currency) {
-    return new Intl.NumberFormat('fr-CA', { style: 'currency', currency: currency || 'CAD' }).format(cents / 100);
-  }
+  var escapeHtml = Cart.escapeHtml;
+  var money = Cart.money;
+  var paw = Cart.paw;
+  var allowedImageUrl = Cart.allowedImageUrl;
   function normalized(value) {
     return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
   function slug(value) { return normalized(value).replace(/[^a-z0-9]+/g, '-') || 'boutique'; }
-  function paw() {
-    return '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="10" r="2"/><circle cx="10" cy="6" r="2"/><circle cx="15" cy="6" r="2"/><circle cx="19" cy="10" r="2"/><path d="M8 16c1-2 2-3 4-3s3 1 4 3c2 4-2 4-4 3-2 1-6 1-4-3Z"/></svg>';
-  }
   function reduceMotion() {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  }
-  function storageKey() { return mode === 'square' ? 'bopoil_cart_v1' : 'bopoil_cart_preview_v1'; }
-  function readCart() {
-    var clean = Object.create(null);
-    try {
-      var data = JSON.parse(localStorage.getItem(storageKey()) || '{}');
-      if (!data || typeof data !== 'object' || Array.isArray(data)) return clean;
-      Object.keys(data).forEach(function (id) {
-        var qty = Number(data[id]);
-        if (products[id] && Number.isInteger(qty) && qty > 0) clean[id] = Math.min(99, qty);
-      });
-    } catch (e) { /* Shopping remains available without browser storage. */ }
-    return clean;
-  }
-  function saveCart() {
-    try { localStorage.setItem(storageKey(), JSON.stringify(cart)); } catch (e) { /* Device storage is optional. */ }
-  }
-  function itemCount() { return Object.keys(cart).reduce(function (n, id) { return n + cart[id]; }, 0); }
-  function subtotal() { return Object.keys(cart).reduce(function (n, id) { return n + products[id].price * cart[id]; }, 0); }
-  function announce(message) {
-    clearTimeout(toastTimer);
-    announcement.textContent = message;
-    toast.hidden = false;
-    toastTimer = setTimeout(function () { if (!toast.contains(document.activeElement)) toast.hidden = true; }, 5000);
-  }
-  function showMessage(message, error) {
-    confirmEl.hidden = !message;
-    confirmEl.className = 'cart-confirm' + (error ? ' cart-confirm--error' : '');
-    confirmEl.textContent = message;
   }
   function chromeHidden(hidden) {
     document.querySelectorAll('[data-shop-chrome]').forEach(function (el) { el.hidden = hidden; });
     brandsEl.hidden = hidden || !brandsEl.childElementCount;
-  }
-  function renderCart() {
-    var ids = Object.keys(cart);
-    var count = itemCount();
-    document.querySelectorAll('[data-cart-count]').forEach(function (el) { el.textContent = count; el.hidden = !count; });
-    document.querySelector('.cart-btn').setAttribute('aria-label', 'Ouvrir le panier, ' + count + ' article' + (count > 1 ? 's' : ''));
-    if (!ids.length) {
-      itemsEl.innerHTML = '<li class="cart-empty">' + paw() + '<p><strong>Votre panier est vide.</strong></p><p>Trouvez les petits essentiels de votre compagnon.</p><button class="btn btn--filled btn--small" type="button" data-cart-close>Explorer la boutique</button></li>';
-    } else {
-      itemsEl.innerHTML = ids.map(function (id) {
-        var p = products[id], key = escapeHtml(id), name = escapeHtml(p.name);
-        return '<li class="cart-line"><span class="cart-line__thumb">' + p.media + '</span><div class="cart-line__info"><p class="cart-line__name">' + name + '</p><p class="cart-line__unit">' + money(p.price, p.currency) + ' l’unité</p><div class="qty-stepper" role="group" aria-label="Quantité : ' + name + '"><button type="button" data-dec="' + key + '" aria-label="Retirer un : ' + name + '"' + (checkoutBusy ? ' disabled' : '') + '>−</button><span class="qty-stepper__val">' + cart[id] + '</span><button type="button" data-inc="' + key + '" aria-label="Ajouter un : ' + name + '"' + (cart[id] >= 99 || checkoutBusy ? ' disabled' : '') + '>+</button></div></div><div class="cart-line__end"><span class="cart-line__price">' + money(p.price * cart[id], p.currency) + '</span><button class="cart-line__remove" type="button" data-remove="' + key + '" aria-label="Retirer du panier : ' + name + '"' + (checkoutBusy ? ' disabled' : '') + '>Retirer</button></div></li>';
-      }).join('');
-    }
-    footEl.hidden = !ids.length;
-    subtotalEl.textContent = money(subtotal(), ids.length ? products[ids[0]].currency : 'CAD');
-    checkoutBtn.disabled = mode !== 'square' || checkoutBusy || !ids.length;
-    checkoutBtn.textContent = checkoutBusy ? 'Ouverture du paiement…' : mode === 'square' ? 'Continuer vers le paiement' : 'Paiement bientôt disponible';
-    noteEl.textContent = mode === 'square' ? 'Taxes et total confirmés sur Square. Cueillette au 38 avenue Gatineau après confirmation du salon.' : 'Panier d’aperçu : aucune commande ni réservation n’est envoyée. Contactez le salon pour acheter un produit.';
-  }
-  function setQty(id, qty) {
-    if (!products[id] || checkoutBusy || (mode !== 'square' && mode !== 'preview')) return;
-    if (qty <= 0) delete cart[id]; else cart[id] = Math.min(99, qty);
-    checkoutAttempt = null;
-    saveCart();
-    showMessage('');
-    renderCart();
-  }
-  function lockPage(except) {
-    lastFocus = document.activeElement;
-    inerted = Array.prototype.filter.call(document.body.children, function (el) {
-      return except.indexOf(el) === -1 && el.tagName !== 'SCRIPT' && !el.inert;
-    });
-    inerted.forEach(function (el) { el.inert = true; });
-  }
-  function unlockPage(restore) {
-    inerted.forEach(function (el) { el.inert = false; });
-    inerted = [];
-    if (restore !== false && lastFocus && lastFocus.isConnected) lastFocus.focus();
-  }
-  function openCart() {
-    if (sheet.dataset.open === 'true') closeProduct({ restore: false });
-    toast.hidden = true;
-    overlay.dataset.open = 'true';
-    drawer.dataset.open = 'true';
-    drawer.inert = false;
-    drawer.setAttribute('aria-hidden', 'false');
-    document.body.dataset.cartOpen = 'true';
-    lockPage([overlay, drawer, toast]);
-    drawer.querySelector('.cart-close').focus();
-  }
-  function closeCart(opts) {
-    overlay.dataset.open = 'false';
-    drawer.dataset.open = 'false';
-    drawer.inert = true;
-    drawer.setAttribute('aria-hidden', 'true');
-    document.body.dataset.cartOpen = 'false';
-    unlockPage(!opts || opts.restore !== false);
   }
   function requestedProductId() {
     return new URLSearchParams(window.location.search).get('produit') || '';
@@ -186,9 +80,9 @@
     sheetQty.textContent = String(productQty);
     var dec = sheet.querySelector('[data-product-dec]');
     var inc = sheet.querySelector('[data-product-inc]');
-    if (dec) dec.disabled = productQty <= 1 || checkoutBusy;
-    if (inc) inc.disabled = productQty >= 99 || checkoutBusy;
-    if (sheetAdd) sheetAdd.disabled = checkoutBusy || (mode !== 'square' && mode !== 'preview');
+    if (dec) dec.disabled = productQty <= 1 || Cart.busy();
+    if (inc) inc.disabled = productQty >= 99 || Cart.busy();
+    if (sheetAdd) sheetAdd.disabled = Cart.busy() || (mode !== 'square' && mode !== 'preview');
   }
   function variantsOf(id) {
     return groups[products[id].group] || [id];
@@ -270,12 +164,6 @@
     });
     if (again) again.focus();
   }
-  function allowedImageUrl(url) {
-    url = String(url || '').trim();
-    if (/^https:\/\//i.test(url)) return true;
-    if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return false;
-    return /^[\w][\w./-]*\.(jpg|jpeg|png|webp|gif)$/i.test(url);
-  }
   function galleryHTML(p) {
     var urls = (p.images || []).filter(allowedImageUrl);
     if (!urls.length) return p.media || paw();
@@ -302,7 +190,7 @@
       if (!opts || opts.updateUrl !== false) setProductParam(id, true);
       return;
     }
-    if (drawer.dataset.open === 'true') closeCart({ restore: false });
+    if (Cart.isOpen()) Cart.close({ restore: false });
     if (!fillProductSheet(id)) return;
     if (!opts || opts.updateUrl !== false) setProductParam(id);
     toast.hidden = true;
@@ -311,7 +199,7 @@
     sheet.inert = false;
     sheet.setAttribute('aria-hidden', 'false');
     document.body.dataset.productOpen = 'true';
-    lockPage([productOverlay, sheet, toast]);
+    Cart.lockPage([productOverlay, sheet, toast]);
     sheet.querySelector('[data-product-close]').focus();
   }
   function closeProduct(opts) {
@@ -326,7 +214,7 @@
     document.body.dataset.productOpen = 'false';
     openProductId = '';
     if (!opts || opts.updateUrl !== false) setProductParam('');
-    unlockPage(!opts || opts.restore !== false);
+    Cart.unlockPage(!opts || opts.restore !== false);
   }
   function syncProductFromUrl() {
     var id = requestedProductId();
@@ -475,8 +363,7 @@
         btn.setAttribute('aria-label', 'Ajouter au panier : ' + card.dataset.name);
       }
     });
-    cart = readCart();
-    renderCart();
+    Cart.load(mode, products);
     filterProducts();
     syncProductFromUrl();
   }
@@ -588,19 +475,14 @@
     }, 1400);
   }
   function addToCart(id, qty, btn) {
-    if (checkoutBusy || !products[id] || (mode !== 'square' && mode !== 'preview')) return;
-    var next = (cart[id] || 0) + (qty || 1);
-    if (next > 99) { announce('La limite est de 99 articles par produit.'); return; }
-    setQty(id, next);
-    announce(products[id].name + (qty > 1 ? ' ajoutés au panier.' : ' ajouté au panier.'));
-    if (btn) markAdded(btn);
+    if (mode !== 'square' && mode !== 'preview') return;
+    if (Cart.add(id, qty) && btn) markAdded(btn);
   }
   async function loadCatalog() {
     mode = 'loading';
     grid.setAttribute('aria-busy', 'true');
     notice.textContent = 'Chargement de la boutique…';
     grid.querySelectorAll('[data-add]').forEach(function (btn) { btn.disabled = true; });
-    renderCart();
     try {
       var res = await fetch('/api/public/shop', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
       if (!res.ok) throw new Error('catalog');
@@ -629,45 +511,10 @@
       countEl.textContent = 'Catalogue indisponible';
       notice.innerHTML = 'La boutique est temporairement indisponible. Votre panier enregistré est conservé.<button type="button" data-catalog-retry>Réessayer</button>';
       closeProduct({ restore: false, updateUrl: false });
-      renderCart();
     } finally {
       chromeHidden(mode === 'error' || !cards.length);
       grid.setAttribute('aria-busy', 'false');
     }
-  }
-  async function checkout() {
-    if (mode !== 'square' || checkoutBusy || !itemCount()) return;
-    var items = Object.keys(cart).map(function (id) { return { id: id, quantity: cart[id] }; });
-    var fingerprint = JSON.stringify(items);
-    if (!checkoutAttempt || checkoutAttempt.fingerprint !== fingerprint) checkoutAttempt = { fingerprint: fingerprint, key: crypto.randomUUID() };
-    checkoutBusy = true;
-    showMessage('');
-    renderCart();
-    renderProductQty();
-    try {
-      var res = await fetch('/api/public/shop/checkout', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ items: items, idempotencyKey: checkoutAttempt.key }), signal: AbortSignal.timeout(20000)
-      });
-      var data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error || 'Le paiement est indisponible. Veuillez réessayer.');
-      var url = new URL(data.url);
-      if (url.protocol !== 'https:' || !/(^|\.)(square\.link|squareup\.com|squareupsandbox\.com)$/.test(url.hostname)) throw new Error('Le lien de paiement est invalide. Veuillez contacter le salon.');
-      window.location.assign(url.href);
-    } catch (e) {
-      showMessage(e.name === 'TimeoutError' ? 'Le paiement prend trop de temps à répondre. Votre panier est conservé; veuillez réessayer.' : e.message || 'Le paiement est indisponible. Votre panier est conservé.', true);
-    } finally {
-      checkoutBusy = false;
-      renderCart();
-      renderProductQty();
-    }
-  }
-  function trapTab(e, dialog) {
-    var focusables = Array.prototype.filter.call(dialog.querySelectorAll('button:not(:disabled), a[href]'), function (el) { return el.getClientRects().length; });
-    if (!focusables.length) return;
-    var first = focusables[0], last = focusables[focusables.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
 
   document.addEventListener('click', function (e) {
@@ -679,8 +526,6 @@
     }
     var btn = e.target.closest('button');
     if (!btn) return;
-    if (btn.hasAttribute('data-cart-open')) openCart();
-    if (btn.hasAttribute('data-cart-close')) closeCart();
     if (btn.hasAttribute('data-product-close')) closeProduct();
     if (btn.hasAttribute('data-sheet-image')) { setSheetImage(Number(btn.dataset.sheetImage)); return; }
     if (btn.hasAttribute('data-option-name')) { selectOption(btn.dataset.optionName, btn.dataset.optionValue); return; }
@@ -688,26 +533,17 @@
     if (btn.hasAttribute('data-add')) addToCart(btn.dataset.add, btn.hasAttribute('data-product-add') ? productQty : 1, btn);
     if (btn.hasAttribute('data-product-inc')) { productQty = Math.min(99, productQty + 1); renderProductQty(); }
     if (btn.hasAttribute('data-product-dec')) { productQty = Math.max(1, productQty - 1); renderProductQty(); }
-    var attr = ['inc', 'dec', 'remove'].find(function (key) { return btn.hasAttribute('data-' + key); });
-    if (attr) {
-      var productId = btn.dataset[attr];
-      var lineIndex = Object.keys(cart).indexOf(productId);
-      setQty(productId, attr === 'remove' ? 0 : cart[productId] + (attr === 'inc' ? 1 : -1));
-      var replacement = Array.prototype.find.call(itemsEl.querySelectorAll('[data-' + attr + ']'), function (el) { return el.dataset[attr] === productId && !el.disabled; });
-      if (!replacement) replacement = itemsEl.querySelectorAll('li')[Math.max(0, lineIndex - 1)]?.querySelector('button:not(:disabled)');
-      (replacement || drawer.querySelector('.cart-close')).focus();
-    }
     if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter; filterProducts(); revealFilter(filtersEl, btn); revealFilter(brandsEl, brandsEl.querySelector('[aria-pressed="true"]')); }
     if (btn.hasAttribute('data-brand-filter')) { activeBrand = btn.dataset.brandFilter; filterProducts(); revealFilter(brandsEl, btn); }
     if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; activeBrand = 'toutes'; searchEl.value = ''; sortEl.value = 'name'; filterProducts(); revealFilter(filtersEl, filtersEl.querySelector('[data-filter="tous"]')); revealFilter(brandsEl, brandsEl.querySelector('[data-brand-filter="toutes"]')); searchEl.focus(); }
   });
-  overlay.addEventListener('click', closeCart);
   productOverlay.addEventListener('click', function () { closeProduct(); });
   sheet.addEventListener('click', function (e) { if (e.target === sheet) closeProduct(); });
   document.addEventListener('keydown', function (e) {
+    // The cart (js/cart.js) handles its own drawer.
+    if (Cart.isOpen()) return;
     if (e.key === 'Escape') {
-      if (drawer.dataset.open === 'true') closeCart();
-      else if (sheet.dataset.open === 'true') closeProduct();
+      if (sheet.dataset.open === 'true') closeProduct();
       return;
     }
     if (sheet.dataset.open === 'true' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
@@ -721,9 +557,7 @@
       }
       return;
     }
-    if (e.key !== 'Tab') return;
-    if (drawer.dataset.open === 'true') trapTab(e, drawer);
-    else if (sheet.dataset.open === 'true') trapTab(e, sheet);
+    if (e.key === 'Tab' && sheet.dataset.open === 'true') Cart.trapTab(e, sheet);
   });
   grid.addEventListener('pointermove', function (e) {
     if (reduceMotion() || e.pointerType !== 'mouse') return;
@@ -745,10 +579,9 @@
   });
   searchEl.addEventListener('input', filterProducts);
   sortEl.addEventListener('change', filterProducts);
-  checkoutBtn.addEventListener('click', checkout);
   window.addEventListener('popstate', syncProductFromUrl);
-  window.addEventListener('storage', function (e) { if (e.key === storageKey() && (mode === 'square' || mode === 'preview') && !checkoutBusy) { cart = readCart(); renderCart(); } });
-  window.addEventListener('pageshow', function (e) { if (e.persisted) { checkoutBusy = false; renderCart(); renderProductQty(); } });
+  document.addEventListener('bopoil:cart-busy', renderProductQty);
+  document.addEventListener('bopoil:cart-opening', function () { if (sheet.dataset.open === 'true') closeProduct({ restore: false }); });
   var params = new URLSearchParams(window.location.search);
   if (params.has('commande')) {
     statusEl.hidden = false;
@@ -756,6 +589,5 @@
     params.delete('commande');
     history.replaceState(null, '', window.location.pathname + (params.size ? '?' + params.toString() : '') + window.location.hash);
   }
-  renderCart();
   loadCatalog();
 })();

@@ -187,6 +187,38 @@ def nav_html(current):
     return "".join(out)
 
 
+# Bouton et tiroir du panier (css/cart.css, js/cart.js), sur chaque page. Tant
+# que la boutique est masquée, scripts/public-site-boutique.mjs les retire au
+# déploiement, avec le lien « Boutique » du menu.
+CART_BUTTON = """<button class="cart-btn" type="button" data-cart-open aria-haspopup="dialog" aria-controls="cart-drawer" aria-label="Ouvrir le panier">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H3"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>
+  <span class="cart-btn__label">Panier</span>
+  <span class="cart-btn__count" data-cart-count hidden>0</span>
+</button>"""
+
+CART_DRAWER = """  <div class="cart-overlay" data-cart-overlay></div>
+  <aside class="cart-drawer" id="cart-drawer" data-cart-drawer role="dialog" aria-modal="true"
+         aria-label="Votre panier" aria-hidden="true" inert>
+    <div class="cart-drawer__head">
+      <h2 class="cart-drawer__title">Votre panier</h2>
+      <button class="cart-close" type="button" data-cart-close aria-label="Fermer le panier">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <ul class="cart-drawer__items" data-cart-items></ul>
+    <p class="cart-confirm" data-cart-confirm role="status" hidden></p>
+    <div class="cart-drawer__foot" data-cart-foot hidden>
+      <dl class="cart-subtotal">
+        <dt>Sous-total</dt>
+        <dd data-cart-subtotal>0,00&nbsp;$</dd>
+      </dl>
+      <p class="cart-drawer__note" data-cart-note>Le paiement en ligne sera bientôt disponible.</p>
+      <button class="btn btn--filled cart-drawer__checkout" type="button" data-cart-checkout disabled>Paiement bientôt disponible</button>
+      <a class="cart-drawer__continue" href="boutique.html">Continuer mes achats</a>
+    </div>
+  </aside>"""
+
+
 def header_html(current):
     return f"""  <header class="site-header profile-primary-bold">
     <div class="container">
@@ -194,10 +226,6 @@ def header_html(current):
         <img src="images/logo-bopoil-blanc-720.png" width="230" height="103"
              alt="{SITE_NAME_ESC}" fetchpriority="high">
       </a>
-      <button class="nav-toggle" type="button" aria-expanded="false"
-              aria-controls="site-nav" aria-label="Ouvrir le menu">
-        <span></span><span></span><span></span>
-      </button>
       <nav class="nav" id="site-nav" aria-label="Navigation principale">
         <ul class="nav-list">
 {indent(nav_html(current), 10)}
@@ -206,6 +234,13 @@ def header_html(current):
           <a class="btn btn--filled btn--small" href="rendez-vous.html">Réserver</a>
         </div>
       </nav>
+      <div class="header-actions">
+{indent(CART_BUTTON, 8)}
+        <button class="nav-toggle" type="button" aria-expanded="false"
+                aria-controls="site-nav" aria-label="Ouvrir le menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
     </div>
   </header>"""
 
@@ -436,7 +471,8 @@ def page(filename, title, description, body, og_image="salon-photo-1-1600.jpg",
   <link rel="preload" href="fonts/libre-franklin-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/tokens.css">
-  <link rel="stylesheet" href="css/style.css">{extra_head}{jsonld(filename, raw_title)}
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/cart.css">{extra_head}{jsonld(filename, raw_title)}
 </head>
 <body>
   <a class="skip-link" href="#contenu">Passer au contenu principal</a>
@@ -447,12 +483,15 @@ def page(filename, title, description, body, og_image="salon-photo-1-1600.jpg",
 {body.rstrip()}
   </main>
 
+{CART_DRAWER}
+
 {footer_html()}
 
 {SMS_PILL}
 
   <script src="js/config.js"></script>
   <script src="js/main.js" defer></script>
+  <script src="js/cart.js" defer></script>
 </body>
 </html>
 """
