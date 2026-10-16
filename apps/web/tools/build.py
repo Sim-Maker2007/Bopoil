@@ -560,7 +560,29 @@ SALON_SLIDES = "\n".join(_slide_html(slug, alt) for slug, alt in SALON_PHOTOS)
 # ACCUEIL
 # ---------------------------------------------------------------------------
 
+# La diapositive de la boutique ouvre le carrousel et reste 10 secondes
+# (« delay », en millisecondes). Tant que la boutique est masquée,
+# scripts/public-site-boutique.mjs la retire au déploiement et l'accueil
+# redevient la première diapositive.
 HERO_SLIDES = [
+    {
+        "slug": "hero-boutique",
+        "alt": "Petit chien roux au foulard à carreaux, assis entre deux sacs de magasinage",
+        "scrim": "0.45",
+        "focal": "0.2",
+        "align": "end",
+        "balance": True,
+        "label": "Nouveau chez BOPOIL",
+        "title": "Venez visiter notre nouvelle boutique en ligne",
+        "body": ("Shampooings doux, brosses, gâteries et accessoires choisis par notre "
+                 "équipe. Commandez en ligne et passez les chercher au salon."),
+        "buttons": [
+            ('<a class="btn btn--filled" href="boutique.html">Découvrir la boutique</a>'),
+        ],
+        "eager": True,
+        "delay": 10000,
+        "boutique": True,
+    },
     {
         "slug": "hero-printemps",
         "alt": "Un chien et un chat blottis l'un contre l'autre dans un champ au soleil couchant",
@@ -575,6 +597,7 @@ HERO_SLIDES = [
             ('<a class="btn btn--outline" href="contactez-nous.html">Écrivez-nous!</a>'),
         ],
         "eager": True,
+        "h1": True,
     },
     {
         "slug": "hero-chiens",
@@ -632,23 +655,30 @@ def hero_html():
             title_cls += " hero-title--caps"
         if s.get("plum"):
             title_cls += " hero-title--plum"
+        if s.get("balance"):
+            title_cls += " hero-title--balance"
+        copy_cls = "hero-copy hero-copy--end" if s.get("align") == "end" else "hero-copy"
         label = f'<p class="hero-label">{s["label"]}</p>' if s.get("label") else ""
         picture = wide(
             s["slug"], s["alt"],
             loading="eager" if s.get("eager") else "lazy",
             sizes="100vw",
         )
-        if s.get("eager"):
+        # Seule la première image passe en priorité (élément le plus grand à l'écran).
+        if i == 0:
             picture = picture.replace('loading="eager"', 'loading="eager" fetchpriority="high"')
-        slides.append(f"""      <div class="hero-slide" data-active="{active}" aria-hidden="{'false' if i == 0 else 'true'}"
+        delay = f' data-delay="{s["delay"]}"' if s.get("delay") else ""
+        marker = " data-boutique-slide" if s.get("boutique") else ""
+        level = 1 if s.get("h1") else 2
+        slides.append(f"""      <div class="hero-slide" data-active="{active}" aria-hidden="{'false' if i == 0 else 'true'}"{delay}{marker}
            role="group" aria-roledescription="diapositive" aria-label="{i + 1} de {len(HERO_SLIDES)}">
         <div class="hero-media" style="--scrim-opacity: {s['scrim']};"{focal}>
           {picture}
         </div>
         <div class="hero-content">
-          <div class="hero-copy">
+          <div class="{copy_cls}">
             {label}
-            <h{2 if i else 1} class="{title_cls}">{s['title']}</h{2 if i else 1}>
+            <h{level} class="{title_cls}">{s['title']}</h{level}>
             <p class="hero-body">{s['body']}</p>
             <div class="btn-row">{''.join(s['buttons'])}</div>
           </div>

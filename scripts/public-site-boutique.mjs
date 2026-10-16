@@ -1,7 +1,8 @@
 // Build-time half of the boutique gate (the request-time half lives in
 // apps/coat-care/proxy.ts). While the store is hidden, the synchronized copy of
-// the public website carries no "Boutique" navigation link, no cart and no
-// sitemap entry, so nothing on the live site points to the page.
+// the public website carries no "Boutique" navigation link, no cart, no
+// boutique slide on the home page and no sitemap entry, so nothing on the live
+// site points to the page.
 
 export const BOUTIQUE_ENABLED_VARIABLE = "BOUTIQUE_ENABLED";
 // Build-time half of the reservation gate (request-time half in
@@ -18,6 +19,10 @@ const cartPieces = [
   /\s*<div class="cart-overlay"[^>]*><\/div>\s*<aside class="cart-drawer"[^>]*>[\s\S]*?<\/aside>/g,
   /\s*<script src="js\/cart\.js" defer><\/script>/g,
 ];
+// The boutique slide opens the home page carousel, followed by the welcome slide.
+const boutiqueSlide = /\s*<div class="hero-slide"[^>]*\bdata-boutique-slide\b[^>]*>[\s\S]*?(?=\s*<div class="hero-slide")/;
+const lastHeroDot = /<button class="hero-dot"[^>]*><\/button>(?=\s*<\/div>\s*<\/section>)/;
+const slideNumber = /(aria-roledescription="diapositive" aria-label=")(\d+) de (\d+)"/g;
 const sitemapEntry = /\s*<url><loc>[^<]*\/boutique\.html<\/loc>(?:(?!<\/url>).)*<\/url>/gs;
 
 export function boutiqueEnabled(env = process.env) {
@@ -44,6 +49,18 @@ export function hideCartInHtml(html) {
   return cartPieces.reduce((output, piece) => output.replace(piece, ""), html);
 }
 
+// Without its boutique slide, the carousel is the one the home page had before:
+// the welcome slide is first, shown, numbered 1 and its photo loaded first.
+export function hideBoutiqueSlide(html) {
+  if (!boutiqueSlide.test(html)) return html;
+  return html
+    .replace(boutiqueSlide, "")
+    .replace(lastHeroDot, "")
+    .replace(slideNumber, (_, start, number, total) => `${start}${number - 1} de ${total - 1}"`)
+    .replace('<div class="hero-slide" data-active="false" aria-hidden="true"', '<div class="hero-slide" data-active="true" aria-hidden="false"')
+    .replace('loading="eager" decoding="async"', 'loading="eager" fetchpriority="high" decoding="async"');
+}
+
 export function hideBoutiqueInSitemap(xml) {
   return xml.replace(sitemapEntry, "");
 }
@@ -54,6 +71,7 @@ export function transformPublicFile(name, content, env = process.env) {
   if (!boutiqueEnabled(env)) {
     if (name.endsWith(".html")) output = hideBoutiqueInHtml(output);
     if (name.endsWith(".html") && name !== "boutique.html") output = hideCartInHtml(output);
+    if (name === "index.html") output = hideBoutiqueSlide(output);
     if (name === "sitemap.xml") output = hideBoutiqueInSitemap(output);
   }
   if (!onlineBookingEnabled(env) && name === "rendez-vous.html") output = pauseBookingInHtml(output);

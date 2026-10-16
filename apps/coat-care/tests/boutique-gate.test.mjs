@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const { decideBoutiqueAccess, isBoutiquePath, boutiquePreviewKey, keysMatch, BOUTIQUE_PREVIEW_COOKIE } = await import("../lib/boutique-gate.ts");
-const { transformPublicFile, hideBoutiqueInHtml, hideCartInHtml, hideBoutiqueInSitemap } = await import("../../../scripts/public-site-boutique.mjs");
+const { transformPublicFile, hideBoutiqueInHtml, hideCartInHtml, hideBoutiqueSlide, hideBoutiqueInSitemap } = await import("../../../scripts/public-site-boutique.mjs");
 
 const hidden = {};
 const published = { BOUTIQUE_ENABLED: "true" };
@@ -53,9 +53,9 @@ test("the build strips the boutique navigation link, the cart and the sitemap en
   assert.doesNotMatch(hiddenIndex, /boutique\.html/);
   assert.doesNotMatch(hiddenIndex, /cart-|cart\.(css|js)|data-cart/);
   assert.match(hiddenIndex, /href="politique\.html">Politique</);
-  // Only the link and the cart go: the menu toggle and the page itself stay.
+  // Only the link, the cart and the boutique slide go: the menu toggle and the page itself stay.
   assert.match(hiddenIndex, /<div class="header-actions">\s*<button class="nav-toggle"[^>]*>\s*<span><\/span><span><\/span><span><\/span>\s*<\/button>\s*<\/div>/);
-  assert.equal(hiddenIndex.length, hideCartInHtml(index).length - '<li class="nav-item"><a class="nav-link" href="boutique.html">Boutique</a></li>'.length);
+  assert.equal(hiddenIndex.length, hideBoutiqueSlide(hideCartInHtml(index)).length - '<li class="nav-item"><a class="nav-link" href="boutique.html">Boutique</a></li>'.length);
   assert.equal(hideCartInHtml(index).split("data-carousel").length, index.split("data-carousel").length);
   assert.doesNotMatch(hideBoutiqueInHtml(boutique), /href="boutique\.html"[^>]*>Boutique</);
   // The boutique page keeps its cart for browsers unlocked with the preview key.
@@ -126,4 +126,39 @@ test("every page of the public site carries the cart, loaded before the boutique
   assert.match(cart, /\/api\/public\/shop\/checkout/);
   assert.doesNotMatch(script, /localStorage|\/api\/public\/shop\/checkout/);
   assert.match(script, /Cart\.load\(mode, products\)/);
+});
+
+test("the home page carousel opens on the boutique for 10 seconds, and drops it while the store is hidden", async () => {
+  const web = new URL("../../web/", import.meta.url);
+  const [index, main] = await Promise.all([
+    readFile(new URL("index.html", web), "utf8"),
+    readFile(new URL("js/main.js", web), "utf8"),
+  ]);
+  const slides = (html) => html.match(/<div class="hero-slide"[^>]*>\s*<\/?[^]*?(?=\s*<div class="hero-slide"|\s*<button class="hero-arrow)/g);
+  const dots = (html) => html.match(/<button class="hero-dot"/g).length;
+
+  const published = slides(index);
+  assert.equal(published.length, 5);
+  assert.match(published[0], /data-active="true" aria-hidden="false" data-delay="10000" data-boutique-slide/);
+  assert.match(published[0], /aria-label="1 de 5"/);
+  assert.match(published[0], /images\/hero-boutique-1600\.jpg/);
+  assert.match(published[0], /loading="eager" fetchpriority="high"/);
+  assert.match(published[0], /href="boutique\.html">Découvrir la boutique</);
+  assert.match(published[1], /data-active="false"[^]*aria-label="2 de 5"[^]*<h1 class="hero-title">/);
+  assert.equal((index.match(/fetchpriority="high" decoding/g) || []).length, 1);
+  assert.equal(dots(index), 5);
+  for (const file of ["hero-boutique-800.jpg", "hero-boutique-1600.jpg", "hero-boutique-800.webp", "hero-boutique-1600.webp"]) {
+    await readFile(new URL(`images/${file}`, web));
+  }
+  assert.match(main, /getAttribute\('data-delay'\)/);
+
+  const hidden = slides(transformPublicFile("index.html", index, {}));
+  assert.equal(hidden.length, 4);
+  assert.doesNotMatch(hidden.join(""), /boutique\.html|hero-boutique|data-boutique/);
+  assert.match(hidden[0], /data-active="true" aria-hidden="false"\s+role="group"[^>]*aria-label="1 de 4"/);
+  assert.match(hidden[0], /hero-printemps-1600\.jpg[^>]*loading="eager" fetchpriority="high"/);
+  assert.match(hidden[0], /<h1 class="hero-title">/);
+  hidden.slice(1).forEach((slide, i) => assert.match(slide, new RegExp(`data-active="false"[^]*aria-label="${i + 2} de 4"`)));
+  assert.equal(dots(transformPublicFile("index.html", index, {})), 4);
+  assert.equal(transformPublicFile("index.html", index, { BOUTIQUE_ENABLED: "true" }), null);
 });

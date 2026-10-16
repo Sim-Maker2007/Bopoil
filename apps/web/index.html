@@ -62,10 +62,24 @@
 
   <main id="contenu">
     <section class="hero" data-carousel aria-roledescription="carrousel" aria-label="Nos services">
-      <div class="hero-slide" data-active="true" aria-hidden="false"
-           role="group" aria-roledescription="diapositive" aria-label="1 de 4">
+      <div class="hero-slide" data-active="true" aria-hidden="false" data-delay="10000" data-boutique-slide
+           role="group" aria-roledescription="diapositive" aria-label="1 de 5">
+        <div class="hero-media" style="--scrim-opacity: 0.45;" data-focal-y="0.2">
+          <picture><source type="image/webp" srcset="images/hero-boutique-800.webp 800w, images/hero-boutique-1600.webp 1600w" sizes="100vw"><img src="images/hero-boutique-1600.jpg" srcset="images/hero-boutique-800.jpg 800w, images/hero-boutique-1600.jpg 1600w" sizes="100vw" width="1600" height="1066" alt="Petit chien roux au foulard à carreaux, assis entre deux sacs de magasinage" loading="eager" fetchpriority="high" decoding="async"></picture>
+        </div>
+        <div class="hero-content">
+          <div class="hero-copy hero-copy--end">
+            <p class="hero-label">Nouveau chez BOPOIL</p>
+            <h2 class="hero-title hero-title--balance">Venez visiter notre nouvelle boutique en ligne</h2>
+            <p class="hero-body">Shampooings doux, brosses, gâteries et accessoires choisis par notre équipe. Commandez en ligne et passez les chercher au salon.</p>
+            <div class="btn-row"><a class="btn btn--filled" href="boutique.html">Découvrir la boutique</a></div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-slide" data-active="false" aria-hidden="true"
+           role="group" aria-roledescription="diapositive" aria-label="2 de 5">
         <div class="hero-media" style="--scrim-opacity: 0.4;">
-          <picture><source type="image/webp" srcset="images/hero-printemps-800.webp 800w, images/hero-printemps-1600.webp 1600w" sizes="100vw"><img src="images/hero-printemps-1600.jpg" srcset="images/hero-printemps-800.jpg 800w, images/hero-printemps-1600.jpg 1600w" sizes="100vw" width="1600" height="1067" alt="Un chien et un chat blottis l'un contre l'autre dans un champ au soleil couchant" loading="eager" fetchpriority="high" decoding="async"></picture>
+          <picture><source type="image/webp" srcset="images/hero-printemps-800.webp 800w, images/hero-printemps-1600.webp 1600w" sizes="100vw"><img src="images/hero-printemps-1600.jpg" srcset="images/hero-printemps-800.jpg 800w, images/hero-printemps-1600.jpg 1600w" sizes="100vw" width="1600" height="1067" alt="Un chien et un chat blottis l'un contre l'autre dans un champ au soleil couchant" loading="eager" decoding="async"></picture>
         </div>
         <div class="hero-content">
           <div class="hero-copy">
@@ -77,7 +91,7 @@
         </div>
       </div>
       <div class="hero-slide" data-active="false" aria-hidden="true"
-           role="group" aria-roledescription="diapositive" aria-label="2 de 4">
+           role="group" aria-roledescription="diapositive" aria-label="3 de 5">
         <div class="hero-media" style="--scrim-opacity: 0.35;" data-focal-y="0.33">
           <picture><source type="image/webp" srcset="images/hero-chiens-800.webp 800w, images/hero-chiens-1600.webp 1600w" sizes="100vw"><img src="images/hero-chiens-1600.jpg" srcset="images/hero-chiens-800.jpg 800w, images/hero-chiens-1600.jpg 1600w" sizes="100vw" width="1280" height="564" alt="Chien qui s'ébroue joyeusement après son bain" loading="lazy" decoding="async"></picture>
         </div>
@@ -91,7 +105,7 @@
         </div>
       </div>
       <div class="hero-slide" data-active="false" aria-hidden="true"
-           role="group" aria-roledescription="diapositive" aria-label="3 de 4">
+           role="group" aria-roledescription="diapositive" aria-label="4 de 5">
         <div class="hero-media" style="--scrim-opacity: 0.49;">
           <picture><source type="image/webp" srcset="images/hero-chats-800.webp 800w, images/hero-chats-1600.webp 1600w" sizes="100vw"><img src="images/hero-chats-1600.jpg" srcset="images/hero-chats-800.jpg 800w, images/hero-chats-1600.jpg 1600w" sizes="100vw" width="1600" height="1068" alt="Chat noir et blanc étendu, détendu, sur le plancher du salon" loading="lazy" decoding="async"></picture>
         </div>
@@ -105,7 +119,7 @@
         </div>
       </div>
       <div class="hero-slide" data-active="false" aria-hidden="true"
-           role="group" aria-roledescription="diapositive" aria-label="4 de 4">
+           role="group" aria-roledescription="diapositive" aria-label="5 de 5">
         <div class="hero-media" style="--scrim-opacity: 0.35;">
           <picture><source type="image/webp" srcset="images/hero-petits-animaux-800.webp 800w, images/hero-petits-animaux-1600.webp 1600w" sizes="100vw"><img src="images/hero-petits-animaux-1600.jpg" srcset="images/hero-petits-animaux-800.jpg 800w, images/hero-petits-animaux-1600.jpg 1600w" sizes="100vw" width="1600" height="705" alt="Lapin couché sur une couverture" loading="lazy" decoding="async"></picture>
         </div>
@@ -123,7 +137,7 @@
       <button class="hero-arrow hero-arrow--next" type="button" data-carousel-next
               aria-label="Diapositive suivante">&#8250;</button>
       <div class="hero-dots" role="tablist" aria-label="Choisir une diapositive">
-        <button class="hero-dot" type="button" role="tab" aria-selected="true" aria-label="Diapositive 1"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 2"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 3"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 4"></button>
+        <button class="hero-dot" type="button" role="tab" aria-selected="true" aria-label="Diapositive 1"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 2"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 3"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 4"></button><button class="hero-dot" type="button" role="tab" aria-selected="false" aria-label="Diapositive 5"></button>
       </div>
     </section>
 

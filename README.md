@@ -47,7 +47,7 @@ The store ships in every deployment but stays invisible until it is switched on.
 
 | Variable | Effect |
 |---|---|
-| `BOUTIQUE_ENABLED=true` | Publishes the boutique: the **Boutique** navigation link and the header cart appear on every page, `boutique.html` is listed in the sitemap, and the page, its assets, the cart's (`css/cart.css`, `js/cart.js`) and the shop API respond normally. Any other value, or no value, hides all of it; a browser unlocked with the preview key sees the cart on `boutique.html` only. |
+| `BOUTIQUE_ENABLED=true` | Publishes the boutique: the **Boutique** navigation link and the header cart appear on every page, the home page carousel opens on a boutique slide, `boutique.html` is listed in the sitemap, and the page, its assets, the cart's (`css/cart.css`, `js/cart.js`) and the shop API respond normally. Any other value, or no value, hides all of it; a browser unlocked with the preview key sees the cart on `boutique.html` only. |
 | `BOUTIQUE_PREVIEW_KEY` | Optional secret of at least 8 characters. While the boutique is hidden, opening `https://www.bopoil.ca/boutique.html?apercu=<key>` once sets a private cookie on that browser for 30 days and unlocks the store there only. The key is removed from the address bar immediately. |
 
 Recommended setup for working on the store without exposing it:
