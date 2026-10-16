@@ -9,11 +9,13 @@ export const BOUTIQUE_PREVIEW_COOKIE = "__Host-bopoil_boutique";
 export const BOUTIQUE_PREVIEW_PARAM = "apercu";
 export const BOUTIQUE_PREVIEW_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
-// Every address the store needs: the page, its assets and the shop API.
+// Every address the store needs: the page, its assets, the cart's and the shop API.
 export const BOUTIQUE_PATH_PATTERNS = [
   /^\/boutique(\.html)?$/i,
   /^\/css\/boutique\.css$/i,
   /^\/js\/boutique\.js$/i,
+  /^\/css\/cart\.css$/i,
+  /^\/js\/cart\.js$/i,
   /^\/api\/public\/shop(\/.*)?$/i,
 ];
 

@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const { decideBoutiqueAccess, isBoutiquePath, boutiquePreviewKey, keysMatch, BOUTIQUE_PREVIEW_COOKIE } = await import("../lib/boutique-gate.ts");
-const { transformPublicFile, hideBoutiqueInHtml, hideBoutiqueInSitemap } = await import("../../../scripts/public-site-boutique.mjs");
+const { transformPublicFile, hideBoutiqueInHtml, hideCartInHtml, hideBoutiqueSlide, hideBoutiqueInSitemap } = await import("../../../scripts/public-site-boutique.mjs");
 
 const hidden = {};
 const published = { BOUTIQUE_ENABLED: "true" };
 const withKey = { BOUTIQUE_PREVIEW_KEY: "ninja-secret-key" };
 
-test("the boutique gate covers the page, its assets and the shop API only", () => {
-  for (const path of ["/boutique.html", "/boutique", "/css/boutique.css", "/js/boutique.js", "/api/public/shop", "/api/public/shop/checkout"]) {
+test("the boutique gate covers the page, its assets, the cart and the shop API only", () => {
+  for (const path of ["/boutique.html", "/boutique", "/css/boutique.css", "/js/boutique.js", "/css/cart.css", "/js/cart.js", "/api/public/shop", "/api/public/shop/checkout"]) {
     assert.equal(isBoutiquePath(path), true, path);
   }
   for (const path of ["/", "/index.html", "/nos-services.html", "/css/style.css", "/api/public/contact", "/salon"]) {
@@ -40,7 +40,7 @@ test("a preview key unlocks a hidden boutique for one browser and leaves the add
   assert.equal(keysMatch("abcd", "abc"), false);
 });
 
-test("the build strips the boutique navigation link and sitemap entry while the store is hidden", async () => {
+test("the build strips the boutique navigation link, the cart and the sitemap entry while the store is hidden", async () => {
   const [index, boutique, sitemap] = await Promise.all([
     readFile(new URL("../../web/index.html", import.meta.url), "utf8"),
     readFile(new URL("../../web/boutique.html", import.meta.url), "utf8"),
@@ -51,9 +51,17 @@ test("the build strips the boutique navigation link and sitemap entry while the 
 
   const hiddenIndex = transformPublicFile("index.html", index, hidden);
   assert.doesNotMatch(hiddenIndex, /boutique\.html/);
+  assert.doesNotMatch(hiddenIndex, /cart-|cart\.(css|js)|data-cart/);
   assert.match(hiddenIndex, /href="politique\.html">Politique</);
-  assert.equal(hiddenIndex.length, index.length - '<li class="nav-item"><a class="nav-link" href="boutique.html">Boutique</a></li>'.length);
+  // Only the link, the cart and the boutique slide go: the menu toggle and the page itself stay.
+  assert.match(hiddenIndex, /<div class="header-actions">\s*<button class="nav-toggle"[^>]*>\s*<span><\/span><span><\/span><span><\/span>\s*<\/button>\s*<\/div>/);
+  assert.equal(hiddenIndex.length, hideBoutiqueSlide(hideCartInHtml(index)).length - '<li class="nav-item"><a class="nav-link" href="boutique.html">Boutique</a></li>'.length);
+  assert.equal(hideCartInHtml(index).split("data-carousel").length, index.split("data-carousel").length);
   assert.doesNotMatch(hideBoutiqueInHtml(boutique), /href="boutique\.html"[^>]*>Boutique</);
+  // The boutique page keeps its cart for browsers unlocked with the preview key.
+  const hiddenBoutique = transformPublicFile("boutique.html", boutique, hidden);
+  assert.match(hiddenBoutique, /data-cart-drawer/);
+  assert.match(hiddenBoutique, /<script src="js\/cart\.js" defer><\/script>/);
   const hiddenSitemap = hideBoutiqueInSitemap(sitemap);
   assert.doesNotMatch(hiddenSitemap, /boutique\.html/);
   assert.match(hiddenSitemap, /politique\.html/);
@@ -70,7 +78,7 @@ test("the Next.js proxy enforces the gate on every boutique address", async () =
     readFile(new URL("../../../scripts/sync-public-site.mjs", import.meta.url), "utf8"),
   ]);
   assert.match(proxy, /export function proxy\(/);
-  for (const path of ["/boutique.html", "/css/boutique.css", "/js/boutique.js", "/api/public/shop/:path*"]) {
+  for (const path of ["/boutique.html", "/css/boutique.css", "/js/boutique.js", "/css/cart.css", "/js/cart.js", "/api/public/shop/:path*"]) {
     assert.ok(proxy.includes(`"${path}"`), path);
   }
   assert.match(proxy, /decideBoutiqueAccess/);
@@ -93,4 +101,64 @@ test("product cards keep descriptions off the grid and show them in the product 
   assert.match(script, /function openProduct\(/);
   assert.match(script, /sheetDesc\.textContent/);
   assert.doesNotMatch(script, /product-card__desc/);
+});
+
+test("every page of the public site carries the cart, loaded before the boutique", async () => {
+  const web = new URL("../../web/", import.meta.url);
+  const pages = (await readdir(web)).filter((name) => name.endsWith(".html") && name !== "liens.html");
+  assert.ok(pages.length >= 12, pages.join(", "));
+  for (const name of pages) {
+    const html = await readFile(new URL(name, web), "utf8");
+    assert.match(html, /<link rel="stylesheet" href="css\/cart\.css">/, name);
+    assert.match(html, /<button class="cart-btn" type="button" data-cart-open/, name);
+    assert.match(html, /<aside class="cart-drawer" id="cart-drawer" data-cart-drawer/, name);
+    assert.match(html, /<script src="js\/main\.js" defer><\/script>\s*<script src="js\/cart\.js" defer><\/script>/, name);
+    // Away from the boutique, « Continuer mes achats » leads to it.
+    if (name !== "boutique.html") assert.match(html, /<a class="cart-drawer__continue" href="boutique\.html">/, name);
+  }
+  const boutique = await readFile(new URL("boutique.html", web), "utf8");
+  assert.match(boutique, /<script src="js\/cart\.js" defer><\/script>\s*<script src="js\/boutique\.js" defer><\/script>/);
+  const [cart, script] = await Promise.all([
+    readFile(new URL("js/cart.js", web), "utf8"),
+    readFile(new URL("js/boutique.js", web), "utf8"),
+  ]);
+  assert.match(cart, /window\.BopoilCart = \{/);
+  assert.match(cart, /\/api\/public\/shop\/checkout/);
+  assert.doesNotMatch(script, /localStorage|\/api\/public\/shop\/checkout/);
+  assert.match(script, /Cart\.load\(mode, products\)/);
+});
+
+test("the home page carousel opens on the boutique for 10 seconds, and drops it while the store is hidden", async () => {
+  const web = new URL("../../web/", import.meta.url);
+  const [index, main] = await Promise.all([
+    readFile(new URL("index.html", web), "utf8"),
+    readFile(new URL("js/main.js", web), "utf8"),
+  ]);
+  const slides = (html) => html.match(/<div class="hero-slide"[^>]*>\s*<\/?[^]*?(?=\s*<div class="hero-slide"|\s*<button class="hero-arrow)/g);
+  const dots = (html) => html.match(/<button class="hero-dot"/g).length;
+
+  const published = slides(index);
+  assert.equal(published.length, 5);
+  assert.match(published[0], /data-active="true" aria-hidden="false" data-delay="10000" data-boutique-slide/);
+  assert.match(published[0], /aria-label="1 de 5"/);
+  assert.match(published[0], /images\/hero-boutique-1600\.jpg/);
+  assert.match(published[0], /loading="eager" fetchpriority="high"/);
+  assert.match(published[0], /href="boutique\.html">Découvrir la boutique</);
+  assert.match(published[1], /data-active="false"[^]*aria-label="2 de 5"[^]*<h1 class="hero-title">/);
+  assert.equal((index.match(/fetchpriority="high" decoding/g) || []).length, 1);
+  assert.equal(dots(index), 5);
+  for (const file of ["hero-boutique-800.jpg", "hero-boutique-1600.jpg", "hero-boutique-800.webp", "hero-boutique-1600.webp"]) {
+    await readFile(new URL(`images/${file}`, web));
+  }
+  assert.match(main, /getAttribute\('data-delay'\)/);
+
+  const hidden = slides(transformPublicFile("index.html", index, {}));
+  assert.equal(hidden.length, 4);
+  assert.doesNotMatch(hidden.join(""), /boutique\.html|hero-boutique|data-boutique/);
+  assert.match(hidden[0], /data-active="true" aria-hidden="false"\s+role="group"[^>]*aria-label="1 de 4"/);
+  assert.match(hidden[0], /hero-printemps-1600\.jpg[^>]*loading="eager" fetchpriority="high"/);
+  assert.match(hidden[0], /<h1 class="hero-title">/);
+  hidden.slice(1).forEach((slide, i) => assert.match(slide, new RegExp(`data-active="false"[^]*aria-label="${i + 2} de 4"`)));
+  assert.equal(dots(transformPublicFile("index.html", index, {})), 4);
+  assert.equal(transformPublicFile("index.html", index, { BOUTIQUE_ENABLED: "true" }), null);
 });

@@ -75,12 +75,14 @@
       });
     }
 
+    // Une diapositive peut rester plus longtemps (data-delay, en millisecondes).
     function start() {
       if (reduceMotion) return;
       stop();
-      timer = window.setInterval(function () { show(index + 1); }, DELAY);
+      timer = window.setTimeout(function () { show(index + 1); start(); },
+        Number(slides[index].getAttribute('data-delay')) || DELAY);
     }
-    function stop() { if (timer) { window.clearInterval(timer); timer = null; } }
+    function stop() { if (timer) { window.clearTimeout(timer); timer = null; } }
 
     hero.querySelectorAll('[data-carousel-prev]').forEach(function (b) {
       b.addEventListener('click', function () { show(index - 1); start(); });

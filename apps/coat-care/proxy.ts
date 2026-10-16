@@ -11,7 +11,7 @@ import { BOOKING_PAUSE_PATH, decideBookingAccess } from "./lib/booking-gate";
 // (lib/booking-gate.ts).
 export const config = {
   matcher: [
-    "/boutique", "/boutique.html", "/css/boutique.css", "/js/boutique.js", "/api/public/shop/:path*",
+    "/boutique", "/boutique.html", "/css/boutique.css", "/js/boutique.js", "/css/cart.css", "/js/cart.js", "/api/public/shop/:path*",
     "/book", "/book/:path*", "/api/bookings", "/api/square-bookings", "/api/availability", "/api/catalog", "/api/booking-context", "/api/client-auth/:path*",
   ],
 };
