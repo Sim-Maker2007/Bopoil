@@ -94,6 +94,12 @@ window.BOPOIL_CONFIG = {
      bandeau de témoins) ou l'identifiant Google Analytics 4 (G-XXXXXXX).
      Les clics « Réserver » et les envois de formulaire sont comptés comme
      événements dans les deux cas.
+
+     Loi 25 : Google Analytics dépose des témoins, donc il ne se charge
+     qu'après l'accord du visiteur. Tant que gtagId est renseigné, un
+     bandeau « Refuser / Accepter » le demande à la première visite, et le
+     lien « Gérer les témoins » du pied de page permet de changer d'avis.
+     Avec Plausible seul (gtagId vide), aucun bandeau n'apparaît.
      ---------------------------------------------------------------------- */
   analytics: {
     plausibleDomain: '',   // ex. 'bopoil.ca'

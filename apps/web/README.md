@@ -168,6 +168,14 @@ JavaScript) — voir la section suivante pour les modifier partout d'un coup.
   chargé tant que rien n'est renseigné. Une fois configuré, les clics
   « Réserver » (vers Square) et les envois de formulaire sont comptés comme
   événements.
+- **Témoins (Loi 25)** : Google Analytics dépose des témoins, il reste donc
+  désactivé tant que le visiteur ne l'a pas accepté. Un bandeau
+  (`js/main.js`, styles dans `css/style.css`) offre « Refuser » et
+  « Accepter » avec le même poids à la première visite; le choix est gardé
+  12 mois sur l'appareil (`localStorage`, clé `bopoil_temoins_v1`), puis
+  redemandé. Le lien « Gérer les témoins », ajouté au pied de page, rouvre le
+  bandeau; un refus efface les témoins `_ga`. Plausible, sans témoins, ne
+  déclenche pas de bandeau.
 
 ---
 
