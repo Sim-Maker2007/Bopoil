@@ -223,9 +223,9 @@
      --------------------------------------------------------------------
      Deux voies d'envoi, dans cet ordre :
 
-     1. Si un identifiant Formspree est configuré pour ce formulaire, on
-        envoie en arrière-plan (fetch) : le visiteur ne quitte pas la page
-        et voit un message de confirmation.
+     1. Si un point d'entrée Coat & Care est configuré pour ce formulaire,
+        on envoie en arrière-plan (fetch) : le visiteur ne quitte pas la
+        page et voit un message de confirmation.
      2. Sinon, on ouvre le client courriel du visiteur avec le message
         déjà rédigé (mailto:). C'est moins élégant qu'un envoi direct
         mais ça FONCTIONNE dès la mise en ligne, sans aucun compte tiers.
@@ -276,11 +276,9 @@
   function initForms() {
     document.querySelectorAll('form[data-formspree]').forEach(function (form) {
       var key = form.getAttribute('data-formspree');
-      var id = (CONFIG.formspree || {})[key];
       var coatCare = CONFIG.coatCare || {};
       var crmUrl = crmEndpoint(key);
       var crmIntake = key === 'intake' && crmUrl;
-      var configured = crmUrl || (id && id.indexOf('VOTRE_') !== 0);
       var status = form.querySelector('.form-status');
 
       function say(kind, message) {
@@ -292,7 +290,6 @@
       }
 
       if (crmUrl) form.action = crmUrl;
-      else if (configured) form.action = 'https://formspree.io/f/' + id;
 
       form.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -301,7 +298,7 @@
         // les formulaires longs (fiche d'informations).
         if (!form.reportValidity()) return;
 
-        if (!configured) {
+        if (!crmUrl) {
           // Voie de repli : on ouvre le client courriel prérempli. Le
           // visiteur n'a plus qu'à appuyer sur "Envoyer".
           window.location.href = buildMailto(form, key);
@@ -316,34 +313,25 @@
         var original = submit ? submit.textContent : '';
         if (submit) { submit.disabled = true; submit.textContent = 'Envoi…'; }
 
-        var request;
-        if (crmUrl) {
-          var values = {};
-          new FormData(form).forEach(function (value, name) {
-            values[name] = String(value);
-          });
-          if (key === 'intake') values.marketing = values.marketing === 'oui';
-          values.salonSlug = coatCare.salonSlug || '';
-          values.locationSlug = coatCare.locationSlug || '';
-          // Le site n'a pas d'étape de connexion : une fiche qui correspond à
-          // un dossier existant est transmise au salon pour révision.
-          values.source = 'website';
-          values.returnTo = new URLSearchParams(window.location.search).get('continue') || '';
-          values.submissionId = window.crypto && window.crypto.randomUUID
-            ? window.crypto.randomUUID()
-            : String(Date.now()) + '-' + Math.random().toString(36).slice(2);
-          request = fetch(crmUrl, {
-            method: 'POST',
-            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify(values)
-          });
-        } else {
-          request = fetch('https://formspree.io/f/' + id, {
-            method: 'POST',
-            headers: { Accept: 'application/json' },
-            body: new FormData(form)
-          });
-        }
+        var values = {};
+        new FormData(form).forEach(function (value, name) {
+          values[name] = String(value);
+        });
+        if (key === 'intake') values.marketing = values.marketing === 'oui';
+        values.salonSlug = coatCare.salonSlug || '';
+        values.locationSlug = coatCare.locationSlug || '';
+        // Le site n'a pas d'étape de connexion : une fiche qui correspond à
+        // un dossier existant est transmise au salon pour révision.
+        values.source = 'website';
+        values.returnTo = new URLSearchParams(window.location.search).get('continue') || '';
+        values.submissionId = window.crypto && window.crypto.randomUUID
+          ? window.crypto.randomUUID()
+          : String(Date.now()) + '-' + Math.random().toString(36).slice(2);
+        var request = fetch(crmUrl, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify(values)
+        });
 
         request.then(function (res) {
           return res.json().catch(function () { return {}; }).then(function (result) {

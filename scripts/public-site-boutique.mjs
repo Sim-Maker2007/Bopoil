@@ -65,9 +65,20 @@ export function hideBoutiqueInSitemap(xml) {
   return xml.replace(sitemapEntry, "");
 }
 
+// Brings each page's <lastmod> up to the date of its last change, as given by
+// dateOf(file name) — "" when unknown, which keeps the committed date.
+export function refreshSitemapDates(xml, dateOf) {
+  return xml.replace(/(<loc>https:\/\/[^/<]+\/([^<]*)<\/loc><lastmod>)([^<]*)/g, (_, start, path, current) => {
+    const date = dateOf(path || "index.html");
+    return start + (/^\d{4}-\d{2}-\d{2}$/.test(date) && date > current ? date : current);
+  });
+}
+
 // Returns the transformed file content, or null when the file is copied verbatim.
-export function transformPublicFile(name, content, env = process.env) {
+// dateOf, when given, dates the sitemap's pages (see refreshSitemapDates).
+export function transformPublicFile(name, content, env = process.env, dateOf = null) {
   let output = content;
+  if (name === "sitemap.xml" && dateOf) output = refreshSitemapDates(output, dateOf);
   if (!boutiqueEnabled(env)) {
     if (name.endsWith(".html")) output = hideBoutiqueInHtml(output);
     if (name.endsWith(".html") && name !== "boutique.html") output = hideCartInHtml(output);

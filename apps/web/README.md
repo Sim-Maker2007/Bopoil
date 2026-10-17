@@ -151,11 +151,9 @@ Chaque formulaire contient un champ piège invisible pour les robots.
 
 ### 3. Formulaires — repli
 
-Si un point d'entrée CRM est vide ou que le service ne répond pas, le site
-essaie [Formspree](https://formspree.io) (identifiants dans `js/config.js`
-sous `formspree`), puis ouvre le client courriel du visiteur avec le message
-prérempli. Tant qu'un identifiant Formspree commence par `VOTRE_`, il est
-ignoré.
+Si le point d'entrée CRM d'un formulaire est vide, ou que le service ne
+répond pas (formulaires de contact et d'infolettre), le site ouvre le client
+courriel du visiteur avec le message prérempli, adressé à `contact.email`.
 
 ### 4. Coordonnées, avis Google et mesure d'audience
 

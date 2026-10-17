@@ -165,6 +165,8 @@ test("normalizeCatalog groups brand spellings and adds products of a category na
       item("LB", "LB Yak Menthe", ["CAT_LB"]),
       item("LITTER", "Litière World's Best 8 lbs", ["CAT_HOME", "CAT_LB"]),
       item("PLAIN", "Brosse douce", ["CAT_HOME"]),
+      item("HUNTER1", "HUNTER Harnais Neopren"),
+      item("HUNTER2", "Hunter Collier Cuir Noir"),
     ],
     [
       { id: "CAT_LB", type: "CATEGORY", category_data: { name: "Lucky Bones" } },
@@ -180,6 +182,8 @@ test("normalizeCatalog groups brand spellings and adds products of a category na
     ["Lucky Bones"],
     ["Lucky Bones"],
     [],
+    ["HUNTER"],
+    ["HUNTER"],
   ]);
   assert.deepEqual(products[6].categories, ["Maison et entretien", "Lucky Bones"], "categories are left as Square has them");
 });

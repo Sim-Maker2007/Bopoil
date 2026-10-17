@@ -11,7 +11,7 @@ contenu ou de l'en-tête/pied de page partagés.
     python3 tools/build.py
 
 Modifier le contenu : éditez les données ci-dessous, puis relancez le script.
-Modifier la configuration (Square, Formspree, coordonnées) : js/config.js.
+Modifier la configuration (Square, Coat & Care, coordonnées) : js/config.js.
 """
 
 import datetime as _dt

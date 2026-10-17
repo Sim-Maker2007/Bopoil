@@ -34,6 +34,7 @@
   var cards = [];
   var activeCategory = 'tous';
   var activeBrand = 'toutes';
+  var searching = false;
   var productQty = 1;
   var openProductId = '';
   var CAT_PHOTOS = [
@@ -230,14 +231,68 @@
   function cardBrands(card) {
     return (card.dataset.brand || '').split(' ').filter(Boolean);
   }
+  // Words without accents or capitals: « Gâteries Chiens » → gateries, chiens.
+  function words(value) {
+    return normalized(value).split(/[^a-z0-9]+/).filter(Boolean);
+  }
+  // Little words are left out of a search that has others, so « brosse pour
+  // chien » finds what « brosse chien » finds.
+  var STOP_WORDS = ['a', 'au', 'aux', 'avec', 'd', 'de', 'des', 'du', 'en', 'et', 'l', 'la', 'le', 'les', 'pour', 'sur', 'un', 'une'];
+  function searchTokens(value) {
+    var tokens = words(value);
+    var meaningful = tokens.filter(function (t) { return STOP_WORDS.indexOf(t) === -1; });
+    return meaningful.length ? meaningful : tokens;
+  }
+  // Where a word is found decides how high the product ranks: its name first,
+  // then its colours and sizes, its brand, its category and its description.
+  var SEARCH_FIELDS = [['name', 8], ['variants', 5], ['brand', 4], ['cat', 2], ['desc', 1]];
+  var searchIndex = new WeakMap();
+  function cardWords(card) {
+    var fields = searchIndex.get(card);
+    if (!fields) {
+      fields = SEARCH_FIELDS.map(function (field) { return { words: words(card.dataset[field[0]]), weight: field[1] }; });
+      searchIndex.set(card, fields);
+    }
+    return fields;
+  }
+  // 0 unless every word of the search is in the product. A whole word counts
+  // most, then the start of a word; a long search word may also sit inside a
+  // word (« poil » in « antipoils »), a short one may not (« os » in « cosmétiques »).
+  function searchScore(card, tokens) {
+    var fields = cardWords(card);
+    var total = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var token = tokens[i];
+      var best = 0;
+      fields.forEach(function (field) {
+        field.words.forEach(function (word) {
+          var at = word.indexOf(token);
+          var quality = word === token ? 3 : at === 0 ? 2 : at > 0 && token.length > 3 ? 1 : 0;
+          best = Math.max(best, quality * field.weight);
+        });
+      });
+      if (!best) return 0;
+      total += best;
+    }
+    return total;
+  }
   function filterProducts() {
     if (mode !== 'square' && mode !== 'preview') return;
-    var query = normalized(searchEl.value.trim());
+    var tokens = searchTokens(searchEl.value);
+    // Starting a search puts the best matches first, unless the shopper chose
+    // a price order; clearing it goes back to the names.
+    if (tokens.length && !searching && sortEl.value === 'name') sortEl.value = 'relevance';
+    if (!tokens.length && searching && sortEl.value === 'relevance') sortEl.value = 'name';
+    searching = tokens.length > 0;
+    var scores = new Map();
+    if (searching) cards.forEach(function (card) { scores.set(card, searchScore(card, tokens)); });
     var sorted = cards.slice();
     if (sortEl.value === 'price-asc') sorted.sort(function (a, b) { return Number(a.dataset.price) - Number(b.dataset.price); });
     if (sortEl.value === 'price-desc') sorted.sort(function (a, b) { return Number(b.dataset.price) - Number(a.dataset.price); });
     // A leading mark such as « *SAFARI » must not put a product ahead of the A's.
-    if (sortEl.value === 'name') sorted.sort(function (a, b) { return a.dataset.name.localeCompare(b.dataset.name, 'fr', { ignorePunctuation: true }); });
+    if (sortEl.value === 'name' || sortEl.value === 'relevance') sorted.sort(function (a, b) { return a.dataset.name.localeCompare(b.dataset.name, 'fr', { ignorePunctuation: true }); });
+    // Equal scores keep the alphabetical order (the sort is stable).
+    if (sortEl.value === 'relevance' && searching) sorted.sort(function (a, b) { return scores.get(b) - scores.get(a); });
     // The brand row lists only the brands found in the chosen category.
     var available = Object.create(null);
     cards.forEach(function (card) {
@@ -247,9 +302,8 @@
     var count = 0;
     var shown = 0;
     sorted.forEach(function (card) {
-      var haystack = normalized([card.dataset.name, card.dataset.variants, card.dataset.cat, (card.dataset.brand || '').replace(/-/g, ' '), card.dataset.desc].join(' '));
       var inBrand = activeBrand === 'toutes' || cardBrands(card).indexOf(activeBrand) !== -1;
-      var match = inActiveCategory(card) && inBrand && haystack.includes(query);
+      var match = inActiveCategory(card) && inBrand && (!searching || scores.get(card) > 0);
       card.hidden = !match;
       if (match) {
         card.style.setProperty('--i', String(shown));
@@ -279,7 +333,7 @@
   function cardHTML(p, index) {
     var id = escapeHtml(p.id);
     var name = escapeHtml(p.name);
-    var category = escapeHtml(p.category || 'Boutique');
+    var badge = p.category ? '<span class="product-card__badge">' + escapeHtml(p.category) + '</span>' : '';
     var cat = escapeHtml(p.cat || slug(p.category));
     var desc = escapeHtml(p.description || '');
     var images = (p.imageUrls || []).filter(allowedImageUrl);
@@ -293,7 +347,7 @@
     return '<article class="product-card" style="--i:' + index + (p.tint ? ';--tint:' + escapeHtml(p.tint) + ';--tint-ink:' + escapeHtml(p.ink || '') : '') + '" data-product data-id="' + id + '" data-name="' + name + '" data-price="' + p.priceCents + '" data-currency="' + escapeHtml(p.currency || 'CAD') + '" data-cat="' + cat + '" data-brand="' + escapeHtml(p.brand || '') + '" data-variants="' + escapeHtml(p.variants || '') + '" data-desc="' + desc + '" data-images="' + escapeHtml(images.join('|')) + '">' +
       '<button class="product-card__hit" type="button" data-open-product="' + id + '" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : ' + name + '">' +
         '<span class="product-card__media">' +
-          '<span class="product-card__badge">' + category + '</span>' + image + dots +
+          badge + image + dots +
           '<span class="product-card__view">Voir le produit</span>' +
         '</span>' +
         '<span class="product-card__body">' +
@@ -390,6 +444,9 @@
       var several = variants.length > 1;
       // A product is listed under every Square category it belongs to.
       var names = Array.isArray(p.categories) && p.categories.length ? p.categories : [p.category];
+      // The badge names the item's first category other than the catch-all; an
+      // item filed only under it gets none rather than « Boutique ».
+      var shownCategory = names.find(function (name) { return HIDDEN_CATEGORIES.indexOf(slug(name)) === -1; }) || '';
       var slugs = names.map(function (name) {
         var key = slug(name);
         categories.set(key, name);
@@ -413,7 +470,7 @@
           media: urls[0] ? '<img src="' + escapeHtml(urls[0]) + '" alt="">' : paw(),
           images: urls,
           description: v.description || '',
-          category: v.category || '',
+          category: shownCategory,
           options: several && Array.isArray(v.options) ? v.options : [],
           group: key
         };
@@ -428,7 +485,7 @@
         priceCents: Math.min.apply(null, prices),
         fromPrice: Math.min.apply(null, prices) !== Math.max.apply(null, prices),
         currency: p.currency,
-        category: p.category,
+        category: shownCategory,
         cat: slugs.join(' '),
         brand: brandSlugs.join(' '),
         variants: several ? variants.map(function (v) { return v.variation || ''; }).join(' ') : '',
