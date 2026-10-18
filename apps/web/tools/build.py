@@ -574,7 +574,9 @@ HERO_SLIDES = [
         "focal": "0.2",
         "align": "end",
         "balance": True,
-        "title": f"Nouveauté{NB}! Boutique en ligne",
+        "title": "Le soin continue à la maison.",
+        "body": ("Brosses, soins et petites attentions pour votre compagnon. Retrouvez vos "
+                 "essentiels, avec les conseils de notre équipe à Gatineau."),
         "buttons": [
             ('<a class="btn btn--filled" href="boutique.html">Découvrir la boutique</a>'),
         ],
