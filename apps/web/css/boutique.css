@@ -644,7 +644,6 @@ body[data-product-open="true"] { overflow: hidden; }
 .shop-hero .page-hero__media::after { background: linear-gradient(90deg, rgba(0,0,0,.85), rgba(0,0,0,.22)); opacity: 1; }
 .shop-hero__title { text-transform: none; font-size: clamp(2.25rem, 4vw, 3.6rem); line-height: 1.08; }
 .shop-hero__lead { margin: 14px 0 0; max-width: 48ch; }
-.shop-hero__tag { margin: 22px 0 0; font-family: var(--body-font); font-size: var(--font-step--1); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: white; }
 .shop-catalog { padding-block: 36px 56px; scroll-margin-top: 140px; }
 .shop-notice { background: #fff; border-left: 3px solid var(--accent-plum); padding: 12px 16px; margin-bottom: 24px; font-size: .875rem; line-height: 1.6; }
 .shop-notice button { margin-left: 12px; background: none; border: 0; text-decoration: underline; cursor: pointer; font: inherit; min-height: 44px; }
@@ -691,7 +690,6 @@ body[data-product-open="true"] { overflow: hidden; }
   .shop-hero__title { font-size: 2.6rem; }
   .shop-hero__title br { display: none; }
   .shop-hero__lead { max-width: 65ch; margin-top: 10px; }
-  .shop-hero__tag { margin-top: 14px; }
   .shop-catalog { padding-top: 28px; }
 }
 .boutique-page .sms-pill { display: none; }

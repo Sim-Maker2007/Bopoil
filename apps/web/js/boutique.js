@@ -551,7 +551,7 @@
       if (data.configured) {
         mode = 'square';
         known = renderSquareCatalog(data.products, Array.isArray(data.categories) ? data.categories : []);
-        notice.textContent = data.products.length ? 'Paiement sécurisé avec Square · Cueillette au salon' : 'La boutique se prépare. Aucun produit n’est disponible en ligne pour le moment. Contactez le salon pour être conseillé.';
+        notice.innerHTML = data.products.length ? 'Paiement sécurisé avec Square · Cueillette au salon<br>Notre équipe communiquera avec vous lorsque votre commande sera prête.' : 'La boutique se prépare. Aucun produit n’est disponible en ligne pour le moment. Contactez le salon pour être conseillé.';
       } else {
         mode = 'preview';
         grid.innerHTML = fallbackHTML;

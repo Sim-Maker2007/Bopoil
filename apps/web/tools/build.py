@@ -72,6 +72,7 @@ NAV = [
         {"label": "Petits animaux", "href": "petits-animaux.html"},
         {"label": "Votre guide toilettage", "href": "guide.html"},
     ]},
+    {"label": "Boutique", "href": "boutique.html"},
     {"label": "Politique", "href": "politique.html"},
     {"label": "Contactez-nous", "href": "contactez-nous.html", "children": [
         {"label": "Fiche d'informations - Profil client", "href": "fiche-informations.html"},
@@ -276,6 +277,7 @@ def footer_html():
       </div>
       <div class="site-footer__meta">
         <p class="mb-0">
+          <a href="/salon">Accès équipe</a> &nbsp;·&nbsp;
           <a href="tel:{PHONE_TEL}">{PHONE}</a> &nbsp;·&nbsp;
           <a href="mailto:{EMAIL}">{EMAIL}</a> &nbsp;·&nbsp;
           {ADDRESS}
@@ -572,10 +574,7 @@ HERO_SLIDES = [
         "focal": "0.2",
         "align": "end",
         "balance": True,
-        "label": "Nouveau chez BOPOIL",
-        "title": "Venez visiter notre nouvelle boutique en ligne",
-        "body": ("Shampooings doux, brosses, gâteries et accessoires choisis par notre "
-                 "équipe. Commandez en ligne et passez les chercher au salon."),
+        "title": f"Nouveauté{NB}! Boutique en ligne",
         "buttons": [
             ('<a class="btn btn--filled" href="boutique.html">Découvrir la boutique</a>'),
         ],
@@ -659,6 +658,7 @@ def hero_html():
             title_cls += " hero-title--balance"
         copy_cls = "hero-copy hero-copy--end" if s.get("align") == "end" else "hero-copy"
         label = f'<p class="hero-label">{s["label"]}</p>' if s.get("label") else ""
+        body = f'<p class="hero-body">{s["body"]}</p>' if s.get("body") else ""
         picture = wide(
             s["slug"], s["alt"],
             loading="eager" if s.get("eager") else "lazy",
@@ -679,7 +679,7 @@ def hero_html():
           <div class="{copy_cls}">
             {label}
             <h{level} class="{title_cls}">{s['title']}</h{level}>
-            <p class="hero-body">{s['body']}</p>
+            {body}
             <div class="btn-row">{''.join(s['buttons'])}</div>
           </div>
         </div>
@@ -1797,14 +1797,15 @@ LINKS_CSS = """    :root { color-scheme: dark; }
       align-items: center;
     }
     .links__logo { width: 210px; height: auto; }
-    .links__tagline {
-      margin: 18px 0 34px;
+    .links__intro {
+      margin: 18px 0 30px;
       font-size: 14px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      opacity: .75;
+      line-height: 1.55;
+      opacity: .8;
       text-align: center;
     }
+    .links__intro p { margin: 0; }
+    .links__intro p + p { margin-top: 14px; }
     .links__list { width: 100%; display: flex; flex-direction: column; gap: 14px; }
     .links__btn {
       display: flex;
@@ -1898,7 +1899,10 @@ def write_links_page():
   <main class="links">
     <img class="links__logo" src="images/logo-bopoil-blanc-720.png" width="230" height="103"
          alt="{SITE_NAME_ESC}" fetchpriority="high">
-    <p class="links__tagline">Toilettage &amp; Boutique — Gatineau</p>
+    <div class="links__intro">
+      <p>Services de toilettage professionnels et soins de qualité en Outaouais!</p>
+      <p>Boutique pensée pour les besoins de vos animaux de compagnie! Produits québécois et canadiens visant bien-être, santé et confort.</p>
+    </div>
     <nav class="links__list" aria-label="Nos réseaux sociaux">
 {buttons_html}
     </nav>
@@ -1917,12 +1921,17 @@ def write_links_page():
 
 
 def write_sitemap():
+    filenames = [p["filename"] for p in PAGES]
+    # boutique.html est tenue à la main, hors de ce script ; elle suit le guide,
+    # comme dans le menu. scripts/public-site-boutique.mjs la retire du plan de
+    # site tant que la boutique est masquée.
+    filenames.insert(filenames.index("guide.html") + 1, "boutique.html")
     urls = []
-    for p in PAGES:
-        loc = f"{SITE_URL}/" if p["filename"] == "index.html" else f"{SITE_URL}/{p['filename']}"
+    for filename in filenames:
+        loc = f"{SITE_URL}/" if filename == "index.html" else f"{SITE_URL}/{filename}"
         # Google ignore <priority> mais se sert de <lastmod> pour décider quoi
         # réexplorer.
-        urls.append(f"  <url><loc>{loc}</loc><lastmod>{page_lastmod(p['filename'])}</lastmod></url>")
+        urls.append(f"  <url><loc>{loc}</loc><lastmod>{page_lastmod(filename)}</lastmod></url>")
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
