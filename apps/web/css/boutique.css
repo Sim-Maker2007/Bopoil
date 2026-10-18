@@ -541,17 +541,21 @@ body[data-product-open="true"] { overflow: hidden; }
   text-transform: uppercase;
   color: var(--accent-plum);
 }
+/* The opened product keeps the typefaces of its card: the name in Libre
+   Franklin, the price in Libre Franklin semibold, only larger. */
 .product-sheet__body h2 {
   margin: 0;
-  font-family: var(--headline-font);
-  font-size: clamp(1.8rem, 3vw, 2.4rem);
-  line-height: 1.15;
+  font-family: var(--body-font);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-weight: 500;
+  line-height: 1.25;
   text-transform: none;
 }
 .product-sheet__price {
   margin: 0;
-  font-family: var(--headline-font);
-  font-size: 1.8rem;
+  font-family: var(--body-font);
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 /* Variation picker: one row per choice. Colours are swatches, the rest toggles. */
 .product-sheet__options { display: grid; gap: 18px; }
