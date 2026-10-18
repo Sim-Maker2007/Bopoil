@@ -111,10 +111,16 @@ function brandKey(name: string) {
 
 // Settles each product's brands across the whole catalog: « BACI » and
 // « BACI+ » are one brand shown with its most common spelling, a line such as
-// « ZEUS NOSH » files under « ZEUS », and a Square category named after a
-// brand (« Lucky Bones ») adds its products to that brand.
+// « ZEUS NOSH » files under « ZEUS », a name that does not open in capitals
+// (« Hunter Collier Cuir Noir ») files under a brand other names spell in
+// capitals, and a Square category named after a brand (« Lucky Bones ») adds
+// its products to that brand.
 function groupBrands(products: ShopProduct[]) {
   const keys = new Set(products.flatMap((product) => product.brands.map(brandKey)));
+  for (const product of products) {
+    const first = product.itemName.replace(/^[^\p{L}\d]+/u, "").split(/\s+/)[0];
+    if (!product.brands.length && first && keys.has(brandKey(first))) product.brands = [first];
+  }
   const grouped = (brand: string) => {
     const first = brand.split(" ")[0];
     return first !== brand && keys.has(brandKey(first)) ? first : brand;

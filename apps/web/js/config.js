@@ -55,14 +55,14 @@ window.BOPOIL_CONFIG = {
      ----------------------------------------------------------------------
      La fiche d'informations conserve exactement la même apparence. Une fois
      l'adresse approuvée, placez ici le point d'entrée public de Coat & Care.
-     Tant que intakeUrl est vide, le formulaire garde son fonctionnement
-     Formspree/courriel actuel et aucune donnée n'est envoyée au CRM.
+     Tant que intakeUrl est vide, le formulaire ouvre le client courriel du
+     visiteur avec la fiche préremplie et aucune donnée n'est envoyée au CRM.
      ---------------------------------------------------------------------- */
   coatCare: {
     intakeUrl: '/api/public/intake',
     // Formulaire de contact : transmis par courriel au salon via le CRM
     // (Resend). Infolettre : crée ou met à jour la fiche client avec son
-    // consentement marketing. Laissez vide pour revenir à Formspree/courriel.
+    // consentement marketing. Laissez vide pour revenir au courriel prérempli.
     contactUrl: '/api/public/contact',
     newsletterUrl: '/api/public/newsletter',
     salonSlug: 'bopoil',
@@ -70,21 +70,7 @@ window.BOPOIL_CONFIG = {
   },
 
   /* ----------------------------------------------------------------------
-     3. FORMULAIRES (Formspree)
-     ----------------------------------------------------------------------
-     Créez un compte gratuit sur https://formspree.io, créez un formulaire
-     par usage, puis collez l'identifiant (ex. « xbjnqlpz ») ci-dessous.
-     Tant que la valeur commence par « VOTRE_ », le site affiche un message
-     d'erreur clair au lieu d'envoyer dans le vide.
-     ---------------------------------------------------------------------- */
-  formspree: {
-    contact:    'VOTRE_ID_FORMSPREE_CONTACT',
-    intake:     'VOTRE_ID_FORMSPREE_FICHE',
-    newsletter: 'VOTRE_ID_FORMSPREE_INFOLETTRE'
-  },
-
-  /* ----------------------------------------------------------------------
-     4. COORDONNÉES
+     3. COORDONNÉES
      ---------------------------------------------------------------------- */
   contact: {
     phone: '+18199682827',
@@ -101,13 +87,19 @@ window.BOPOIL_CONFIG = {
   },
 
   /* ----------------------------------------------------------------------
-     4b. MESURE D'AUDIENCE (facultatif)
+     3b. MESURE D'AUDIENCE (facultatif)
      ----------------------------------------------------------------------
      Aucun script n'est chargé tant que rien n'est renseigné. Renseignez UN
      des deux : le domaine Plausible (respectueux de la vie privée, sans
      bandeau de témoins) ou l'identifiant Google Analytics 4 (G-XXXXXXX).
      Les clics « Réserver » et les envois de formulaire sont comptés comme
      événements dans les deux cas.
+
+     Loi 25 : Google Analytics dépose des témoins, donc il ne se charge
+     qu'après l'accord du visiteur. Tant que gtagId est renseigné, un
+     bandeau « Refuser / Accepter » le demande à la première visite, et le
+     lien « Gérer les témoins » du pied de page permet de changer d'avis.
+     Avec Plausible seul (gtagId vide), aucun bandeau n'apparaît.
      ---------------------------------------------------------------------- */
   analytics: {
     plausibleDomain: '',   // ex. 'bopoil.ca'
@@ -115,7 +107,7 @@ window.BOPOIL_CONFIG = {
   },
 
   /* ----------------------------------------------------------------------
-     5. FIL INSTAGRAM (facultatif)
+     4. FIL INSTAGRAM (facultatif)
      ----------------------------------------------------------------------
      Par défaut, l'accueil montre trois photos du salon avec un lien vers
      Instagram. Pour afficher le vrai fil en direct, créez un widget

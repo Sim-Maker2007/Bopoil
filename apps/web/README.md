@@ -151,11 +151,9 @@ Chaque formulaire contient un champ piège invisible pour les robots.
 
 ### 3. Formulaires — repli
 
-Si un point d'entrée CRM est vide ou que le service ne répond pas, le site
-essaie [Formspree](https://formspree.io) (identifiants dans `js/config.js`
-sous `formspree`), puis ouvre le client courriel du visiteur avec le message
-prérempli. Tant qu'un identifiant Formspree commence par `VOTRE_`, il est
-ignoré.
+Si le point d'entrée CRM d'un formulaire est vide, ou que le service ne
+répond pas (formulaires de contact et d'infolettre), le site ouvre le client
+courriel du visiteur avec le message prérempli, adressé à `contact.email`.
 
 ### 4. Coordonnées, avis Google et mesure d'audience
 
@@ -170,6 +168,14 @@ JavaScript) — voir la section suivante pour les modifier partout d'un coup.
   chargé tant que rien n'est renseigné. Une fois configuré, les clics
   « Réserver » (vers Square) et les envois de formulaire sont comptés comme
   événements.
+- **Témoins (Loi 25)** : Google Analytics dépose des témoins, il reste donc
+  désactivé tant que le visiteur ne l'a pas accepté. Un bandeau
+  (`js/main.js`, styles dans `css/style.css`) offre « Refuser » et
+  « Accepter » avec le même poids à la première visite; le choix est gardé
+  12 mois sur l'appareil (`localStorage`, clé `bopoil_temoins_v1`), puis
+  redemandé. Le lien « Gérer les témoins », ajouté au pied de page, rouvre le
+  bandeau; un refus efface les témoins `_ga`. Plausible, sans témoins, ne
+  déclenche pas de bandeau.
 
 ---
 

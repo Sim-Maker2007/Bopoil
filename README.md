@@ -5,7 +5,7 @@ This repository contains both products deployed together on Vercel:
 - `apps/web` — the existing BOPOIL public website, preserved as static HTML/CSS/JavaScript.
 - `apps/coat-care` — the Coat & Care CRM and APIs, available under `/salon` and related protected routes.
 
-The root build synchronizes the public website into the Next.js `public` directory without transforming its design. `/` serves the original BOPOIL `index.html`; Coat & Care lives at `/salon`. Square remains the appointment source of truth.
+The root build synchronizes the public website into the Next.js `public` directory without transforming its design. It also dates each page in `sitemap.xml` by the last commit that changed it, when the build's git history reaches that commit (otherwise the committed date stays). `/` serves the original BOPOIL `index.html`; Coat & Care lives at `/salon`. Square remains the appointment source of truth.
 
 The online boutique (`/boutique.html` and `/api/public/shop`) is feature-gated: it is hidden everywhere until `BOUTIQUE_ENABLED=true` is set, so it can be built and reviewed quietly before launch. See **Boutique gate** below.
 

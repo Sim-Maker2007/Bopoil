@@ -154,16 +154,8 @@
       p.src = 'https://plausible.io/js/script.outbound-links.js';
       document.head.appendChild(p);
     }
-    if (a.gtagId) {
-      var g = document.createElement('script');
-      g.async = true;
-      g.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(a.gtagId);
-      document.head.appendChild(g);
-      window.dataLayer = window.dataLayer || [];
-      window.gtag = function () { window.dataLayer.push(arguments); };
-      window.gtag('js', new Date());
-      window.gtag('config', a.gtagId, { anonymize_ip: true });
-    }
+    // Google Analytics dépose des témoins : il attend le consentement.
+    if (a.gtagId) initConsent(a.gtagId);
     // Chaque clic « Réserver » qui part vers Square est un objectif.
     document.querySelectorAll('[data-booking-link]').forEach(function (el) {
       el.addEventListener('click', function () {
@@ -173,6 +165,138 @@
         });
       });
     });
+  }
+
+  function startGoogleAnalytics(id) {
+    window['ga-disable-' + id] = false;
+    if (typeof window.gtag === 'function') return;
+    var g = document.createElement('script');
+    g.async = true;
+    g.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(id);
+    document.head.appendChild(g);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag('js', new Date());
+    window.gtag('config', id, { anonymize_ip: true });
+  }
+
+  // Un refus après un accord arrête l'envoi et efface les témoins _ga,
+  // posés sur le domaine principal (bopoil.ca) ou sur l'hôte.
+  function stopGoogleAnalytics(id) {
+    window['ga-disable-' + id] = true;
+    var host = window.location.hostname.split('.');
+    document.cookie.split(';').forEach(function (cookie) {
+      var name = cookie.split('=')[0].trim();
+      if (!/^(_ga|_gid|_gat)/.test(name)) return;
+      document.cookie = name + '=; Max-Age=0; path=/';
+      for (var i = 0; i < host.length - 1; i++) {
+        document.cookie = name + '=; Max-Age=0; path=/; domain=' + host.slice(i).join('.');
+      }
+    });
+  }
+
+  /* ----------------------------------------------------------------------
+     Témoins — Loi 25 (Québec)
+     ----------------------------------------------------------------------
+     Google Analytics reste désactivé tant que le visiteur ne l'a pas
+     accepté. Le bandeau offre « Refuser » et « Accepter » avec le même
+     poids; le choix est gardé 12 mois sur l'appareil, puis redemandé. Le
+     lien « Gérer les témoins » du pied de page rouvre le bandeau en tout
+     temps. Plausible, sans témoins, n'a pas besoin de consentement.
+     ---------------------------------------------------------------------- */
+
+  var CONSENT_KEY = 'bopoil_temoins_v1';
+  var CONSENT_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
+  // Sans stockage (navigation privée stricte), le choix vaut pour la page.
+  var consentForPage = null;
+
+  function readConsent() {
+    try {
+      var saved = JSON.parse(window.localStorage.getItem(CONSENT_KEY) || 'null');
+      if (saved && typeof saved.analytics === 'boolean' && Date.now() - saved.at < CONSENT_MAX_AGE) return saved.analytics;
+    } catch (e) { /* stockage indisponible */ }
+    return consentForPage;
+  }
+
+  function saveConsent(analytics) {
+    consentForPage = analytics;
+    try {
+      window.localStorage.setItem(CONSENT_KEY, JSON.stringify({ analytics: analytics, at: Date.now() }));
+    } catch (e) { /* stockage indisponible */ }
+  }
+
+  function initConsent(gtagId) {
+    var banner = document.createElement('section');
+    banner.className = 'consent';
+    banner.setAttribute('aria-labelledby', 'consent-title');
+    banner.hidden = true;
+    banner.innerHTML =
+      '<h2 class="consent__title" id="consent-title" tabindex="-1">Vos témoins, votre choix</h2>' +
+      '<p class="consent__text">Avec votre accord, nous mesurons la fréquentation du site avec ' +
+      'Google Analytics, qui dépose des témoins (cookies) sur votre appareil. Sans votre accord, ' +
+      'rien n’est mesuré. Vous pouvez changer d’avis en tout temps avec le lien « Gérer les ' +
+      'témoins » au bas des pages.</p>' +
+      '<p class="consent__current" data-consent-current hidden></p>' +
+      '<div class="consent__actions">' +
+        '<button class="btn btn--small consent__btn" type="button" data-consent-choice="refuse">Refuser</button>' +
+        '<button class="btn btn--small consent__btn" type="button" data-consent-choice="accept">Accepter</button>' +
+      '</div>';
+    // Juste après le lien d'évitement : le clavier et les lecteurs d'écran
+    // le rencontrent en premier, même s'il s'affiche en bas.
+    var skip = document.querySelector('.skip-link');
+    if (skip) skip.insertAdjacentElement('afterend', banner);
+    else document.body.insertBefore(banner, document.body.firstChild);
+
+    var current = banner.querySelector('[data-consent-current]');
+    var opener = null;
+
+    function show(fromLink) {
+      var choice = readConsent();
+      current.hidden = choice === null;
+      current.textContent = choice === null ? '' : 'Votre choix actuel : mesure ' + (choice ? 'acceptée.' : 'refusée.');
+      banner.hidden = false;
+      document.body.setAttribute('data-consent-open', 'true');
+      if (fromLink) {
+        opener = fromLink;
+        banner.querySelector('#consent-title').focus();
+      }
+    }
+
+    function hide() {
+      banner.hidden = true;
+      document.body.removeAttribute('data-consent-open');
+      if (opener && opener.isConnected) opener.focus();
+      opener = null;
+    }
+
+    banner.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-consent-choice]');
+      if (!btn) return;
+      var analytics = btn.getAttribute('data-consent-choice') === 'accept';
+      saveConsent(analytics);
+      if (analytics) startGoogleAnalytics(gtagId);
+      else stopGoogleAnalytics(gtagId);
+      hide();
+    });
+    // Échap ferme le bandeau rouvert depuis le pied de page, sans rien changer.
+    banner.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && opener && readConsent() !== null) hide();
+    });
+
+    document.querySelectorAll('.site-footer__meta p:last-child').forEach(function (line) {
+      var link = document.createElement('button');
+      link.type = 'button';
+      link.className = 'consent-link';
+      link.textContent = 'Gérer les témoins';
+      link.addEventListener('click', function () { show(link); });
+      // Même séparateur que les autres liens du pied de page.
+      line.appendChild(document.createTextNode(' \u00a0\u00b7\u00a0 '));
+      line.appendChild(link);
+    });
+
+    var choice = readConsent();
+    if (choice === true) startGoogleAnalytics(gtagId);
+    if (choice === null) show();
   }
 
   /* Point d'entrée CRM (Coat & Care) pour un formulaire donné, ou ''. */
@@ -223,9 +347,9 @@
      --------------------------------------------------------------------
      Deux voies d'envoi, dans cet ordre :
 
-     1. Si un identifiant Formspree est configuré pour ce formulaire, on
-        envoie en arrière-plan (fetch) : le visiteur ne quitte pas la page
-        et voit un message de confirmation.
+     1. Si un point d'entrée Coat & Care est configuré pour ce formulaire,
+        on envoie en arrière-plan (fetch) : le visiteur ne quitte pas la
+        page et voit un message de confirmation.
      2. Sinon, on ouvre le client courriel du visiteur avec le message
         déjà rédigé (mailto:). C'est moins élégant qu'un envoi direct
         mais ça FONCTIONNE dès la mise en ligne, sans aucun compte tiers.
@@ -276,11 +400,9 @@
   function initForms() {
     document.querySelectorAll('form[data-formspree]').forEach(function (form) {
       var key = form.getAttribute('data-formspree');
-      var id = (CONFIG.formspree || {})[key];
       var coatCare = CONFIG.coatCare || {};
       var crmUrl = crmEndpoint(key);
       var crmIntake = key === 'intake' && crmUrl;
-      var configured = crmUrl || (id && id.indexOf('VOTRE_') !== 0);
       var status = form.querySelector('.form-status');
 
       function say(kind, message) {
@@ -292,7 +414,6 @@
       }
 
       if (crmUrl) form.action = crmUrl;
-      else if (configured) form.action = 'https://formspree.io/f/' + id;
 
       form.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -301,7 +422,7 @@
         // les formulaires longs (fiche d'informations).
         if (!form.reportValidity()) return;
 
-        if (!configured) {
+        if (!crmUrl) {
           // Voie de repli : on ouvre le client courriel prérempli. Le
           // visiteur n'a plus qu'à appuyer sur "Envoyer".
           window.location.href = buildMailto(form, key);
@@ -316,34 +437,25 @@
         var original = submit ? submit.textContent : '';
         if (submit) { submit.disabled = true; submit.textContent = 'Envoi…'; }
 
-        var request;
-        if (crmUrl) {
-          var values = {};
-          new FormData(form).forEach(function (value, name) {
-            values[name] = String(value);
-          });
-          if (key === 'intake') values.marketing = values.marketing === 'oui';
-          values.salonSlug = coatCare.salonSlug || '';
-          values.locationSlug = coatCare.locationSlug || '';
-          // Le site n'a pas d'étape de connexion : une fiche qui correspond à
-          // un dossier existant est transmise au salon pour révision.
-          values.source = 'website';
-          values.returnTo = new URLSearchParams(window.location.search).get('continue') || '';
-          values.submissionId = window.crypto && window.crypto.randomUUID
-            ? window.crypto.randomUUID()
-            : String(Date.now()) + '-' + Math.random().toString(36).slice(2);
-          request = fetch(crmUrl, {
-            method: 'POST',
-            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify(values)
-          });
-        } else {
-          request = fetch('https://formspree.io/f/' + id, {
-            method: 'POST',
-            headers: { Accept: 'application/json' },
-            body: new FormData(form)
-          });
-        }
+        var values = {};
+        new FormData(form).forEach(function (value, name) {
+          values[name] = String(value);
+        });
+        if (key === 'intake') values.marketing = values.marketing === 'oui';
+        values.salonSlug = coatCare.salonSlug || '';
+        values.locationSlug = coatCare.locationSlug || '';
+        // Le site n'a pas d'étape de connexion : une fiche qui correspond à
+        // un dossier existant est transmise au salon pour révision.
+        values.source = 'website';
+        values.returnTo = new URLSearchParams(window.location.search).get('continue') || '';
+        values.submissionId = window.crypto && window.crypto.randomUUID
+          ? window.crypto.randomUUID()
+          : String(Date.now()) + '-' + Math.random().toString(36).slice(2);
+        var request = fetch(crmUrl, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify(values)
+        });
 
         request.then(function (res) {
           return res.json().catch(function () { return {}; }).then(function (result) {

@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const { decideBoutiqueAccess, isBoutiquePath, boutiquePreviewKey, keysMatch, BOUTIQUE_PREVIEW_COOKIE } = await import("../lib/boutique-gate.ts");
-const { transformPublicFile, hideBoutiqueInHtml, hideCartInHtml, hideBoutiqueSlide, hideBoutiqueInSitemap } = await import("../../../scripts/public-site-boutique.mjs");
+const { transformPublicFile, hideBoutiqueInHtml, hideCartInHtml, hideBoutiqueSlide, hideBoutiqueInSitemap, refreshSitemapDates } = await import("../../../scripts/public-site-boutique.mjs");
 
 const hidden = {};
 const published = { BOUTIQUE_ENABLED: "true" };
@@ -70,6 +70,20 @@ test("the build strips the boutique navigation link, the cart and the sitemap en
   assert.equal(transformPublicFile("index.html", index, published), null);
   assert.equal(transformPublicFile("sitemap.xml", sitemap, published), null);
   assert.equal(transformPublicFile("robots.txt", "User-agent: *", hidden), null);
+});
+
+test("the build dates each sitemap page by its last change, never earlier than the committed date", async () => {
+  const sitemap = await readFile(new URL("../../web/sitemap.xml", import.meta.url), "utf8");
+  const dates = { "index.html": "2099-01-02", "boutique.html": "2000-01-01", "guide.html": "" };
+  const asked = [];
+  const refreshed = refreshSitemapDates(sitemap, (name) => { asked.push(name); return dates[name] ?? "not-a-date"; });
+  assert.ok(asked.includes("index.html"), "the home page is dated by index.html");
+  assert.match(refreshed, /<loc>https:\/\/www\.bopoil\.ca\/<\/loc><lastmod>2099-01-02<\/lastmod>/);
+  const committed = (html, page) => html.match(new RegExp(`/${page}</loc><lastmod>([^<]*)`))[1];
+  for (const page of ["boutique\\.html", "guide\\.html", "politique\\.html"]) assert.equal(committed(refreshed, page), committed(sitemap, page), page);
+  assert.equal(refreshed.split("<url>").length, sitemap.split("<url>").length);
+  assert.equal(transformPublicFile("sitemap.xml", sitemap, published, () => "2099-01-02").match(/2099-01-02/g).length, sitemap.split("<url>").length - 1);
+  assert.equal(transformPublicFile("sitemap.xml", sitemap, published, () => ""), null);
 });
 
 test("the Next.js proxy enforces the gate on every boutique address", async () => {
