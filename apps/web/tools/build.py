@@ -572,10 +572,7 @@ HERO_SLIDES = [
         "focal": "0.2",
         "align": "end",
         "balance": True,
-        "label": "Nouveau chez BOPOIL",
-        "title": "Venez visiter notre nouvelle boutique en ligne",
-        "body": ("Shampooings doux, brosses, gâteries et accessoires choisis par notre "
-                 "équipe. Commandez en ligne et passez les chercher au salon."),
+        "title": f"Nouveauté{NB}! Boutique en ligne",
         "buttons": [
             ('<a class="btn btn--filled" href="boutique.html">Découvrir la boutique</a>'),
         ],
@@ -659,6 +656,7 @@ def hero_html():
             title_cls += " hero-title--balance"
         copy_cls = "hero-copy hero-copy--end" if s.get("align") == "end" else "hero-copy"
         label = f'<p class="hero-label">{s["label"]}</p>' if s.get("label") else ""
+        body = f'<p class="hero-body">{s["body"]}</p>' if s.get("body") else ""
         picture = wide(
             s["slug"], s["alt"],
             loading="eager" if s.get("eager") else "lazy",
@@ -679,7 +677,7 @@ def hero_html():
           <div class="{copy_cls}">
             {label}
             <h{level} class="{title_cls}">{s['title']}</h{level}>
-            <p class="hero-body">{s['body']}</p>
+            {body}
             <div class="btn-row">{''.join(s['buttons'])}</div>
           </div>
         </div>
