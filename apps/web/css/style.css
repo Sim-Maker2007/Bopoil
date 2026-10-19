@@ -245,6 +245,8 @@ button { font: inherit; }
 
 @media (min-width: 1024px) {
   .site-header .nav { margin-inline-start: auto; }
+  /* The parent link itself leads there on large screens. */
+  .nav-submenu__parent { display: none; }
 }
 
 @media (max-width: 1023px) {
@@ -510,14 +512,17 @@ body[data-nav-open="true"] { overflow: hidden; }
 
 .split-hero { display: grid; grid-template-columns: 1fr 1fr; }
 
-.split-hero__media { min-height: 480px; }
-.split-hero__media img { width: 100%; height: 100%; object-fit: cover; }
+/* The text sets the height and the photo fills it, cropped to the shelves:
+   at its own portrait proportions it made the section much taller than the
+   text, leaving empty space above the title and a bare wall in the photo. */
+.split-hero__media { position: relative; min-height: 480px; }
+.split-hero__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 62%; }
 
 .split-hero__body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 72px 80px 72px 64px;
+  padding: 56px 80px 56px 64px;
   background: var(--color-white);
 }
 
@@ -1186,6 +1191,9 @@ select.field { appearance: none; background-image: none; height: 48px; }
   color: var(--primary-color);
   flex: none;
 }
+
+.site-footer__links ul { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.site-footer__links a { font-size: var(--font-step--1); line-height: 1.6; opacity: .8; }
 
 .site-footer__meta {
   display: flex;

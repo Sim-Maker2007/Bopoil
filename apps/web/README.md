@@ -37,12 +37,14 @@ article ajouté, pour que les autres pages l'affichent sans recharger le
 catalogue; Square confirme les prix et la disponibilité au paiement.
 
 Les filtres de la boutique viennent de Square. La rangée de catégories reprend
-les catégories Square, sauf « Boutique », qui regroupe presque tout. La rangée
-de marques lit la marque au début du nom de l'article, écrite en majuscules
-(« SMACK Chiens Poulet », « DOGMÄ Lotion Yeux ») ; « LB » devient Lucky Bones.
-Un article dont le nom ne commence pas par sa marque en majuscules n'a pas de
-marque. Une catégorie Square qui porte le nom d'une marque passe dans la rangée
-de marques, avec tous ses articles.
+les catégories Square, sauf « Boutique », qui regroupe presque tout. Le menu
+déroulant des marques lit la marque au début du nom de l'article, écrite en
+majuscules (« SMACK Chiens Poulet », « DOGMÄ Lotion Yeux ») ; « LB » devient
+Lucky Bones. Un article dont le nom ne commence pas par sa marque en majuscules
+n'a pas de marque. Une catégorie Square qui porte le nom d'une marque passe dans
+le menu des marques, avec tous ses articles. Lucky Bones a aussi sa propre
+carte de catégorie, juste après « Tous les produits » (`FEATURED_BRANDS` dans
+`js/boutique.js`), avec la photo de sa catégorie Square.
 
 Un article Square offert en plusieurs variations (couleurs, tailles, formats)
 forme une seule fiche, avec un sélecteur par choix : pastilles pour les
@@ -233,15 +235,15 @@ de l'accueil.**
 ```
 index.html                page d'accueil — carrousel, témoignage, heures, Instagram
 a-propos.html             histoire du salon
-nos-services.html         notre approche
+nos-services.html         notre approche (bouton de la page À propos)
 chiens.html               5 services + galerie
 chats.html                5 services + galerie
 petits-animaux.html       3 services
-guide.html                guide toilettage — 6 catégories de poil
-politique.html            politique de rendez-vous, annulation et retard
+guide.html                guide toilettage — 6 catégories de poil (lien « Services »)
+politique.html            politique de rendez-vous, annulation et retard (pied de page)
 rendez-vous.html          réservation Square Appointments
 contactez-nous.html       formulaire, carte, coordonnées, heures
-fiche-informations.html   fiche client (nouveau ou mise à jour)
+fiche-informations.html   fiche client (nouveau ou mise à jour) (pied de page)
 liens.html                page cachée « Nos liens » (code QR), hors plan de site
 
 css/tokens.css            jetons de design extraits de l'ancien site

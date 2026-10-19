@@ -52,7 +52,7 @@ test("the build strips the boutique navigation link, the cart and the sitemap en
   const hiddenIndex = transformPublicFile("index.html", index, hidden);
   assert.doesNotMatch(hiddenIndex, /boutique\.html/);
   assert.doesNotMatch(hiddenIndex, /cart-|cart\.(css|js)|data-cart/);
-  assert.match(hiddenIndex, /href="politique\.html">Politique</);
+  assert.match(hiddenIndex, /href="contactez-nous\.html">Contactez-nous</);
   // Only the link, the cart and the boutique slide go: the menu toggle and the page itself stay.
   assert.match(hiddenIndex, /<div class="header-actions">\s*<button class="nav-toggle"[^>]*>\s*<span><\/span><span><\/span><span><\/span>\s*<\/button>\s*<\/div>/);
   assert.equal(hiddenIndex.length, hideBoutiqueSlide(hideCartInHtml(index)).length - '<li class="nav-item"><a class="nav-link" href="boutique.html">Boutique</a></li>'.length);

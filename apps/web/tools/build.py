@@ -64,19 +64,26 @@ HOURS_SCHEMA = [
 # ---------------------------------------------------------------------------
 # NAVIGATION
 # ---------------------------------------------------------------------------
+# « Services » mène au guide toilettage, qui ne figure donc plus dans le
+# sous-menu sur grand écran. Sur mobile, toucher « Services » ouvre le
+# sous-menu au lieu de suivre le lien : « parent » y ajoute le guide en tête,
+# masqué sur grand écran. La page « Notre approche » (nos-services.html) reste
+# accessible par le bouton de la page À propos.
 NAV = [
     {"label": "À propos", "href": "a-propos.html"},
-    {"label": "Services", "href": "nos-services.html", "children": [
+    {"label": "Services", "href": "guide.html", "parent": "Votre guide toilettage", "children": [
         {"label": "Chiens", "href": "chiens.html"},
         {"label": "Chats", "href": "chats.html"},
         {"label": "Petits animaux", "href": "petits-animaux.html"},
-        {"label": "Votre guide toilettage", "href": "guide.html"},
     ]},
     {"label": "Boutique", "href": "boutique.html"},
-    {"label": "Politique", "href": "politique.html"},
-    {"label": "Contactez-nous", "href": "contactez-nous.html", "children": [
-        {"label": "Fiche d'informations - Profil client", "href": "fiche-informations.html"},
-    ]},
+    {"label": "Contactez-nous", "href": "contactez-nous.html"},
+]
+
+# Liens du pied de page, écrits au long.
+FOOTER_LINKS = [
+    {"label": "Politique des rendez-vous, annulation &amp; retard", "href": "politique.html"},
+    {"label": "Fiche d'informations - Profil client", "href": "fiche-informations.html"},
 ]
 
 # ---------------------------------------------------------------------------
@@ -174,6 +181,9 @@ def nav_html(current):
                 f'<li><a class="nav-link" href="{c["href"]}">{c["label"]}</a></li>'
                 for c in item["children"]
             )
+            if item.get("parent"):
+                sub = (f'<li class="nav-submenu__parent"><a class="nav-link" href="{item["href"]}">'
+                       f'{item["parent"]}</a></li>{sub}')
             out.append(
                 f'<li class="nav-item">'
                 f'<a class="nav-link" href="{item["href"]}" aria-haspopup="true" aria-expanded="false"{active}>'
@@ -246,6 +256,11 @@ def header_html(current):
   </header>"""
 
 
+FOOTER_LINKS_HTML = "\n".join(
+    f'<li><a href="{link["href"]}">{link["label"]}</a></li>' for link in FOOTER_LINKS
+)
+
+
 def footer_html():
     return f"""  <footer class="site-footer profile-primary-bold">
     <div class="container">
@@ -274,6 +289,11 @@ def footer_html():
             <p class="form-status" hidden></p>
           </form>
         </div>
+        <nav class="site-footer__links" aria-label="Liens utiles">
+          <ul>
+{indent(FOOTER_LINKS_HTML, 12)}
+          </ul>
+        </nav>
       </div>
       <div class="site-footer__meta">
         <p class="mb-0">
@@ -784,7 +804,6 @@ APROPOS_BODY = f"""    <section class="split-hero">
           {''.join(f'<p>{p}</p>' for p in APROPOS_PARAS)}
         </div>
         <div class="btn-row">
-          <a class="btn btn--filled" href="rendez-vous.html">Prendre rendez-vous</a>
           <a class="btn btn--outline" href="nos-services.html">Notre approche</a>
         </div>
       </div>
@@ -1354,13 +1373,43 @@ POLITIQUE_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .5;"
 # CONTACTEZ-NOUS
 # ---------------------------------------------------------------------------
 
-CONTACT_BODY = f"""    <section class="contact-hero profile-primary-dark-bold">
+# La carte, l'adresse et les heures viennent en premier, le formulaire ensuite.
+CONTACT_BODY = f"""    <section class="location profile-primary-light-neutral">
+      <h1 class="visually-hidden">Contactez-nous</h1>
+      <div class="location__map">
+        <iframe src="{MAP_EMBED}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                title="Carte — 38 Av Gatineau, Gatineau, Québec"></iframe>
+      </div>
+      <div class="location__info">
+        <p class="location__note">Veuillez noter que notre stationnement est situé directement
+          sur Avenue Gatineau, devant notre entrée principale. Merci!</p>
+        <div class="location__address">
+          <h2 class="section-title" style="font-size: var(--font-step-1);">BOPOIL Gatineau</h2>
+          <address>
+            38 Av Gatineau<br>
+            Gatineau, Québec J8T 4J1<br>
+            <a href="tel:{PHONE_TEL}">{PHONE}</a><br>
+            <a href="mailto:{EMAIL}">{EMAIL}</a>
+          </address>
+          <p style="margin-top: 16px;">
+            <a href="{DIRECTIONS}" target="_blank" rel="noopener">Obtenir un itinéraire</a>
+          </p>
+        </div>
+        <div>
+          <h2 class="section-title" style="font-size: var(--font-step-1); margin-bottom: 16px;">
+            Heures d'ouverture</h2>
+          <dl class="location__hours">{hours_dl_html()}</dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact-hero profile-primary-dark-bold">
       <div class="contact-hero__bg">
-        {wide('banniere-contact', "", loading='eager', sizes='100vw')}
+        {wide('banniere-contact', "", sizes='100vw')}
       </div>
       <div class="container">
         <div class="contact-hero__intro stack">
-          <h1 class="section-title">Contactez-nous</h1>
+          <h2 class="section-title">Contactez-nous</h2>
           <p>Vous êtes à la recherche d'un salon de toilettage pour offrir un vent de
             fraîcheur à votre compagnon?</p>
           <p>Vous êtes déjà client, aimeriez prendre votre prochain rendez-vous ou avez des
@@ -1398,34 +1447,6 @@ CONTACT_BODY = f"""    <section class="contact-hero profile-primary-dark-bold">
             <button class="btn btn--filled" type="submit">Soumettre</button>
           </div>
         </form>
-      </div>
-    </section>
-
-    <section class="location profile-primary-light-neutral">
-      <div class="location__map">
-        <iframe src="{MAP_EMBED}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-                title="Carte — 38 Av Gatineau, Gatineau, Québec"></iframe>
-      </div>
-      <div class="location__info">
-        <p class="location__note">Veuillez noter que notre stationnement est situé directement
-          sur Avenue Gatineau, devant notre entrée principale. Merci!</p>
-        <div class="location__address">
-          <h2 class="section-title" style="font-size: var(--font-step-1);">BOPOIL Gatineau</h2>
-          <address>
-            38 Av Gatineau<br>
-            Gatineau, Québec J8T 4J1<br>
-            <a href="tel:{PHONE_TEL}">{PHONE}</a><br>
-            <a href="mailto:{EMAIL}">{EMAIL}</a>
-          </address>
-          <p style="margin-top: 16px;">
-            <a href="{DIRECTIONS}" target="_blank" rel="noopener">Obtenir un itinéraire</a>
-          </p>
-        </div>
-        <div>
-          <h2 class="section-title" style="font-size: var(--font-step-1); margin-bottom: 16px;">
-            Heures d'ouverture</h2>
-          <dl class="location__hours">{hours_dl_html()}</dl>
-        </div>
       </div>
     </section>"""
 
