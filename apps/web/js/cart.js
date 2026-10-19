@@ -43,6 +43,39 @@
     if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return false;
     return /^[\w][\w./-]*\.(jpg|jpeg|png|webp|gif)$/i.test(url);
   }
+  // Square keeps the original upload of every photo, often 2 000 to 3 000
+  // pixels a side. Decoded, the catalog's photos weighed over 2 GB, and iOS
+  // Safari reloaded the boutique over and over («Un problème est survenu à
+  // répétition»). Next.js resizes the photos of the Square bucket named in
+  // apps/coat-care/next.config.ts and caches the result; the site's own
+  // photos are used as they are.
+  var SQUARE_PHOTOS = /^https:\/\/items-images-production\.s3\.us-west-2\.amazonaws\.com\/files\//i;
+  function imageSrc(url, width) {
+    url = String(url || '').trim();
+    return SQUARE_PHOTOS.test(url) ? '/_next/image?url=' + encodeURIComponent(url) + '&w=' + width + '&q=75' : url;
+  }
+  // The src, srcset and sizes attributes of a photo offered at these widths
+  // (ones Next.js accepts: 256, 384, 640, 1080…); `sizes` as on an <img>.
+  function imageAttrs(url, widths, sizes) {
+    url = String(url || '').trim();
+    var src = imageSrc(url, widths[0]);
+    if (src === url) return ' src="' + escapeHtml(url) + '"';
+    var srcset = widths.length > 1
+      ? ' srcset="' + widths.map(function (w) { return escapeHtml(imageSrc(url, w)) + ' ' + w + 'w'; }).join(', ') + '" sizes="' + escapeHtml(sizes) + '"'
+      : '';
+    return ' src="' + escapeHtml(src) + '"' + srcset + ' data-original="' + escapeHtml(url) + '"';
+  }
+  // A photo Next.js could not resize is shown from its original address.
+  document.addEventListener('error', function (e) {
+    var img = e.target;
+    if (!(img instanceof HTMLImageElement) || !img.dataset.original) return;
+    e.stopPropagation();
+    var original = img.dataset.original;
+    delete img.dataset.original;
+    img.removeAttribute('srcset');
+    img.removeAttribute('sizes');
+    img.src = original;
+  }, true);
   function ready() { return mode === 'square' || mode === 'preview'; }
   function storageKey() { return mode === 'square' ? 'bopoil_cart_v1' : 'bopoil_cart_preview_v1'; }
   function readCart() {
@@ -71,7 +104,7 @@
           name: line.name,
           price: line.price,
           currency: /^[A-Z]{3}$/.test(line.currency) ? line.currency : 'CAD',
-          media: image ? '<img src="' + escapeHtml(image) + '" alt="">' : paw(),
+          media: image ? '<img' + imageAttrs(image, [256]) + ' alt="">' : paw(),
           images: image ? [image] : []
         };
       });
@@ -268,7 +301,8 @@
     escapeHtml: escapeHtml,
     money: money,
     paw: paw,
-    allowedImageUrl: allowedImageUrl
+    allowedImageUrl: allowedImageUrl,
+    imageAttrs: imageAttrs
   };
   reload();
 })();

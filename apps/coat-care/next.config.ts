@@ -13,6 +13,17 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
   turbopack: { root: monorepoRoot },
+  // The boutique's product photos are Square's original uploads, often 2 000
+  // to 3 000 pixels a side. apps/web/js/cart.js shows them through
+  // /_next/image at 256 to 1 080 pixels instead; decoded in full, the catalog
+  // weighed over 2 GB and iOS Safari kept reloading the page. The addresses
+  // are content-hashed (a new photo gets a new address), so a resized photo
+  // can be cached for a year.
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "items-images-production.s3.us-west-2.amazonaws.com", pathname: "/files/**", search: "" }],
+    qualities: [75],
+    minimumCacheTTL: 31536000,
+  },
   // Addresses inherited from the former Square Online site. A real redirect
   // passes ranking signals to the new page; the old meta-refresh stubs did not.
   async redirects() {
