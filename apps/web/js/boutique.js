@@ -55,6 +55,12 @@
   var money = Cart.money;
   var paw = Cart.paw;
   var allowedImageUrl = Cart.allowedImageUrl;
+  var imageAttrs = Cart.imageAttrs;
+  // How wide each photo is shown, so the browser picks the smallest resized
+  // version that fills it (Cart.imageAttrs): a card, the opened product, a tile.
+  var CARD_SIZES = '(max-width: 720px) 45vw, (max-width: 1100px) 30vw, 300px';
+  var SHEET_SIZES = '(max-width: 860px) 86vw, 420px';
+  var TILE_SIZES = '(max-width: 1023px) 25vw, 200px';
   function normalized(value) {
     return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
@@ -170,16 +176,19 @@
     if (!urls.length) return p.media || paw();
     var thumbs = urls.length > 1
       ? '<div class="product-sheet__thumbs" role="tablist" aria-label="Photos du produit">' + urls.map(function (url, index) {
-        return '<button class="product-sheet__thumb" type="button" role="tab" data-sheet-image="' + index + '" aria-selected="' + (index === 0 ? 'true' : 'false') + '" aria-label="Photo ' + (index + 1) + ' sur ' + urls.length + '"><img src="' + escapeHtml(url) + '" alt=""></button>';
+        return '<button class="product-sheet__thumb" type="button" role="tab" data-sheet-image="' + index + '" aria-selected="' + (index === 0 ? 'true' : 'false') + '" aria-label="Photo ' + (index + 1) + ' sur ' + urls.length + '"><img' + imageAttrs(url, [256]) + ' alt=""></button>';
       }).join('') + '</div>'
       : '';
-    return '<img src="' + escapeHtml(urls[0]) + '" alt="' + escapeHtml(p.name) + '" data-sheet-main>' + thumbs;
+    return sheetMainHTML(urls[0], p.name) + thumbs;
+  }
+  function sheetMainHTML(url, name) {
+    return '<img' + imageAttrs(url, [640, 1080], SHEET_SIZES) + ' alt="' + escapeHtml(name) + '" data-sheet-main>';
   }
   function setSheetImage(index) {
     var p = products[openProductId];
     if (!p || !p.images || !p.images[index] || !sheet) return;
     var main = sheet.querySelector('[data-sheet-main]');
-    if (main) main.src = p.images[index];
+    if (main) main.outerHTML = sheetMainHTML(p.images[index], p.name);
     sheet.querySelectorAll('[data-sheet-image]').forEach(function (btn) {
       btn.setAttribute('aria-selected', String(Number(btn.dataset.sheetImage) === index));
     });
@@ -372,7 +381,7 @@
       var fallback = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
       var photo = photos[entry[0]] || fallback;
       html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' +
-        '<span class="shop-cat__media"><img src="' + escapeHtml(photo) + '"' + (photo !== fallback ? ' data-fallback="' + fallback + '"' : '') + ' alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
+        '<span class="shop-cat__media"><img' + imageAttrs(photo, [256, 384], TILE_SIZES) + (photo !== fallback ? ' data-fallback="' + fallback + '"' : '') + ' alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
         '<span class="shop-cat__label">' + escapeHtml(entry[1]) + '</span></button></li>';
     });
     filtersEl.innerHTML = html;
@@ -467,7 +476,7 @@
           itemName: title,
           price: v.priceCents,
           currency: v.currency || 'CAD',
-          media: urls[0] ? '<img src="' + escapeHtml(urls[0]) + '" alt="">' : paw(),
+          media: urls[0] ? '<img' + imageAttrs(urls[0], [256]) + ' alt="">' : paw(),
           images: urls,
           description: v.description || '',
           category: shownCategory,
@@ -477,7 +486,7 @@
         return v.id;
       });
       var prices = variants.map(function (v) { return v.priceCents; });
-      var image = cardUrls[0] ? '<img src="' + escapeHtml(cardUrls[0]) + '" alt="' + escapeHtml(title) + '" loading="lazy" decoding="async">' : paw();
+      var image = cardUrls[0] ? '<img' + imageAttrs(cardUrls[0], [384, 640], CARD_SIZES) + ' alt="' + escapeHtml(title) + '" loading="lazy" decoding="async">' : paw();
       return cardHTML({
         id: p.id,
         name: title,

@@ -117,6 +117,33 @@ test("product cards keep descriptions off the grid and show them in the product 
   assert.doesNotMatch(script, /product-card__desc/);
 });
 
+test("product photos are resized and the cards stay flat, so phones do not run out of memory", async () => {
+  const web = new URL("../../web/", import.meta.url);
+  const [cart, script, style, config] = await Promise.all([
+    readFile(new URL("js/cart.js", web), "utf8"),
+    readFile(new URL("js/boutique.js", web), "utf8"),
+    readFile(new URL("css/boutique.css", web), "utf8"),
+    readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
+  ]);
+  // Square keeps the original uploads: the optimizer serves them at 256 to 1 080 pixels.
+  assert.match(cart, /'\/_next\/image\?url=' \+ encodeURIComponent\(url\) \+ '&w=' \+ width \+ '&q=75'/);
+  assert.ok(cart.includes("items-images-production\\.s3\\.us-west-2\\.amazonaws\\.com\\/files\\/"));
+  assert.match(config, /hostname: "items-images-production\.s3\.us-west-2\.amazonaws\.com", pathname: "\/files\/\*\*"/);
+  assert.match(config, /qualities: \[75\]/);
+  assert.match(script, /imageAttrs\(cardUrls\[0\], \[384, 640\], CARD_SIZES\)/);
+  assert.match(script, /imageAttrs\(url, \[640, 1080\], SHEET_SIZES\)/);
+  assert.match(script, /imageAttrs\(urls\[0\], \[256\]\)/);
+  // A photo the optimizer cannot serve falls back to its original address.
+  assert.match(cart, /document\.addEventListener\('error', [^]*?img\.dataset\.original[^]*?\}, true\);/);
+  // Each card used to hold a 3D transform and two blurred backdrops: 300 GPU layers.
+  const card = style.slice(style.indexOf(".product-card {"), style.indexOf("@keyframes shop-rise"));
+  assert.doesNotMatch(card, /backdrop-filter/);
+  assert.doesNotMatch(card, /preserve-3d/);
+  assert.match(card, /@media \(hover: hover\) and \(pointer: fine\) \{\s*\.product-card:hover \{ transform: perspective/);
+  assert.match(style, /\.product-card:nth-child\(n\+13\) \{ animation: none; \}/);
+  assert.match(style, /@keyframes shop-rise \{\s*from \{ opacity: 0; transform: translateY\(18px\); \}\s*to \{ opacity: 1; transform: none; \}/);
+});
+
 test("every page of the public site carries the cart, loaded before the boutique", async () => {
   const web = new URL("../../web/", import.meta.url);
   const pages = (await readdir(web)).filter((name) => name.endsWith(".html") && name !== "liens.html");
