@@ -112,7 +112,8 @@
 
 .lb-chews { display: grid; grid-template-columns: 1fr 1fr; }
 .lb-chews__media { position: relative; min-height: 420px; }
-.lb-chews__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; }
+/* The dog's head sits left of centre: keep it in frame when the sides are cropped. */
+.lb-chews__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 40% 50%; }
 .lb-chews__body { padding: 72px 64px; align-self: center; }
 .lb-chews__body p { max-width: 60ch; }
 .lb-shop-link {

@@ -1486,7 +1486,7 @@ LUCKY_BONES_BODY = f"""    <section class="lb-hero profile-primary-bold">
 
     <section class="lb-chews profile-primary-bold" aria-labelledby="mastication-titre">
       <div class="lb-chews__media">
-        {wide('boutique-interieur', "Présentoirs de produits de mastication dans la boutique BOPOIL", sizes='(max-width: 1023px) 100vw, 50vw')}
+        {img('mastication', "Jack Russell qui mâche un bâton de mastication", 480, 1000, sizes='(max-width: 1023px) 100vw, 50vw')}
       </div>
       <div class="lb-chews__body">
         <h2 class="section-title lb-title" id="mastication-titre">Produits de mastication</h2>
