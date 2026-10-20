@@ -327,6 +327,8 @@ body[data-nav-open="true"] { overflow: hidden; }
 }
 .hero-media[data-focal-y="0.33"] img { object-position: center 33%; }
 .hero-media[data-focal-y="0.2"] img { object-position: center 20%; }
+/* Flipped, a photo whose subject sits left of centre keeps it clear of the copy. */
+.hero-media--mirror img { transform: scaleX(-1); }
 
 .hero-media::after {
   content: "";
@@ -346,8 +348,6 @@ body[data-nav-open="true"] { overflow: hidden; }
 }
 
 .hero-copy { max-width: 46%; }
-/* Copy on the right, for a photo whose subject sits left of centre. */
-.hero-copy--end { margin-inline-start: auto; }
 
 .hero-label {
   font-family: var(--headline-font);

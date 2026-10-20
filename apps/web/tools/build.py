@@ -593,7 +593,9 @@ HERO_SLIDES = [
         "alt": "Petit chien roux au foulard à carreaux, assis entre deux sacs de magasinage",
         "scrim": "0.45",
         "focal": "0.2",
-        "align": "end",
+        # Le chien est à gauche de la photo : retournée, il passe à droite,
+        # à l'écart du texte, à gauche comme sur les autres diapositives.
+        "mirror": True,
         "balance": True,
         "title": "Le soin continue à la maison.",
         "body": ("Brosses, soins et petites attentions pour votre compagnon. Retrouvez vos "
@@ -679,7 +681,6 @@ def hero_html():
             title_cls += " hero-title--plum"
         if s.get("balance"):
             title_cls += " hero-title--balance"
-        copy_cls = "hero-copy hero-copy--end" if s.get("align") == "end" else "hero-copy"
         label = f'<p class="hero-label">{s["label"]}</p>' if s.get("label") else ""
         body = f'<p class="hero-body">{s["body"]}</p>' if s.get("body") else ""
         picture = wide(
@@ -695,11 +696,11 @@ def hero_html():
         level = 1 if s.get("h1") else 2
         slides.append(f"""      <div class="hero-slide" data-active="{active}" aria-hidden="{'false' if i == 0 else 'true'}"{delay}{marker}
            role="group" aria-roledescription="diapositive" aria-label="{i + 1} de {len(HERO_SLIDES)}">
-        <div class="hero-media" style="--scrim-opacity: {s['scrim']};"{focal}>
+        <div class="hero-media{' hero-media--mirror' if s.get('mirror') else ''}" style="--scrim-opacity: {s['scrim']};"{focal}>
           {picture}
         </div>
         <div class="hero-content">
-          <div class="{copy_cls}">
+          <div class="hero-copy">
             {label}
             <h{level} class="{title_cls}">{s['title']}</h{level}>
             {body}
