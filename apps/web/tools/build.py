@@ -1329,12 +1329,6 @@ def lb_recipe_cards_html():
     )
 
 
-def lb_option(name, value, title, detail, checked=False, attrs=""):
-    state = " checked" if checked else ""
-    return (f'<label class="lb-option"><input type="radio" name="{name}" value="{value}"{state}>'
-            f'<span><strong>{title}</strong><small{attrs}>{detail}</small></span></label>')
-
-
 def lb_segment(name, label, options, checked):
     items = "".join(
         f'<label><input type="radio" name="{name}" value="{v}"{" checked" if v == checked else ""}>'
@@ -1344,6 +1338,16 @@ def lb_segment(name, label, options, checked):
     return f'<div class="lb-seg" role="radiogroup" aria-label="{label}">{items}</div>'
 
 
+def lb_select(fid, name, options):
+    items = "".join(
+        f'<option value="{v}"{" selected" if i == 0 else ""}{extra}>{text}</option>'
+        for i, (v, text, extra) in enumerate(options)
+    )
+    return f'<select class="field" id="{fid}" name="{name}">{items}</select>'
+
+
+# Le résultat n'apparaît qu'une fois le poids entré; le prix de chaque recette
+# vient du catalogue Square (js/lucky-bones.js), sans champ à remplir.
 LB_CALCULATOR = f"""        <form class="lb-calc" data-lb-calc novalidate>
           <div class="lb-calc__inputs">
             <div class="lb-field">
@@ -1355,76 +1359,39 @@ LB_CALCULATOR = f"""        <form class="lb-calc" data-lb-calc novalidate>
               </div>
               <p class="lb-hint" id="lb-poids-aide" data-lb-weight-hint></p>
             </div>
-
-            <fieldset class="lb-field">
-              <legend class="lb-label">Profil</legend>
-              <div class="lb-options lb-options--profiles">
-                {''.join(lb_option("profil", v, t, d, checked=(v == "2")) for v, t, d in LB_PROFILES)}
-              </div>
-            </fieldset>
-
-            <fieldset class="lb-field">
-              <legend class="lb-label">Repas par jour</legend>
-              {lb_segment("repas", "Repas par jour", [("1", "1"), ("2", "2"), ("3", "3")], "2")}
-            </fieldset>
-
-            <fieldset class="lb-field">
-              <legend class="lb-label">Recette</legend>
-              <div class="lb-options lb-options--recipes">
-                {''.join(lb_option("recette", key, name, f"Sac de 10{NB}lb", checked=(key == "viking"), attrs=f' data-lb-price="{key}"') for key, name, _, _ in LB_RECIPES)}
-              </div>
-              <label class="lb-label lb-label--small" for="lb-prix">Prix du sac de 10{NB}lb, avant taxes</label>
-              <div class="lb-money">
-                <input class="field" id="lb-prix" name="prix" type="text" inputmode="decimal"
-                       placeholder="Ex. : 54,99" autocomplete="off"><span aria-hidden="true">$</span>
-              </div>
-            </fieldset>
-
-            <details class="lb-compare">
-              <summary>Comparer avec votre nourriture actuelle</summary>
-              <div class="lb-compare__fields">
-                <div>
-                  <label class="lb-label lb-label--small" for="lb-actuel-prix">Prix de votre sac actuel, avant taxes</label>
-                  <div class="lb-money">
-                    <input class="field" id="lb-actuel-prix" name="actuel-prix" type="text"
-                           inputmode="decimal" placeholder="Ex. : 89,99" autocomplete="off"><span aria-hidden="true">$</span>
-                  </div>
-                </div>
-                <div>
-                  <label class="lb-label lb-label--small" for="lb-actuel-jours">Nombre de jours qu’il dure</label>
-                  <input class="field" id="lb-actuel-jours" name="actuel-jours" type="text"
-                         inputmode="numeric" placeholder="Ex. : 30" autocomplete="off">
-                </div>
-              </div>
-            </details>
+            <div class="lb-field">
+              <label class="lb-label" for="lb-profil">Profil</label>
+              {lb_select("lb-profil", "profil", [(v, f"{t} ({d.replace(' du poids par jour', '')})", "") for v, t, d in LB_PROFILES])}
+            </div>
+            <div class="lb-field">
+              <label class="lb-label" for="lb-recette">Recette</label>
+              {lb_select("lb-recette", "recette", [(key, name, f' data-lb-price="{key}" data-name="{name}"') for key, name, _, _ in LB_RECIPES])}
+            </div>
           </div>
 
-          <div class="lb-calc__results">
-            <p class="lb-calc__empty" data-lb-empty>Entrez le poids de votre animal pour voir sa ration.</p>
-            <div class="lb-result" data-lb-result hidden>
+          <div class="lb-calc__results" data-lb-result hidden>
+            <div class="lb-result">
               <p class="lb-result__label">Par jour</p>
               <p class="lb-result__big"><span data-lb-day></span></p>
               <p class="lb-result__patties" data-lb-day-patties></p>
               <div class="lb-patties" data-lb-patty-icons aria-hidden="true"></div>
               <dl class="lb-result__list">
-                <div><dt data-lb-meal-label>Par repas</dt><dd data-lb-meal></dd></div>
+                <div><dt>Par repas, matin et soir</dt><dd data-lb-meal></dd></div>
                 <div><dt>Pour 30 jours</dt><dd data-lb-month></dd></div>
               </dl>
-              <div class="lb-budget" data-lb-budget hidden>
-                <p class="lb-result__label">Budget pour 30 jours, taxes incluses</p>
-                <p class="lb-result__big" data-lb-total></p>
-                <dl class="lb-result__list lb-result__list--small">
-                  <div><dt>Avant taxes</dt><dd data-lb-subtotal></dd></div>
-                  <div><dt>TPS (5{NB}%)</dt><dd data-lb-tps></dd></div>
-                  <div><dt>TVQ (9,975{NB}%)</dt><dd data-lb-tvq></dd></div>
-                  <div><dt>Par jour</dt><dd data-lb-per-day></dd></div>
-                </dl>
-              </div>
-              <p class="lb-budget__missing" data-lb-budget-missing hidden>Entrez le prix du sac pour voir le budget.</p>
-              <p class="lb-comparison" data-lb-comparison hidden></p>
             </div>
-            <p class="visually-hidden" aria-live="polite" data-lb-live></p>
+            <div class="lb-budget" data-lb-budget hidden>
+              <p class="lb-result__label">Budget pour 30 jours, taxes incluses</p>
+              <p class="lb-result__big" data-lb-total></p>
+              <dl class="lb-result__list lb-result__list--small">
+                <div><dt>Avant taxes</dt><dd data-lb-subtotal></dd></div>
+                <div><dt>TPS (5{NB}%)</dt><dd data-lb-tps></dd></div>
+                <div><dt>TVQ (9,975{NB}%)</dt><dd data-lb-tvq></dd></div>
+                <div><dt>Par jour</dt><dd data-lb-per-day></dd></div>
+              </dl>
+            </div>
           </div>
+          <p class="visually-hidden" aria-live="polite" data-lb-live></p>
         </form>
         <noscript><p class="lb-calc__noscript">Activez JavaScript pour utiliser le calculateur, ou
           demandez-nous la ration de votre compagnon en boutique.</p></noscript>"""
@@ -1436,9 +1403,12 @@ LUCKY_BONES_BODY = f"""    <section class="lb-hero profile-primary-bold">
           <p class="eyebrow">BOPOIL × Lucky Bones</p>
           <h1 class="lb-hero__title">Lucky Bones chez BOPOIL Toilettage et Boutique</h1>
           <div class="stack">
-            <p>Chez BOPOIL Toilettage et Boutique, en plein centre-ville de Gatineau, nous sommes
-              fières de représenter Lucky Bones, une entreprise québécoise dédiée à l’alimentation
-              crue pour chiens et chats.</p>
+            <p>Derrière BOPOIL, nous sommes deux propriétaires passionnées et expérimentées, engagées
+              dans le bien-être de vos compagnons. Nous offrons des consultations, des conseils et des
+              recommandations personnalisés pour vous aider à faire des choix éclairés en matière
+              d’alimentation et de produits adaptés aux besoins de votre animal.</p>
+            <p>Chaque compagnon est unique. Nous prenons le temps d’échanger avec vous afin de mieux
+              comprendre ses besoins et de vous orienter vers les options qui lui conviennent.</p>
             <p>Lucky Bones rassemble une communauté de clients engagés, d’éleveurs passionnés et de
               représentants VIP, tous animés par un intérêt commun pour l’alimentation animale.
               L’entreprise est également fièrement membre professionnel de la Raw Feeding
@@ -1520,24 +1490,7 @@ LUCKY_BONES_BODY = f"""    <section class="lb-hero profile-primary-bold">
       </div>
     </section>
 
-    <section class="section profile-primary-dark-bold" aria-labelledby="conseils-titre">
-      <div class="container lb-advice">
-        <h2 class="section-title lb-title" id="conseils-titre">Des conseils personnalisés pour votre animal</h2>
-        <div class="stack">
-          <p>Derrière BOPOIL, nous sommes deux propriétaires passionnées et expérimentées, engagées
-            dans le bien-être de vos compagnons. Nous offrons des consultations, des conseils et des
-            recommandations personnalisés pour vous aider à faire des choix éclairés en matière
-            d’alimentation et de produits adaptés aux besoins de votre animal.</p>
-          <p>Chaque compagnon est unique. Nous prenons le temps d’échanger avec vous afin de mieux
-            comprendre ses besoins et de vous orienter vers les options qui lui conviennent.</p>
-        </div>
-        <div class="btn-row">
-          <a class="btn btn--filled" href="contactez-nous.html">Nous joindre</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section profile-primary-light-neutral" aria-labelledby="visite-titre">
+    <section class="section profile-primary-muted-bold" aria-labelledby="visite-titre">
       <div class="container lb-visit">
         <div>
           <h2 class="section-title lb-title" id="visite-titre">Retrouvez-nous au cœur de Gatineau!</h2>
