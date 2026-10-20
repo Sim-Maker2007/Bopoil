@@ -14,6 +14,7 @@ export const BOUTIQUE_PATH_PATTERNS = [
   /^\/boutique(\.html)?$/i,
   /^\/css\/boutique\.css$/i,
   /^\/js\/boutique\.js$/i,
+  /^\/js\/shop-search\.js$/i,
   /^\/css\/cart\.css$/i,
   /^\/js\/cart\.js$/i,
   /^\/api\/public\/shop(\/.*)?$/i,

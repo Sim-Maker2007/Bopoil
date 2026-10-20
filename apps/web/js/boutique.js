@@ -4,7 +4,8 @@
   'use strict';
   var grid = document.querySelector('[data-shop-grid]');
   var Cart = window.BopoilCart;
-  if (!grid || !Cart) return;
+  var Search = window.BopoilSearch;
+  if (!grid || !Cart || !Search) return;
   var fallbackHTML = grid.innerHTML;
   var filtersEl = document.querySelector('[data-shop-filters]');
   var fallbackFilters = filtersEl.innerHTML;
@@ -14,6 +15,8 @@
   var showAllEl = document.querySelector('[data-shop-all]');
   var notice = document.querySelector('[data-catalog-notice]');
   var emptyEl = document.querySelector('[data-shop-empty]');
+  var widenEl = document.querySelector('[data-shop-widen]');
+  var resetEl = document.querySelector('[data-shop-reset]');
   var searchEl = document.querySelector('[data-shop-search]');
   var sortEl = document.querySelector('[data-shop-sort]');
   var statusEl = document.querySelector('[data-order-status]');
@@ -36,11 +39,13 @@
   var cards = [];
   var activeCategory = 'tous';
   var activeBrand = 'toutes';
+  var searchIndex = Search.createIndex([]);
   var requestedCategory = '';
   // Every brand of the catalog as [slug, name], and the slugs the menu lists now.
   var brandList = [];
   var shownBrands = null;
   var searching = false;
+  var searchTimer;
   var productQty = 1;
   var openProductId = '';
   var CAT_PHOTOS = [
@@ -69,10 +74,7 @@
   var CARD_SIZES = '(max-width: 720px) 45vw, (max-width: 1100px) 30vw, 300px';
   var SHEET_SIZES = '(max-width: 860px) 86vw, 420px';
   var TILE_SIZES = '(max-width: 1023px) 25vw, 200px';
-  function normalized(value) {
-    return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  }
-  function slug(value) { return normalized(value).replace(/[^a-z0-9]+/g, '-') || 'boutique'; }
+  function slug(value) { return Search.normalized(value).replace(/[^a-z0-9]+/g, '-') || 'boutique'; }
   function reduceMotion() {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
@@ -83,12 +85,25 @@
   function requestedProductId() {
     return new URLSearchParams(window.location.search).get('produit') || '';
   }
-  function setProductParam(id, replace) {
+  function setParam(name, value, replace) {
     var params = new URLSearchParams(window.location.search);
-    if (id) params.set('produit', id); else params.delete('produit');
+    if (value) params.set(name, value); else params.delete(name);
     var next = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
     var current = window.location.pathname + window.location.search + window.location.hash;
-    if (next !== current) history[replace ? 'replaceState' : 'pushState']({ produit: id || '' }, '', next);
+    if (next !== current) history[replace ? 'replaceState' : 'pushState']({ produit: params.get('produit') || '' }, '', next);
+  }
+  function setProductParam(id, replace) { setParam('produit', id, replace); }
+  // The search stays in the address (boutique.html?recherche=shampooing), so it
+  // survives a reload and can be shared. Written once typing pauses.
+  function keepSearchInUrl() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () { setParam('recherche', searchEl.value.trim(), true); }, 400);
+  }
+  function syncSearchFromUrl() {
+    var value = new URLSearchParams(window.location.search).get('recherche') || '';
+    if (searchEl.value.trim() === value) return;
+    searchEl.value = value;
+    filterProducts();
   }
   function renderProductQty() {
     if (!sheetQty) return;
@@ -250,61 +265,17 @@
   function cardBrands(card) {
     return (card.dataset.brand || '').split(' ').filter(Boolean);
   }
-  // Words without accents or capitals: « Gâteries Chiens » → gateries, chiens.
-  function words(value) {
-    return normalized(value).split(/[^a-z0-9]+/).filter(Boolean);
-  }
-  // Little words are left out of a search that has others, so « brosse pour
-  // chien » finds what « brosse chien » finds.
-  var STOP_WORDS = ['a', 'au', 'aux', 'avec', 'd', 'de', 'des', 'du', 'en', 'et', 'l', 'la', 'le', 'les', 'pour', 'sur', 'un', 'une'];
-  function searchTokens(value) {
-    var tokens = words(value);
-    var meaningful = tokens.filter(function (t) { return STOP_WORDS.indexOf(t) === -1; });
-    return meaningful.length ? meaningful : tokens;
-  }
-  // Where a word is found decides how high the product ranks: its name first,
-  // then its colours and sizes, its brand, its category and its description.
-  var SEARCH_FIELDS = [['name', 8], ['variants', 5], ['brand', 4], ['cat', 2], ['desc', 1]];
-  var searchIndex = new WeakMap();
-  function cardWords(card) {
-    var fields = searchIndex.get(card);
-    if (!fields) {
-      fields = SEARCH_FIELDS.map(function (field) { return { words: words(card.dataset[field[0]]), weight: field[1] }; });
-      searchIndex.set(card, fields);
-    }
-    return fields;
-  }
-  // 0 unless every word of the search is in the product. A whole word counts
-  // most, then the start of a word; a long search word may also sit inside a
-  // word (« poil » in « antipoils »), a short one may not (« os » in « cosmétiques »).
-  function searchScore(card, tokens) {
-    var fields = cardWords(card);
-    var total = 0;
-    for (var i = 0; i < tokens.length; i++) {
-      var token = tokens[i];
-      var best = 0;
-      fields.forEach(function (field) {
-        field.words.forEach(function (word) {
-          var at = word.indexOf(token);
-          var quality = word === token ? 3 : at === 0 ? 2 : at > 0 && token.length > 3 ? 1 : 0;
-          best = Math.max(best, quality * field.weight);
-        });
-      });
-      if (!best) return 0;
-      total += best;
-    }
-    return total;
-  }
   function filterProducts() {
     if (mode !== 'square' && mode !== 'preview') return;
-    var tokens = searchTokens(searchEl.value);
+    keepSearchInUrl();
+    var found = Search.find(searchIndex, searchEl.value);
     // Starting a search puts the best matches first, unless the shopper chose
     // a price order; clearing it goes back to the names.
-    if (tokens.length && !searching && sortEl.value === 'name') sortEl.value = 'relevance';
-    if (!tokens.length && searching && sortEl.value === 'relevance') sortEl.value = 'name';
-    searching = tokens.length > 0;
+    if (found.searching && !searching && sortEl.value === 'name') sortEl.value = 'relevance';
+    if (!found.searching && searching && sortEl.value === 'relevance') sortEl.value = 'name';
+    searching = found.searching;
     var scores = new Map();
-    if (searching) cards.forEach(function (card) { scores.set(card, searchScore(card, tokens)); });
+    cards.forEach(function (card, index) { scores.set(card, found.scores[index]); });
     var sorted = cards.slice();
     if (sortEl.value === 'price-asc') sorted.sort(function (a, b) { return Number(a.dataset.price) - Number(b.dataset.price); });
     if (sortEl.value === 'price-desc') sorted.sort(function (a, b) { return Number(b.dataset.price) - Number(a.dataset.price); });
@@ -320,9 +291,12 @@
     if (!available[activeBrand]) activeBrand = 'toutes';
     var count = 0;
     var shown = 0;
+    var anywhere = 0;
     sorted.forEach(function (card) {
       var inBrand = activeBrand === 'toutes' || cardBrands(card).indexOf(activeBrand) !== -1;
-      var match = inActiveCategory(card) && inBrand && (!searching || scores.get(card) > 0);
+      var inSearch = !searching || scores.get(card) > 0;
+      if (inSearch) anywhere++;
+      var match = inActiveCategory(card) && inBrand && inSearch;
       card.hidden = !match;
       if (match) {
         card.style.setProperty('--i', String(shown));
@@ -344,7 +318,26 @@
     }
     brandsEl.value = activeBrand;
     countEl.textContent = count + (count > 1 ? ' produits' : ' produit');
+    // A corrected search says what it looked for: 11 produits pour « collier ».
+    if (found.corrected && count) {
+      var fix = document.createElement('span');
+      fix.className = 'shop-count__fix';
+      fix.textContent = ' pour «\u00a0' + found.corrected + '\u00a0»';
+      countEl.appendChild(fix);
+    }
     emptyEl.hidden = count !== 0 || mode === 'error' || !cards.length;
+    // Nothing in the chosen category or brand, but elsewhere in the boutique: offer those.
+    var widen = count === 0 && anywhere > 0;
+    widenEl.hidden = !widen;
+    resetEl.hidden = widen;
+    if (widen) widenEl.textContent = anywhere > 1 ? 'Voir les ' + anywhere + ' résultats dans toute la boutique' : 'Voir le résultat dans toute la boutique';
+  }
+  function showWholeShop() {
+    activeCategory = 'tous';
+    activeBrand = 'toutes';
+    filterProducts();
+    filtersEl.scrollTo({ left: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
+    searchEl.focus();
   }
   // On phones and tablets the categories are a swipeable row: bring a
   // half-hidden category fully into view.
@@ -421,6 +414,9 @@
     products = known || Object.create(null);
     if (!known) groups = Object.create(null);
     cards = Array.prototype.slice.call(grid.querySelectorAll('[data-product]'));
+    searchIndex = Search.createIndex(cards.map(function (card) {
+      return { name: card.dataset.name, variants: card.dataset.variants, brand: card.dataset.brand, cat: (card.dataset.cat || '').replace(/-/g, ' '), desc: card.dataset.desc };
+    }));
     cards.forEach(function (card, index) {
       var media = card.querySelector('.product-card__media > svg, .product-card__media > img');
       var badge = card.querySelector('.product-card__badge');
@@ -623,7 +619,8 @@
     if (btn.hasAttribute('data-product-dec')) { productQty = Math.max(1, productQty - 1); renderProductQty(); }
     if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter === activeCategory ? 'tous' : btn.dataset.filter; filterProducts(); revealFilter(filtersEl, btn); }
     if (btn.hasAttribute('data-shop-all')) { activeCategory = 'tous'; filterProducts(); }
-    if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; activeBrand = 'toutes'; searchEl.value = ''; sortEl.value = 'name'; filterProducts(); filtersEl.scrollTo({ left: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); searchEl.focus(); }
+    if (btn.hasAttribute('data-shop-widen')) showWholeShop();
+    if (btn.hasAttribute('data-shop-reset')) { searchEl.value = ''; sortEl.value = 'name'; showWholeShop(); }
   });
   productOverlay.addEventListener('click', function () { closeProduct(); });
   sheet.addEventListener('click', function (e) { if (e.target === sheet) closeProduct(); });
@@ -668,10 +665,11 @@
   searchEl.addEventListener('input', filterProducts);
   sortEl.addEventListener('change', filterProducts);
   brandsEl.addEventListener('change', function () { activeBrand = brandsEl.value; filterProducts(); });
-  window.addEventListener('popstate', syncProductFromUrl);
+  window.addEventListener('popstate', function () { syncSearchFromUrl(); syncProductFromUrl(); });
   document.addEventListener('bopoil:cart-busy', renderProductQty);
   document.addEventListener('bopoil:cart-opening', function () { if (sheet.dataset.open === 'true') closeProduct({ restore: false }); });
   var params = new URLSearchParams(window.location.search);
+  if (params.has('recherche')) searchEl.value = params.get('recherche');
   // The Lucky Bones page links to « boutique.html?categorie=lucky-bones »: the
   // store opens on that category, then the address drops it.
   requestedCategory = params.get('categorie') || '';
