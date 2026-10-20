@@ -35,6 +35,7 @@
   var cards = [];
   var activeCategory = 'tous';
   var activeBrand = 'toutes';
+  var requestedCategory = '';
   // Every brand of the catalog as [slug, name], and the slugs the menu lists now.
   var brandList = [];
   var shownBrands = null;
@@ -575,6 +576,7 @@
       if (data.configured) {
         mode = 'square';
         known = renderSquareCatalog(data.products, Array.isArray(data.categories) ? data.categories : []);
+        if (requestedCategory && filtersEl.querySelector('[data-filter="' + CSS.escape(requestedCategory) + '"]')) activeCategory = requestedCategory;
         notice.innerHTML = data.products.length ? 'Paiement sécurisé avec Square · Cueillette au 38 avenue Gatineau<br>Notre équipe communiquera avec vous lorsque votre commande sera prête à ramasser au salon. Livraison disponible sur demande.' : 'La boutique se prépare. Aucun produit n’est disponible en ligne pour le moment. Contactez le salon pour être conseillé.';
       } else {
         mode = 'preview';
@@ -595,6 +597,7 @@
     } finally {
       chromeHidden(mode === 'error' || !cards.length);
       grid.setAttribute('aria-busy', 'false');
+      if (activeCategory !== 'tous') revealFilter(filtersEl, filtersEl.querySelector('[aria-pressed="true"]'));
     }
   }
 
@@ -664,10 +667,16 @@
   document.addEventListener('bopoil:cart-busy', renderProductQty);
   document.addEventListener('bopoil:cart-opening', function () { if (sheet.dataset.open === 'true') closeProduct({ restore: false }); });
   var params = new URLSearchParams(window.location.search);
+  // The Lucky Bones page links to « boutique.html?categorie=lucky-bones »: the
+  // store opens on that category, then the address drops it.
+  requestedCategory = params.get('categorie') || '';
+  params.delete('categorie');
   if (params.has('commande')) {
     statusEl.hidden = false;
     statusEl.textContent = 'De retour de Square ? Consultez votre reçu Square pour confirmer le paiement. Votre panier est conservé; ne payez pas une seconde fois si vous avez déjà reçu un reçu.';
     params.delete('commande');
+  }
+  if (params.toString() !== window.location.search.replace(/^\?/, '')) {
     history.replaceState(null, '', window.location.pathname + (params.size ? '?' + params.toString() : '') + window.location.hash);
   }
   loadCatalog();

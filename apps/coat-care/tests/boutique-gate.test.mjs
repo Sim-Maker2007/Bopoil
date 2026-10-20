@@ -72,6 +72,20 @@ test("the build strips the boutique navigation link, the cart and the sitemap en
   assert.equal(transformPublicFile("robots.txt", "User-agent: *", hidden), null);
 });
 
+test("the Lucky Bones page links into the store only while it is published", async () => {
+  const page = await readFile(new URL("../../web/lucky-bones.html", import.meta.url), "utf8");
+  assert.match(page, /<p class="lb-shop-link" data-boutique-link>[^]*?href="boutique\.html\?categorie=lucky-bones#produits"/);
+  assert.match(page, /href="lucky-bones\.html" aria-current="page">Lucky Bones</);
+  assert.equal(transformPublicFile("lucky-bones.html", page, published), null);
+
+  const hiddenPage = transformPublicFile("lucky-bones.html", page, hidden);
+  assert.doesNotMatch(hiddenPage, /boutique\.html|data-boutique-link/);
+  // The page itself, its calculator and its place in the menu stay.
+  assert.match(hiddenPage, /href="lucky-bones\.html" aria-current="page">Lucky Bones</);
+  assert.match(hiddenPage, /data-lb-calc/);
+  assert.match(hiddenPage, /Que vous souhaitiez varier les plaisirs/);
+});
+
 test("the build dates each sitemap page by its last change, never earlier than the committed date", async () => {
   const sitemap = await readFile(new URL("../../web/sitemap.xml", import.meta.url), "utf8");
   const dates = { "index.html": "2099-01-02", "boutique.html": "2000-01-01", "guide.html": "" };

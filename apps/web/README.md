@@ -24,8 +24,9 @@ n'importe quel hébergement statique pour un aperçu.
 **Boutique en ligne.** La page `boutique.html` est publiée seulement lorsque la
 variable d'environnement `BOUTIQUE_ENABLED=true` est définie sur Vercel. Sinon,
 le script de synchronisation retire le lien « Boutique » du menu, le panier des
-autres pages, la diapositive de la boutique sur l'accueil et l'entrée du plan
-de site, et `apps/coat-care/proxy.ts` répond
+autres pages, la diapositive de la boutique sur l'accueil, le lien « C'est ici »
+de la page Lucky Bones (tout paragraphe marqué `data-boutique-link`) et l'entrée
+du plan de site, et `apps/coat-care/proxy.ts` répond
 404 pour la page, ses fichiers, ceux du panier et l'API de la boutique. Une clé `BOUTIQUE_PREVIEW_KEY` permet de déverrouiller
 la boutique sur un navigateur donné (`boutique.html?apercu=<clé>`). Les fichiers
 de ce dossier ne sont jamais modifiés ; voir le README à la racine du dépôt.
@@ -44,7 +45,9 @@ Lucky Bones. Un article dont le nom ne commence pas par sa marque en majuscules
 n'a pas de marque. Une catégorie Square qui porte le nom d'une marque passe dans
 le menu des marques, avec tous ses articles. Lucky Bones a aussi sa propre
 carte de catégorie, juste après « Tous les produits » (`FEATURED_BRANDS` dans
-`js/boutique.js`), avec la photo de sa catégorie Square.
+`js/boutique.js`), avec la photo de sa catégorie Square. L'adresse
+`boutique.html?categorie=<catégorie>` ouvre la boutique sur une catégorie : la
+page Lucky Bones y mène avec `?categorie=lucky-bones`.
 
 Un article Square offert en plusieurs variations (couleurs, tailles, formats)
 forme une seule fiche, avec un sélecteur par choix : pastilles pour les
@@ -240,6 +243,7 @@ chiens.html               5 services + galerie
 chats.html                5 services + galerie
 petits-animaux.html       3 services
 guide.html                guide toilettage — 6 catégories de poil (lien « Services »)
+lucky-bones.html          Lucky Bones — alimentation crue, recettes, calculateur de ration
 politique.html            politique de rendez-vous, annulation et retard (pied de page)
 rendez-vous.html          réservation Square Appointments
 contactez-nous.html       formulaire, carte, coordonnées, heures
@@ -250,10 +254,12 @@ css/tokens.css            jetons de design extraits de l'ancien site
 css/style.css             mise en page et composants
 css/cart.css              bouton et tiroir du panier, sur toutes les pages
 css/boutique.css          page boutique — catalogue, filtres, fiche produit
+css/lucky-bones.css       page Lucky Bones et son calculateur
 js/config.js              ⚙️ configuration — Square, CRM, coordonnées, mesure d'audience
 js/main.js                carrousel, navigation, formulaires, repli réservation
 js/cart.js                panier sur toutes les pages, paiement Square
 js/boutique.js            catalogue Square de la page boutique
+js/lucky-bones.js         calculateur de ration Lucky Bones (prix des sacs lus dans le catalogue Square)
 images/                   photos JPEG + WebP en plusieurs largeurs (srcset) + logo
 tools/build.py            générateur de pages, données structurées, sitemap, robots
 tools/optimize-images.mjs variantes WebP et vignettes 400 px

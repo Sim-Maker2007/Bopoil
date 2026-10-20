@@ -77,6 +77,7 @@ NAV = [
         {"label": "Petits animaux", "href": "petits-animaux.html"},
     ]},
     {"label": "Boutique", "href": "boutique.html"},
+    {"label": "Lucky Bones", "href": "lucky-bones.html"},
     {"label": "Contactez-nous", "href": "contactez-nous.html"},
 ]
 
@@ -1280,6 +1281,298 @@ GUIDE_BODY = f"""    <section class="page-hero" style="--scrim-opacity: .45;">
 
 
 # ---------------------------------------------------------------------------
+# LUCKY BONES
+# ---------------------------------------------------------------------------
+# Page de la marque Lucky Bones, avec un calculateur de ration (js/lucky-bones.js,
+# css/lucky-bones.css). Le lien vers la boutique porte data-boutique-link :
+# scripts/public-site-boutique.mjs le retire tant que la boutique est masquée.
+
+LB_RECIPES = [
+    ("viking", "Viking", "Emballage de la recette Viking de Lucky Bones, poulet et poisson",
+     "Une recette qui marie le flétan et le saumon pour mettre les saveurs de la mer à "
+     "l’honneur."),
+    ("mechoui", "Méchoui", "Emballage de la recette Méchoui de Lucky Bones, au porc",
+     "Une recette pensée pour offrir un repas complet et satisfaisant à votre compagnon."),
+    ("rock-o-rico", "Rock-O-Rico", "Emballage de la recette Rock-O-Rico de Lucky Bones, au poulet",
+     "Une recette au poulet qui met les protéines animales à l’avant-plan."),
+]
+
+LB_BENEFITS = [
+    "Un poil plus brillant",
+    "Une meilleure digestion",
+    "Moins de flatulences et d’odeurs",
+    "Plus d’énergie",
+    "Des selles moins volumineuses",
+]
+
+# Mêmes pourcentages que le calculateur de Distribution Lucky Bones.
+LB_PROFILES = [
+    ("2", "Adulte", "2 % du poids par jour"),
+    ("4", "Chiot ou chaton", "4 % du poids par jour"),
+    ("3", "Très actif ou maigre", "3 % du poids par jour"),
+    ("1.5", "Sédentaire ou embonpoint", "1,5 % du poids par jour"),
+]
+
+
+def lb_recipe_cards_html():
+    return "\n".join(
+        f"""          <article class="lb-recipe">
+            <div class="lb-recipe__media">{thumb(f'lucky-bones-{key}', alt, sizes='(max-width: 767px) 100vw, 33vw')}</div>
+            <div class="lb-recipe__body">
+              <h3 class="lb-recipe__title">{name}</h3>
+              <p>{text}</p>
+              <p class="lb-recipe__meta" data-lb-price="{key}">Sac de 10{NB}lb</p>
+            </div>
+          </article>"""
+        for key, name, alt, text in LB_RECIPES
+    )
+
+
+def lb_option(name, value, title, detail, checked=False, attrs=""):
+    state = " checked" if checked else ""
+    return (f'<label class="lb-option"><input type="radio" name="{name}" value="{value}"{state}>'
+            f'<span><strong>{title}</strong><small{attrs}>{detail}</small></span></label>')
+
+
+def lb_segment(name, label, options, checked):
+    items = "".join(
+        f'<label><input type="radio" name="{name}" value="{v}"{" checked" if v == checked else ""}>'
+        f'<span>{text}</span></label>'
+        for v, text in options
+    )
+    return f'<div class="lb-seg" role="radiogroup" aria-label="{label}">{items}</div>'
+
+
+LB_CALCULATOR = f"""        <form class="lb-calc" data-lb-calc novalidate>
+          <div class="lb-calc__inputs">
+            <div class="lb-field">
+              <label class="lb-label" for="lb-poids">Poids de votre animal</label>
+              <div class="lb-weight">
+                <input class="field" id="lb-poids" name="poids" type="text" inputmode="decimal"
+                       placeholder="Ex. : 25" autocomplete="off" aria-describedby="lb-poids-aide">
+                {lb_segment("unite", "Unité de poids", [("lb", "lb"), ("kg", "kg")], "lb")}
+              </div>
+              <p class="lb-hint" id="lb-poids-aide" data-lb-weight-hint></p>
+            </div>
+
+            <fieldset class="lb-field">
+              <legend class="lb-label">Profil</legend>
+              <div class="lb-options lb-options--profiles">
+                {''.join(lb_option("profil", v, t, d, checked=(v == "2")) for v, t, d in LB_PROFILES)}
+              </div>
+            </fieldset>
+
+            <fieldset class="lb-field">
+              <legend class="lb-label">Repas par jour</legend>
+              {lb_segment("repas", "Repas par jour", [("1", "1"), ("2", "2"), ("3", "3")], "2")}
+            </fieldset>
+
+            <fieldset class="lb-field">
+              <legend class="lb-label">Recette</legend>
+              <div class="lb-options lb-options--recipes">
+                {''.join(lb_option("recette", key, name, f"Sac de 10{NB}lb", checked=(key == "viking"), attrs=f' data-lb-price="{key}"') for key, name, _, _ in LB_RECIPES)}
+              </div>
+              <label class="lb-label lb-label--small" for="lb-prix">Prix du sac de 10{NB}lb, avant taxes</label>
+              <div class="lb-money">
+                <input class="field" id="lb-prix" name="prix" type="text" inputmode="decimal"
+                       placeholder="Ex. : 54,99" autocomplete="off"><span aria-hidden="true">$</span>
+              </div>
+            </fieldset>
+
+            <details class="lb-compare">
+              <summary>Comparer avec votre nourriture actuelle</summary>
+              <div class="lb-compare__fields">
+                <div>
+                  <label class="lb-label lb-label--small" for="lb-actuel-prix">Prix de votre sac actuel, avant taxes</label>
+                  <div class="lb-money">
+                    <input class="field" id="lb-actuel-prix" name="actuel-prix" type="text"
+                           inputmode="decimal" placeholder="Ex. : 89,99" autocomplete="off"><span aria-hidden="true">$</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="lb-label lb-label--small" for="lb-actuel-jours">Nombre de jours qu’il dure</label>
+                  <input class="field" id="lb-actuel-jours" name="actuel-jours" type="text"
+                         inputmode="numeric" placeholder="Ex. : 30" autocomplete="off">
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="lb-calc__results">
+            <p class="lb-calc__empty" data-lb-empty>Entrez le poids de votre animal pour voir sa ration.</p>
+            <div class="lb-result" data-lb-result hidden>
+              <p class="lb-result__label">Par jour</p>
+              <p class="lb-result__big"><span data-lb-day></span></p>
+              <p class="lb-result__patties" data-lb-day-patties></p>
+              <div class="lb-patties" data-lb-patty-icons aria-hidden="true"></div>
+              <dl class="lb-result__list">
+                <div><dt data-lb-meal-label>Par repas</dt><dd data-lb-meal></dd></div>
+                <div><dt>Pour 30 jours</dt><dd data-lb-month></dd></div>
+              </dl>
+              <div class="lb-budget" data-lb-budget hidden>
+                <p class="lb-result__label">Budget pour 30 jours, taxes incluses</p>
+                <p class="lb-result__big" data-lb-total></p>
+                <dl class="lb-result__list lb-result__list--small">
+                  <div><dt>Avant taxes</dt><dd data-lb-subtotal></dd></div>
+                  <div><dt>TPS (5{NB}%)</dt><dd data-lb-tps></dd></div>
+                  <div><dt>TVQ (9,975{NB}%)</dt><dd data-lb-tvq></dd></div>
+                  <div><dt>Par jour</dt><dd data-lb-per-day></dd></div>
+                </dl>
+              </div>
+              <p class="lb-budget__missing" data-lb-budget-missing hidden>Entrez le prix du sac pour voir le budget.</p>
+              <p class="lb-comparison" data-lb-comparison hidden></p>
+            </div>
+            <p class="visually-hidden" aria-live="polite" data-lb-live></p>
+          </div>
+        </form>
+        <noscript><p class="lb-calc__noscript">Activez JavaScript pour utiliser le calculateur, ou
+          demandez-nous la ration de votre compagnon en boutique.</p></noscript>"""
+
+
+LUCKY_BONES_BODY = f"""    <section class="lb-hero profile-primary-bold">
+      <div class="container lb-hero__inner">
+        <div class="lb-hero__text">
+          <p class="eyebrow">BOPOIL × Lucky Bones</p>
+          <h1 class="lb-hero__title">Lucky Bones chez BOPOIL Toilettage et Boutique</h1>
+          <div class="stack">
+            <p>Chez BOPOIL Toilettage et Boutique, en plein centre-ville de Gatineau, nous sommes
+              fières de représenter Lucky Bones, une entreprise québécoise dédiée à l’alimentation
+              crue pour chiens et chats.</p>
+            <p>Lucky Bones rassemble une communauté de clients engagés, d’éleveurs passionnés et de
+              représentants VIP, tous animés par un intérêt commun pour l’alimentation animale.
+              L’entreprise est également fièrement membre professionnel de la Raw Feeding
+              Veterinary Society (RFVS).</p>
+          </div>
+          <div class="btn-row">
+            <a class="btn btn--filled" href="#calculateur">Calculer sa ration</a>
+            <a class="btn btn--outline" href="#recettes">Voir les recettes</a>
+          </div>
+        </div>
+        <div class="lb-hero__logo">
+          {thumb('lucky-bones-logo', "Lucky Bones &amp; Cie, équipe de l’Outaouais", loading='eager', sizes='(max-width: 1023px) 70vw, 360px')}
+        </div>
+      </div>
+    </section>
+
+    <section class="section profile-primary-light-neutral" aria-labelledby="cru-titre">
+      <div class="container lb-benefits-wrap">
+        <div class="lb-benefits__intro">
+          <h2 class="section-title lb-title" id="cru-titre">L’alimentation crue : une différence qui se remarque</h2>
+          <p>L’alimentation joue un rôle important dans le bien-être de nos compagnons. Après une
+            transition vers l’alimentation crue, plusieurs propriétaires remarquent des changements
+            positifs :</p>
+        </div>
+        <ul class="lb-benefits">
+          {''.join(f'<li>{b}</li>' for b in LB_BENEFITS)}
+        </ul>
+        <p class="lb-benefits__note">Chaque animal est différent et les résultats peuvent varier.
+          L’essentiel est de choisir une alimentation complète, équilibrée et adaptée à ses besoins.
+          Lucky Bones propose différentes recettes pour varier le menu de votre compagnon.</p>
+      </div>
+    </section>
+
+    <section class="section profile-primary-muted-bold" id="recettes" aria-labelledby="recettes-titre">
+      <div class="container">
+        <h2 class="section-title lb-title" id="recettes-titre">Les recettes Lucky Bones</h2>
+        <div class="lb-recipes">
+{lb_recipe_cards_html()}
+        </div>
+        <p class="lb-recipes__note">Chaque recette possède ses particularités. N’hésitez pas à nous
+          consulter pour en apprendre davantage sur leur composition et déterminer laquelle
+          correspond aux besoins de votre animal.</p>
+      </div>
+    </section>
+
+    <section class="lb-chews profile-primary-bold" aria-labelledby="mastication-titre">
+      <div class="lb-chews__media">
+        {wide('boutique-interieur', "Présentoirs de produits de mastication dans la boutique BOPOIL", sizes='(max-width: 1023px) 100vw, 50vw')}
+      </div>
+      <div class="lb-chews__body">
+        <h2 class="section-title lb-title" id="mastication-titre">Produits de mastication</h2>
+        <div class="stack">
+          <p>Pour compléter notre sélection, nous proposons un vaste choix de produits de
+            mastication déshydratés et frais congelés. De nombreuses variétés sont disponibles
+            directement en magasin, et notre catalogue comprend plusieurs autres options que nous
+            pouvons commander pour vous.</p>
+          <p>Que vous souhaitiez varier les plaisirs ou retrouver les produits préférés de votre
+            chien, nous serons heureuses de vous présenter les choix disponibles et de vous
+            renseigner sur les possibilités de commande.</p>
+        </div>
+        <p class="lb-shop-link" data-boutique-link>Envie d’explorer notre sélection?
+          <a class="btn btn--filled" href="boutique.html?categorie=lucky-bones#produits">C’est ici</a></p>
+      </div>
+    </section>
+
+    <section class="section profile-primary-light-neutral lb-calc-section" id="calculateur"
+             aria-labelledby="calculateur-titre">
+      <div class="container">
+        <div class="lb-calc__head">
+          <h2 class="section-title lb-title" id="calculateur-titre">Calculateur de ration</h2>
+          <p>Combien servir chaque jour, combien prévoir pour le mois et à quel coût : entrez le
+            poids de votre compagnon, le calcul se fait au fur et à mesure.</p>
+        </div>
+{LB_CALCULATOR}
+        <p class="lb-calc__disclaimer">Ces quantités sont un point de départ : chaque animal est
+          différent. Ajustez la ration selon la condition de votre compagnon et n’hésitez pas à
+          nous consulter. Calcul basé sur des galettes de 227{NB}g (½{NB}lb), 20 galettes par sac de
+          10{NB}lb, sur 30 jours; TPS et TVQ en sus.</p>
+      </div>
+    </section>
+
+    <section class="section profile-primary-dark-bold" aria-labelledby="conseils-titre">
+      <div class="container lb-advice">
+        <h2 class="section-title lb-title" id="conseils-titre">Des conseils personnalisés pour votre animal</h2>
+        <div class="stack">
+          <p>Derrière BOPOIL, nous sommes deux propriétaires passionnées et expérimentées, engagées
+            dans le bien-être de vos compagnons. Nous offrons des consultations, des conseils et des
+            recommandations personnalisés pour vous aider à faire des choix éclairés en matière
+            d’alimentation et de produits adaptés aux besoins de votre animal.</p>
+          <p>Chaque compagnon est unique. Nous prenons le temps d’échanger avec vous afin de mieux
+            comprendre ses besoins et de vous orienter vers les options qui lui conviennent.</p>
+        </div>
+        <div class="btn-row">
+          <a class="btn btn--filled" href="contactez-nous.html">Nous joindre</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section profile-primary-light-neutral" aria-labelledby="visite-titre">
+      <div class="container lb-visit">
+        <div>
+          <h2 class="section-title lb-title" id="visite-titre">Retrouvez-nous au cœur de Gatineau!</h2>
+          <div class="stack">
+            <p>Notre boutique avec pignon sur rue est située en plein centre-ville de Gatineau.
+              Passez nous voir pour découvrir les produits Lucky Bones, explorer notre sélection de
+              nourritures et de produits de mastication ou discuter des besoins de votre
+              compagnon.</p>
+            <p>La livraison et des prix fidélité sont également disponibles sur demande.</p>
+            <p>Nous sommes fières d’encourager une entreprise québécoise et de vous faire découvrir
+              son univers chez BOPOIL Toilettage et Boutique.</p>
+          </div>
+        </div>
+        <div class="lb-visit__card">
+          <h3 class="lb-visit__name">BOPOIL Gatineau</h3>
+          <address>
+            38 Av Gatineau<br>
+            Gatineau, Québec J8T 4J1<br>
+            <a href="tel:{PHONE_TEL}">{PHONE}</a><br>
+            <a href="mailto:{EMAIL}">{EMAIL}</a>
+          </address>
+          <dl class="location__hours">{hours_dl_html()}</dl>
+          <p class="mb-0"><a href="{DIRECTIONS}" target="_blank" rel="noopener">Obtenir un itinéraire</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section prose-centered profile-primary-bold" aria-label="BOPOIL et Lucky Bones">
+      <div class="container">
+        <p class="prose-centered__quote lb-closing">En Outaouais, c’est choisir BOPOIL × Lucky Bones…
+          collaboration d’ici, pour le bien-être de vos compagnons.</p>
+      </div>
+    </section>"""
+
+
+# ---------------------------------------------------------------------------
 # POLITIQUE
 # ---------------------------------------------------------------------------
 
@@ -1725,6 +2018,16 @@ PAGES = [
                      "exemples de races.",
          body=GUIDE_BODY,
          og_image="banniere-guide-1600.jpg"),
+
+    dict(filename="lucky-bones.html",
+         title="Lucky Bones à Gatineau – alimentation crue | BOPOIL",
+         description="Lucky Bones chez BOPOIL Toilettage et Boutique à Gatineau : alimentation "
+                     "crue québécoise pour chiens et chats, produits de mastication, conseils "
+                     "personnalisés et calculateur de ration.",
+         body=LUCKY_BONES_BODY,
+         og_image="lucky-bones-viking-900.jpg",
+         extra_head='\n  <link rel="stylesheet" href="css/lucky-bones.css">'
+                    '\n  <script src="js/lucky-bones.js" defer></script>'),
 
     dict(filename="politique.html",
          title="Politique de rendez-vous et d'annulation | BOPOIL Gatineau",
