@@ -41,7 +41,7 @@
       </a>
       <nav class="nav" id="site-nav" aria-label="Navigation principale">
         <ul class="nav-list">
-          <li class="nav-item"><a class="nav-link" href="a-propos.html">À propos</a></li><li class="nav-item"><a class="nav-link" href="nos-services.html" aria-haspopup="true" aria-expanded="false">Services<span class="nav-caret" aria-hidden="true"></span></a><ul class="nav-submenu"><li><a class="nav-link" href="chiens.html">Chiens</a></li><li><a class="nav-link" href="chats.html">Chats</a></li><li><a class="nav-link" href="petits-animaux.html">Petits animaux</a></li><li><a class="nav-link" href="guide.html">Votre guide toilettage</a></li></ul></li><li class="nav-item"><a class="nav-link" href="boutique.html" aria-current="page">Boutique</a></li><li class="nav-item"><a class="nav-link" href="politique.html">Politique</a></li><li class="nav-item"><a class="nav-link" href="contactez-nous.html" aria-haspopup="true" aria-expanded="false">Contactez-nous<span class="nav-caret" aria-hidden="true"></span></a><ul class="nav-submenu"><li><a class="nav-link" href="fiche-informations.html">Fiche d'informations - Profil client</a></li></ul></li>
+          <li class="nav-item"><a class="nav-link" href="a-propos.html">À propos</a></li><li class="nav-item"><a class="nav-link" href="guide.html" aria-haspopup="true" aria-expanded="false">Services<span class="nav-caret" aria-hidden="true"></span></a><ul class="nav-submenu"><li class="nav-submenu__parent"><a class="nav-link" href="guide.html">Votre guide toilettage</a></li><li><a class="nav-link" href="chiens.html">Chiens</a></li><li><a class="nav-link" href="chats.html">Chats</a></li><li><a class="nav-link" href="petits-animaux.html">Petits animaux</a></li></ul></li><li class="nav-item"><a class="nav-link" href="boutique.html" aria-current="page">Boutique</a></li><li class="nav-item"><a class="nav-link" href="lucky-bones.html">Lucky Bones</a></li><li class="nav-item"><a class="nav-link" href="contactez-nous.html">Contactez-nous</a></li>
         </ul>
         <div class="nav-cta">
           <a class="btn btn--filled btn--small" href="rendez-vous.html">Réserver</a>
@@ -79,20 +79,20 @@
         <div class="shop-notice" data-catalog-notice role="status">Chargement de la boutique…</div>
         <noscript><p>Activez JavaScript pour utiliser le panier. Les produits ci-dessous sont un aperçu; contactez le salon pour connaître les disponibilités.</p></noscript>
         <ul class="shop-cats" data-shop-filters data-shop-chrome role="group" aria-label="Filtrer par catégorie">
-          <li><button class="shop-cat shop-cat--all" type="button" data-filter="tous" aria-pressed="true"><span class="shop-cat__label">Tous les produits</span></button></li>
           <li><button class="shop-cat" type="button" data-filter="soins" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/chat-toilettage-complet-480.webp 480w, images/chat-toilettage-complet-900.webp 900w" sizes="160px"><img src="images/chat-toilettage-complet-480.jpg" srcset="images/chat-toilettage-complet-480.jpg 480w, images/chat-toilettage-complet-900.jpg 900w" sizes="160px" width="480" height="360" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Soins &amp; shampooings</span></button></li>
           <li><button class="shop-cat" type="button" data-filter="outils" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/chien-brossage-480.webp 480w, images/chien-brossage-900.webp 900w" sizes="160px"><img src="images/chien-brossage-480.jpg" srcset="images/chien-brossage-480.jpg 480w, images/chien-brossage-900.jpg 900w" sizes="160px" width="480" height="360" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Brosses &amp; outils</span></button></li>
           <li><button class="shop-cat" type="button" data-filter="gateries" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/chiots-endormis-800.webp"><img src="images/chiots-endormis-800.jpg" width="800" height="600" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Gâteries</span></button></li>
           <li><button class="shop-cat" type="button" data-filter="accessoires" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/chat-cache-griffes-480.webp 480w, images/chat-cache-griffes-900.webp 900w" sizes="160px"><img src="images/chat-cache-griffes-480.jpg" srcset="images/chat-cache-griffes-480.jpg 480w, images/chat-cache-griffes-900.jpg 900w" sizes="160px" width="480" height="360" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Accessoires</span></button></li>
           <li><button class="shop-cat" type="button" data-filter="coffrets" aria-pressed="false"><span class="shop-cat__media"><picture><source type="image/webp" srcset="images/boutique-interieur-400.webp 400w, images/boutique-interieur-800.webp 800w" sizes="160px"><img src="images/boutique-interieur-400.jpg" srcset="images/boutique-interieur-400.jpg 400w, images/boutique-interieur-800.jpg 800w" sizes="160px" width="400" height="300" alt="" loading="lazy" decoding="async"></picture></span><span class="shop-cat__label">Coffrets</span></button></li>
         </ul>
-        <ul class="shop-brands" data-shop-brands role="group" aria-label="Filtrer par marque" hidden></ul>
         <div class="shop-controls" data-shop-chrome>
           <label class="shop-search" for="shop-search"><span>Rechercher un produit</span><input id="shop-search" type="search" placeholder="Shampooing, brosse, gâterie…" autocomplete="off" data-shop-search></label>
+          <label class="shop-brand-filter" for="shop-brand" data-shop-brand-field hidden><span>Marque</span><select id="shop-brand" data-shop-brands><option value="toutes">Toutes les marques</option></select></label>
           <label class="shop-sort" for="shop-sort"><span>Trier par</span><select id="shop-sort" data-shop-sort><option value="name">Nom : A à Z</option><option value="relevance">Pertinence</option><option value="price-asc">Prix croissant</option><option value="price-desc">Prix décroissant</option></select></label>
         </div>
         <div class="shop-toolbar" data-shop-chrome>
           <p class="shop-count" data-shop-count aria-live="polite">10 produits</p>
+          <button class="shop-show-all" type="button" data-shop-all hidden>Voir tous les produits</button>
         </div>
 
         <div class="shop-empty" data-shop-empty hidden><h3>Aucun produit trouvé</h3><p>Essayez un autre mot ou explorez toutes les catégories.</p><button class="btn btn--filled btn--small" type="button" data-shop-reset>Voir tous les produits</button></div>
@@ -379,6 +379,12 @@
             <p class="form-status" hidden></p>
           </form>
         </div>
+        <nav class="site-footer__links" aria-label="Liens utiles">
+          <ul>
+            <li><a href="politique.html">Politique des rendez-vous, annulation &amp; retard</a></li>
+            <li><a href="fiche-informations.html">Fiche d'informations - Profil client</a></li>
+          </ul>
+        </nav>
       </div>
       <div class="site-footer__meta">
         <p class="mb-0">

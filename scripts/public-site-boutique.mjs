@@ -1,8 +1,8 @@
 // Build-time half of the boutique gate (the request-time half lives in
 // apps/coat-care/proxy.ts). While the store is hidden, the synchronized copy of
-// the public website carries no "Boutique" navigation link, no cart, no
-// boutique slide on the home page and no sitemap entry, so nothing on the live
-// site points to the page.
+// the public website carries no "Boutique" navigation link, no link marked
+// data-boutique-link, no cart, no boutique slide on the home page and no
+// sitemap entry, so nothing on the live site points to the page.
 
 export const BOUTIQUE_ENABLED_VARIABLE = "BOUTIQUE_ENABLED";
 // Build-time half of the reservation gate (request-time half in
@@ -11,6 +11,9 @@ export const BOUTIQUE_ENABLED_VARIABLE = "BOUTIQUE_ENABLED";
 export const ONLINE_BOOKING_ENABLED_VARIABLE = "ONLINE_BOOKING_ENABLED";
 
 const navigationItem = /\s*<li class="nav-item"><a class="nav-link" href="boutique\.html"[^>]*>Boutique<\/a><\/li>/g;
+// A paragraph leading into the store from another page (« C'est ici » on the
+// Lucky Bones page) is marked data-boutique-link.
+const boutiqueLink = /\s*<p\b[^>]*\bdata-boutique-link\b[^>]*>[\s\S]*?<\/p>/g;
 // The cart every page carries: header button, drawer, stylesheet and script.
 // boutique.html keeps its own, for browsers unlocked with the preview key.
 const cartPieces = [
@@ -42,7 +45,7 @@ export function pauseBookingInHtml(html) {
 }
 
 export function hideBoutiqueInHtml(html) {
-  return html.replace(navigationItem, "");
+  return html.replace(navigationItem, "").replace(boutiqueLink, "");
 }
 
 export function hideCartInHtml(html) {

@@ -162,9 +162,12 @@
 .cart-line__thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
 .cart-line__info { min-width: 0; }
+/* Product names and prices use the product cards' typefaces: the name in
+   Libre Franklin, the price in Libre Franklin semibold. */
 .cart-line__name {
-  font-family: var(--headline-font);
+  font-family: var(--body-font);
   font-size: var(--font-step-0);
+  font-weight: 500;
   line-height: 1.25;
   margin: 0 0 4px;
 }
@@ -194,7 +197,7 @@
 .qty-stepper__val { min-width: 30px; text-align: center; font-size: var(--font-step--1); font-variant-numeric: tabular-nums; }
 
 .cart-line__end { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; }
-.cart-line__price { font-family: var(--headline-font); font-size: var(--font-step-0); white-space: nowrap; }
+.cart-line__price { font-family: var(--body-font); font-size: var(--font-step-0); font-weight: 600; white-space: nowrap; }
 .cart-line__remove {
   background: none;
   border: 0;
@@ -217,7 +220,7 @@
   margin-bottom: 6px;
 }
 .cart-subtotal dt { font-family: var(--body-font); font-size: var(--font-step-0); }
-.cart-subtotal dd { margin: 0; font-family: var(--headline-font); font-size: var(--font-step-2); }
+.cart-subtotal dd { margin: 0; font-family: var(--body-font); font-size: 1.5rem; font-weight: 600; }
 .cart-drawer__note { font-size: var(--font-step--2); color: var(--color-gray-60); margin: 0 0 18px; line-height: 1.5; }
 .cart-drawer__checkout { width: 100%; }
 /* A button on the boutique, a link to it on the other pages. */
