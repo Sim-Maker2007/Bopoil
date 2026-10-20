@@ -10,7 +10,9 @@
   var filtersEl = document.querySelector('[data-shop-filters]');
   var fallbackFilters = filtersEl.innerHTML;
   var brandsEl = document.querySelector('[data-shop-brands]');
+  var brandField = document.querySelector('[data-shop-brand-field]');
   var countEl = document.querySelector('[data-shop-count]');
+  var showAllEl = document.querySelector('[data-shop-all]');
   var notice = document.querySelector('[data-catalog-notice]');
   var emptyEl = document.querySelector('[data-shop-empty]');
   var widenEl = document.querySelector('[data-shop-widen]');
@@ -38,6 +40,10 @@
   var activeCategory = 'tous';
   var activeBrand = 'toutes';
   var searchIndex = Search.createIndex([]);
+  var requestedCategory = '';
+  // Every brand of the catalog as [slug, name], and the slugs the menu lists now.
+  var brandList = [];
+  var shownBrands = null;
   var searching = false;
   var searchTimer;
   var productQty = 1;
@@ -54,6 +60,8 @@
   ];
   // Square's catch-all category holds most of the store, so it is no use as a filter.
   var HIDDEN_CATEGORIES = ['boutique'];
+  // Brands that also get a category card, first in the row.
+  var FEATURED_BRANDS = ['lucky-bones'];
   var PLUS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
   var escapeHtml = Cart.escapeHtml;
@@ -72,7 +80,7 @@
   }
   function chromeHidden(hidden) {
     document.querySelectorAll('[data-shop-chrome]').forEach(function (el) { el.hidden = hidden; });
-    brandsEl.hidden = hidden || !brandsEl.childElementCount;
+    brandField.hidden = hidden || !brandList.length;
   }
   function requestedProductId() {
     return new URLSearchParams(window.location.search).get('produit') || '';
@@ -249,8 +257,10 @@
     }
     if (sheet && sheet.dataset.open === 'true') closeProduct({ updateUrl: false });
   }
+  // A brand's category card (FEATURED_BRANDS) holds every product of that brand.
   function inActiveCategory(card) {
-    return activeCategory === 'tous' || (card.dataset.cat || '').split(' ').indexOf(activeCategory) !== -1;
+    return activeCategory === 'tous' || (card.dataset.cat || '').split(' ').indexOf(activeCategory) !== -1 ||
+      cardBrands(card).indexOf(activeCategory) !== -1;
   }
   function cardBrands(card) {
     return (card.dataset.brand || '').split(' ').filter(Boolean);
@@ -273,7 +283,7 @@
     if (sortEl.value === 'name' || sortEl.value === 'relevance') sorted.sort(function (a, b) { return a.dataset.name.localeCompare(b.dataset.name, 'fr', { ignorePunctuation: true }); });
     // Equal scores keep the alphabetical order (the sort is stable).
     if (sortEl.value === 'relevance' && searching) sorted.sort(function (a, b) { return scores.get(b) - scores.get(a); });
-    // The brand row lists only the brands found in the chosen category.
+    // The brand menu lists only the brands found in the chosen category.
     var available = Object.create(null);
     cards.forEach(function (card) {
       if (inActiveCategory(card)) cardBrands(card).forEach(function (brand) { available[brand] = true; });
@@ -296,11 +306,17 @@
       grid.appendChild(card);
     });
     filtersEl.querySelectorAll('[data-filter]').forEach(function (el) { el.setAttribute('aria-pressed', String(el.dataset.filter === activeCategory)); });
-    brandsEl.querySelectorAll('[data-brand-filter]').forEach(function (el) {
-      var brand = el.dataset.brandFilter;
-      el.parentNode.hidden = brand !== 'toutes' && !available[brand];
-      el.setAttribute('aria-pressed', String(brand === activeBrand));
-    });
+    showAllEl.hidden = activeCategory === 'tous';
+    // iOS Safari ignores hidden options, so the menu is rebuilt when its brands change.
+    var listed = brandList.filter(function (entry) { return available[entry[0]]; });
+    var key = listed.map(function (entry) { return entry[0]; }).join(' ');
+    if (key !== shownBrands) {
+      shownBrands = key;
+      brandsEl.innerHTML = '<option value="toutes">Toutes les marques</option>' + listed.map(function (entry) {
+        return '<option value="' + escapeHtml(entry[0]) + '">' + escapeHtml(entry[1].toLocaleUpperCase('fr')) + '</option>';
+      }).join('');
+    }
+    brandsEl.value = activeBrand;
     countEl.textContent = count + (count > 1 ? ' produits' : ' produit');
     // A corrected search says what it looked for: 11 produits pour « collier ».
     if (found.corrected && count) {
@@ -320,12 +336,11 @@
     activeCategory = 'tous';
     activeBrand = 'toutes';
     filterProducts();
-    revealFilter(filtersEl, filtersEl.querySelector('[data-filter="tous"]'));
-    revealFilter(brandsEl, brandsEl.querySelector('[data-brand-filter="toutes"]'));
+    filtersEl.scrollTo({ left: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
     searchEl.focus();
   }
-  // On phones and tablets the categories are a swipeable row, and the brands
-  // always are: bring a half-hidden filter fully into view.
+  // On phones and tablets the categories are a swipeable row: bring a
+  // half-hidden category fully into view.
   function revealFilter(list, btn) {
     if (!btn || list.scrollWidth <= list.clientWidth) return;
     var row = list.getBoundingClientRect();
@@ -363,32 +378,36 @@
     '</article>';
   }
   function renderFilters(categories, photos, brands) {
-    var html = '<li><button class="shop-cat shop-cat--all" type="button" data-filter="tous" aria-pressed="true"><span class="shop-cat__label">Tous les produits</span></button></li>';
+    // No « Tous les produits » card: picking the chosen category again, or
+    // « Voir tous les produits », shows the whole store.
+    var html = '';
     var i = 0;
-    // Entries are [slug, Square category name], listed alphabetically like the Square dashboard.
     // Each card shows the photo set on the category in Square; a category without
     // one (or whose photo fails to load) gets one of the salon photos instead.
-    // A category named after a brand is offered in the brand row instead.
+    function addTile(key, name) {
+      var fallback = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
+      var photo = photos[key] || fallback;
+      html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(key) + '" aria-pressed="false">' +
+        '<span class="shop-cat__media"><img' + imageAttrs(photo, [256, 384], TILE_SIZES) + (photo !== fallback ? ' data-fallback="' + fallback + '"' : '') + ' alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
+        '<span class="shop-cat__label">' + escapeHtml(name) + '</span></button></li>';
+    }
+    FEATURED_BRANDS.forEach(function (key) { if (brands.has(key)) addTile(key, brands.get(key)); });
+    // Entries are [slug, Square category name], listed alphabetically like the Square dashboard.
+    // A category named after a brand is offered in the brand menu instead.
     Array.from(categories).filter(function (entry) {
       return HIDDEN_CATEGORIES.indexOf(entry[0]) === -1 && !brands.has(entry[0]);
     }).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); }).forEach(function (entry) {
-      var fallback = CAT_PHOTOS[i++ % CAT_PHOTOS.length];
-      var photo = photos[entry[0]] || fallback;
-      html += '<li><button class="shop-cat" type="button" data-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' +
-        '<span class="shop-cat__media"><img' + imageAttrs(photo, [256, 384], TILE_SIZES) + (photo !== fallback ? ' data-fallback="' + fallback + '"' : '') + ' alt="" width="480" height="360" loading="lazy" decoding="async"></span>' +
-        '<span class="shop-cat__label">' + escapeHtml(entry[1]) + '</span></button></li>';
+      addTile(entry[0], entry[1]);
     });
     filtersEl.innerHTML = html;
     filtersEl.querySelectorAll('img[data-fallback]').forEach(function (img) {
       img.addEventListener('error', function () { img.src = img.dataset.fallback; img.removeAttribute('data-fallback'); }, { once: true });
     });
   }
-  // Entries are [slug, brand name]; no brands (the preview catalog) leaves the row out.
+  // Entries are [slug, brand name]; no brands (the preview catalog) leaves the menu out.
   function renderBrands(brands) {
-    brandsEl.innerHTML = brands.size ? '<li><button class="shop-brand" type="button" data-brand-filter="toutes" aria-pressed="true">Toutes les marques</button></li>' +
-      Array.from(brands).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr', { sensitivity: 'base' }); }).map(function (entry) {
-        return '<li><button class="shop-brand" type="button" data-brand-filter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' + escapeHtml(entry[1]) + '</button></li>';
-      }).join('') : '';
+    brandList = Array.from(brands).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr', { sensitivity: 'base' }); });
+    shownBrands = null;
   }
   // Square products arrive already described (known); the preview cards are read from the page.
   function hydrate(known) {
@@ -557,6 +576,7 @@
       if (data.configured) {
         mode = 'square';
         known = renderSquareCatalog(data.products, Array.isArray(data.categories) ? data.categories : []);
+        if (requestedCategory && filtersEl.querySelector('[data-filter="' + CSS.escape(requestedCategory) + '"]')) activeCategory = requestedCategory;
         notice.innerHTML = data.products.length ? 'Paiement sécurisé avec Square · Cueillette au 38 avenue Gatineau<br>Notre équipe communiquera avec vous lorsque votre commande sera prête à ramasser au salon. Livraison disponible sur demande.' : 'La boutique se prépare. Aucun produit n’est disponible en ligne pour le moment. Contactez le salon pour être conseillé.';
       } else {
         mode = 'preview';
@@ -577,6 +597,7 @@
     } finally {
       chromeHidden(mode === 'error' || !cards.length);
       grid.setAttribute('aria-busy', 'false');
+      if (activeCategory !== 'tous') revealFilter(filtersEl, filtersEl.querySelector('[aria-pressed="true"]'));
     }
   }
 
@@ -596,8 +617,8 @@
     if (btn.hasAttribute('data-add')) addToCart(btn.dataset.add, btn.hasAttribute('data-product-add') ? productQty : 1, btn);
     if (btn.hasAttribute('data-product-inc')) { productQty = Math.min(99, productQty + 1); renderProductQty(); }
     if (btn.hasAttribute('data-product-dec')) { productQty = Math.max(1, productQty - 1); renderProductQty(); }
-    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter; filterProducts(); revealFilter(filtersEl, btn); revealFilter(brandsEl, brandsEl.querySelector('[aria-pressed="true"]')); }
-    if (btn.hasAttribute('data-brand-filter')) { activeBrand = btn.dataset.brandFilter; filterProducts(); revealFilter(brandsEl, btn); }
+    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter === activeCategory ? 'tous' : btn.dataset.filter; filterProducts(); revealFilter(filtersEl, btn); }
+    if (btn.hasAttribute('data-shop-all')) { activeCategory = 'tous'; filterProducts(); }
     if (btn.hasAttribute('data-shop-widen')) showWholeShop();
     if (btn.hasAttribute('data-shop-reset')) { searchEl.value = ''; sortEl.value = 'name'; showWholeShop(); }
   });
@@ -643,15 +664,22 @@
   });
   searchEl.addEventListener('input', filterProducts);
   sortEl.addEventListener('change', filterProducts);
+  brandsEl.addEventListener('change', function () { activeBrand = brandsEl.value; filterProducts(); });
   window.addEventListener('popstate', function () { syncSearchFromUrl(); syncProductFromUrl(); });
   document.addEventListener('bopoil:cart-busy', renderProductQty);
   document.addEventListener('bopoil:cart-opening', function () { if (sheet.dataset.open === 'true') closeProduct({ restore: false }); });
   var params = new URLSearchParams(window.location.search);
   if (params.has('recherche')) searchEl.value = params.get('recherche');
+  // The Lucky Bones page links to « boutique.html?categorie=lucky-bones »: the
+  // store opens on that category, then the address drops it.
+  requestedCategory = params.get('categorie') || '';
+  params.delete('categorie');
   if (params.has('commande')) {
     statusEl.hidden = false;
     statusEl.textContent = 'De retour de Square ? Consultez votre reçu Square pour confirmer le paiement. Votre panier est conservé; ne payez pas une seconde fois si vous avez déjà reçu un reçu.';
     params.delete('commande');
+  }
+  if (params.toString() !== window.location.search.replace(/^\?/, '')) {
     history.replaceState(null, '', window.location.pathname + (params.size ? '?' + params.toString() : '') + window.location.hash);
   }
   loadCatalog();

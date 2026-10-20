@@ -52,7 +52,7 @@ test("the build strips the boutique navigation link, the cart and the sitemap en
   const hiddenIndex = transformPublicFile("index.html", index, hidden);
   assert.doesNotMatch(hiddenIndex, /boutique\.html/);
   assert.doesNotMatch(hiddenIndex, /cart-|cart\.(css|js)|data-cart/);
-  assert.match(hiddenIndex, /href="politique\.html">Politique</);
+  assert.match(hiddenIndex, /href="contactez-nous\.html">Contactez-nous</);
   // Only the link, the cart and the boutique slide go: the menu toggle and the page itself stay.
   assert.match(hiddenIndex, /<div class="header-actions">\s*<button class="nav-toggle"[^>]*>\s*<span><\/span><span><\/span><span><\/span>\s*<\/button>\s*<\/div>/);
   assert.equal(hiddenIndex.length, hideBoutiqueSlide(hideCartInHtml(index)).length - '<li class="nav-item"><a class="nav-link" href="boutique.html">Boutique</a></li>'.length);
@@ -70,6 +70,20 @@ test("the build strips the boutique navigation link, the cart and the sitemap en
   assert.equal(transformPublicFile("index.html", index, published), null);
   assert.equal(transformPublicFile("sitemap.xml", sitemap, published), null);
   assert.equal(transformPublicFile("robots.txt", "User-agent: *", hidden), null);
+});
+
+test("the Lucky Bones page links into the store only while it is published", async () => {
+  const page = await readFile(new URL("../../web/lucky-bones.html", import.meta.url), "utf8");
+  assert.match(page, /<p class="lb-shop-link" data-boutique-link>[^]*?href="boutique\.html\?categorie=lucky-bones#produits"/);
+  assert.match(page, /href="lucky-bones\.html" aria-current="page">Lucky Bones</);
+  assert.equal(transformPublicFile("lucky-bones.html", page, published), null);
+
+  const hiddenPage = transformPublicFile("lucky-bones.html", page, hidden);
+  assert.doesNotMatch(hiddenPage, /boutique\.html|data-boutique-link/);
+  // The page itself, its calculator and its place in the menu stay.
+  assert.match(hiddenPage, /href="lucky-bones\.html" aria-current="page">Lucky Bones</);
+  assert.match(hiddenPage, /data-lb-calc/);
+  assert.match(hiddenPage, /Que vous souhaitiez varier les plaisirs/);
 });
 
 test("the build dates each sitemap page by its last change, never earlier than the committed date", async () => {

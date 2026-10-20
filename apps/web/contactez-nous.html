@@ -40,7 +40,7 @@
       </a>
       <nav class="nav" id="site-nav" aria-label="Navigation principale">
         <ul class="nav-list">
-          <li class="nav-item"><a class="nav-link" href="a-propos.html">À propos</a></li><li class="nav-item"><a class="nav-link" href="nos-services.html" aria-haspopup="true" aria-expanded="false">Services<span class="nav-caret" aria-hidden="true"></span></a><ul class="nav-submenu"><li><a class="nav-link" href="chiens.html">Chiens</a></li><li><a class="nav-link" href="chats.html">Chats</a></li><li><a class="nav-link" href="petits-animaux.html">Petits animaux</a></li><li><a class="nav-link" href="guide.html">Votre guide toilettage</a></li></ul></li><li class="nav-item"><a class="nav-link" href="boutique.html">Boutique</a></li><li class="nav-item"><a class="nav-link" href="politique.html">Politique</a></li><li class="nav-item"><a class="nav-link" href="contactez-nous.html" aria-haspopup="true" aria-expanded="false" aria-current="page">Contactez-nous<span class="nav-caret" aria-hidden="true"></span></a><ul class="nav-submenu"><li><a class="nav-link" href="fiche-informations.html">Fiche d'informations - Profil client</a></li></ul></li>
+          <li class="nav-item"><a class="nav-link" href="a-propos.html">À propos</a></li><li class="nav-item"><a class="nav-link" href="guide.html" aria-haspopup="true" aria-expanded="false">Services<span class="nav-caret" aria-hidden="true"></span></a><ul class="nav-submenu"><li class="nav-submenu__parent"><a class="nav-link" href="guide.html">Votre guide toilettage</a></li><li><a class="nav-link" href="chiens.html">Chiens</a></li><li><a class="nav-link" href="chats.html">Chats</a></li><li><a class="nav-link" href="petits-animaux.html">Petits animaux</a></li></ul></li><li class="nav-item"><a class="nav-link" href="boutique.html">Boutique</a></li><li class="nav-item"><a class="nav-link" href="lucky-bones.html">Lucky Bones</a></li><li class="nav-item"><a class="nav-link" href="contactez-nous.html" aria-current="page">Contactez-nous</a></li>
         </ul>
         <div class="nav-cta">
           <a class="btn btn--filled btn--small" href="rendez-vous.html">Réserver</a>
@@ -61,13 +61,42 @@
   </header>
 
   <main id="contenu">
+    <section class="location profile-primary-light-neutral">
+      <h1 class="visually-hidden">Contactez-nous</h1>
+      <div class="location__map">
+        <iframe src="https://www.google.com/maps?q=38+Av+Gatineau,+Gatineau,+QC+J8T+4J1&hl=fr&z=16&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                title="Carte — 38 Av Gatineau, Gatineau, Québec"></iframe>
+      </div>
+      <div class="location__info">
+        <p class="location__note">Veuillez noter que notre stationnement est situé directement
+          sur Avenue Gatineau, devant notre entrée principale. Merci!</p>
+        <div class="location__address">
+          <h2 class="section-title" style="font-size: var(--font-step-1);">BOPOIL Gatineau</h2>
+          <address>
+            38 Av Gatineau<br>
+            Gatineau, Québec J8T 4J1<br>
+            <a href="tel:+18199682827">(819) 968-2827</a><br>
+            <a href="mailto:info@bopoil.ca">info@bopoil.ca</a>
+          </address>
+          <p style="margin-top: 16px;">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=38+Av+Gatineau,+Gatineau,+QC+J8T+4J1" target="_blank" rel="noopener">Obtenir un itinéraire</a>
+          </p>
+        </div>
+        <div>
+          <h2 class="section-title" style="font-size: var(--font-step-1); margin-bottom: 16px;">
+            Heures d'ouverture</h2>
+          <dl class="location__hours"><dt>lundi</dt><dd>Sur rendez-vous</dd><dt>mardi</dt><dd>9 h à 16 h</dd><dt>mercredi</dt><dd>9 h à 16 h</dd><dt>jeudi</dt><dd>9 h à 16 h</dd><dt>vendredi</dt><dd>9 h à 16 h</dd><dt>samedi</dt><dd>Sur rendez-vous</dd><dt>dimanche</dt><dd>Fermé</dd></dl>
+        </div>
+      </div>
+    </section>
+
     <section class="contact-hero profile-primary-dark-bold">
       <div class="contact-hero__bg">
-        <picture><source type="image/webp" srcset="images/banniere-contact-800.webp 800w, images/banniere-contact-1600.webp 1600w" sizes="100vw"><img src="images/banniere-contact-1600.jpg" srcset="images/banniere-contact-800.jpg 800w, images/banniere-contact-1600.jpg 1600w" sizes="100vw" width="1600" height="1087" alt="" loading="eager" decoding="async"></picture>
+        <picture><source type="image/webp" srcset="images/banniere-contact-800.webp 800w, images/banniere-contact-1600.webp 1600w" sizes="100vw"><img src="images/banniere-contact-1600.jpg" srcset="images/banniere-contact-800.jpg 800w, images/banniere-contact-1600.jpg 1600w" sizes="100vw" width="1600" height="1087" alt="" loading="lazy" decoding="async"></picture>
       </div>
       <div class="container">
         <div class="contact-hero__intro stack">
-          <h1 class="section-title">Contactez-nous</h1>
+          <h2 class="section-title">Contactez-nous</h2>
           <p>Vous êtes à la recherche d'un salon de toilettage pour offrir un vent de
             fraîcheur à votre compagnon?</p>
           <p>Vous êtes déjà client, aimeriez prendre votre prochain rendez-vous ou avez des
@@ -105,34 +134,6 @@
             <button class="btn btn--filled" type="submit">Soumettre</button>
           </div>
         </form>
-      </div>
-    </section>
-
-    <section class="location profile-primary-light-neutral">
-      <div class="location__map">
-        <iframe src="https://www.google.com/maps?q=38+Av+Gatineau,+Gatineau,+QC+J8T+4J1&hl=fr&z=16&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-                title="Carte — 38 Av Gatineau, Gatineau, Québec"></iframe>
-      </div>
-      <div class="location__info">
-        <p class="location__note">Veuillez noter que notre stationnement est situé directement
-          sur Avenue Gatineau, devant notre entrée principale. Merci!</p>
-        <div class="location__address">
-          <h2 class="section-title" style="font-size: var(--font-step-1);">BOPOIL Gatineau</h2>
-          <address>
-            38 Av Gatineau<br>
-            Gatineau, Québec J8T 4J1<br>
-            <a href="tel:+18199682827">(819) 968-2827</a><br>
-            <a href="mailto:info@bopoil.ca">info@bopoil.ca</a>
-          </address>
-          <p style="margin-top: 16px;">
-            <a href="https://www.google.com/maps/dir/?api=1&destination=38+Av+Gatineau,+Gatineau,+QC+J8T+4J1" target="_blank" rel="noopener">Obtenir un itinéraire</a>
-          </p>
-        </div>
-        <div>
-          <h2 class="section-title" style="font-size: var(--font-step-1); margin-bottom: 16px;">
-            Heures d'ouverture</h2>
-          <dl class="location__hours"><dt>lundi</dt><dd>Sur rendez-vous</dd><dt>mardi</dt><dd>9 h à 16 h</dd><dt>mercredi</dt><dd>9 h à 16 h</dd><dt>jeudi</dt><dd>9 h à 16 h</dd><dt>vendredi</dt><dd>9 h à 16 h</dd><dt>samedi</dt><dd>Sur rendez-vous</dd><dt>dimanche</dt><dd>Fermé</dd></dl>
-        </div>
       </div>
     </section>
   </main>
@@ -186,6 +187,12 @@
             <p class="form-status" hidden></p>
           </form>
         </div>
+        <nav class="site-footer__links" aria-label="Liens utiles">
+          <ul>
+            <li><a href="politique.html">Politique des rendez-vous, annulation &amp; retard</a></li>
+            <li><a href="fiche-informations.html">Fiche d'informations - Profil client</a></li>
+          </ul>
+        </nav>
       </div>
       <div class="site-footer__meta">
         <p class="mb-0">
