@@ -661,9 +661,12 @@ body[data-product-open="true"] { overflow: hidden; }
 .shop-controls input, .shop-controls select { width: 100%; min-height: 48px; padding: 10px 14px; background: #fff; border: 1px solid #bbb; border-radius: 6px; font: inherit; font-size: 1rem; color: #141414; }
 .shop-toolbar { gap: 14px; margin-bottom: 24px; }
 .shop-count { white-space: nowrap; }
+.shop-count__fix { white-space: normal; }
 .product-card__title { overflow-wrap: anywhere; }
 .shop-empty { text-align: center; padding: 48px 20px; background: white; border: 1px solid #ddd; border-radius: 10px; }
 .shop-empty h3 { text-transform: none; margin-bottom: 12px; }
+.shop-empty .btn { height: auto; min-height: var(--button-small-height); max-width: 100%; padding-block: 8px; text-align: center; white-space: normal; }
+.shop-empty .btn + .btn { margin-left: 0; }
 .shop-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 42; display: flex; gap: 24px; align-items: center; max-width: calc(100vw - 32px); width: max-content; padding: 12px 18px; border-radius: 10px; box-shadow: 0 8px 32px #0003; background: #1d3c41; color: white; font-size: .875rem; }
 .shop-toast button { flex-shrink: 0; min-height: 44px; color: white; background: none; border: 0; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; font: inherit; }
 .boutique-page :focus-visible { outline: 3px solid #a84776; outline-offset: 4px; }

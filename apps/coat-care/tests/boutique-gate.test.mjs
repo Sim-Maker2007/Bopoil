@@ -10,7 +10,7 @@ const published = { BOUTIQUE_ENABLED: "true" };
 const withKey = { BOUTIQUE_PREVIEW_KEY: "ninja-secret-key" };
 
 test("the boutique gate covers the page, its assets, the cart and the shop API only", () => {
-  for (const path of ["/boutique.html", "/boutique", "/css/boutique.css", "/js/boutique.js", "/css/cart.css", "/js/cart.js", "/api/public/shop", "/api/public/shop/checkout"]) {
+  for (const path of ["/boutique.html", "/boutique", "/css/boutique.css", "/js/boutique.js", "/js/shop-search.js", "/css/cart.css", "/js/cart.js", "/api/public/shop", "/api/public/shop/checkout"]) {
     assert.equal(isBoutiquePath(path), true, path);
   }
   for (const path of ["/", "/index.html", "/nos-services.html", "/css/style.css", "/api/public/contact", "/salon"]) {
@@ -92,7 +92,7 @@ test("the Next.js proxy enforces the gate on every boutique address", async () =
     readFile(new URL("../../../scripts/sync-public-site.mjs", import.meta.url), "utf8"),
   ]);
   assert.match(proxy, /export function proxy\(/);
-  for (const path of ["/boutique.html", "/css/boutique.css", "/js/boutique.js", "/css/cart.css", "/js/cart.js", "/api/public/shop/:path*"]) {
+  for (const path of ["/boutique.html", "/css/boutique.css", "/js/boutique.js", "/js/shop-search.js", "/css/cart.css", "/js/cart.js", "/api/public/shop/:path*"]) {
     assert.ok(proxy.includes(`"${path}"`), path);
   }
   assert.match(proxy, /decideBoutiqueAccess/);
@@ -158,7 +158,7 @@ test("every page of the public site carries the cart, loaded before the boutique
     if (name !== "boutique.html") assert.match(html, /<a class="cart-drawer__continue" href="boutique\.html">/, name);
   }
   const boutique = await readFile(new URL("boutique.html", web), "utf8");
-  assert.match(boutique, /<script src="js\/cart\.js" defer><\/script>\s*<script src="js\/boutique\.js" defer><\/script>/);
+  assert.match(boutique, /<script src="js\/cart\.js" defer><\/script>\s*<script src="js\/shop-search\.js" defer><\/script>\s*<script src="js\/boutique\.js" defer><\/script>/);
   const [cart, script] = await Promise.all([
     readFile(new URL("js/cart.js", web), "utf8"),
     readFile(new URL("js/boutique.js", web), "utf8"),
