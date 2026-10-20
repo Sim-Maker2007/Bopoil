@@ -11,6 +11,7 @@
   var brandsEl = document.querySelector('[data-shop-brands]');
   var brandField = document.querySelector('[data-shop-brand-field]');
   var countEl = document.querySelector('[data-shop-count]');
+  var showAllEl = document.querySelector('[data-shop-all]');
   var notice = document.querySelector('[data-catalog-notice]');
   var emptyEl = document.querySelector('[data-shop-empty]');
   var searchEl = document.querySelector('[data-shop-search]');
@@ -54,7 +55,7 @@
   ];
   // Square's catch-all category holds most of the store, so it is no use as a filter.
   var HIDDEN_CATEGORIES = ['boutique'];
-  // Brands that also get a category card, right after « Tous les produits ».
+  // Brands that also get a category card, first in the row.
   var FEATURED_BRANDS = ['lucky-bones'];
   var PLUS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
@@ -331,6 +332,7 @@
       grid.appendChild(card);
     });
     filtersEl.querySelectorAll('[data-filter]').forEach(function (el) { el.setAttribute('aria-pressed', String(el.dataset.filter === activeCategory)); });
+    showAllEl.hidden = activeCategory === 'tous';
     // iOS Safari ignores hidden options, so the menu is rebuilt when its brands change.
     var listed = brandList.filter(function (entry) { return available[entry[0]]; });
     var key = listed.map(function (entry) { return entry[0]; }).join(' ');
@@ -383,7 +385,9 @@
     '</article>';
   }
   function renderFilters(categories, photos, brands) {
-    var html = '<li><button class="shop-cat shop-cat--all" type="button" data-filter="tous" aria-pressed="true"><span class="shop-cat__label">Tous les produits</span></button></li>';
+    // No « Tous les produits » card: picking the chosen category again, or
+    // « Voir tous les produits », shows the whole store.
+    var html = '';
     var i = 0;
     // Each card shows the photo set on the category in Square; a category without
     // one (or whose photo fails to load) gets one of the salon photos instead.
@@ -617,8 +621,9 @@
     if (btn.hasAttribute('data-add')) addToCart(btn.dataset.add, btn.hasAttribute('data-product-add') ? productQty : 1, btn);
     if (btn.hasAttribute('data-product-inc')) { productQty = Math.min(99, productQty + 1); renderProductQty(); }
     if (btn.hasAttribute('data-product-dec')) { productQty = Math.max(1, productQty - 1); renderProductQty(); }
-    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter; filterProducts(); revealFilter(filtersEl, btn); }
-    if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; activeBrand = 'toutes'; searchEl.value = ''; sortEl.value = 'name'; filterProducts(); revealFilter(filtersEl, filtersEl.querySelector('[data-filter="tous"]')); searchEl.focus(); }
+    if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter === activeCategory ? 'tous' : btn.dataset.filter; filterProducts(); revealFilter(filtersEl, btn); }
+    if (btn.hasAttribute('data-shop-all')) { activeCategory = 'tous'; filterProducts(); }
+    if (btn.hasAttribute('data-shop-reset')) { activeCategory = 'tous'; activeBrand = 'toutes'; searchEl.value = ''; sortEl.value = 'name'; filterProducts(); filtersEl.scrollTo({ left: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); searchEl.focus(); }
   });
   productOverlay.addEventListener('click', function () { closeProduct(); });
   sheet.addEventListener('click', function (e) { if (e.target === sheet) closeProduct(); });

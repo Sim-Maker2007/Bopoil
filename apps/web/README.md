@@ -38,13 +38,15 @@ article ajouté, pour que les autres pages l'affichent sans recharger le
 catalogue; Square confirme les prix et la disponibilité au paiement.
 
 Les filtres de la boutique viennent de Square. La rangée de catégories reprend
-les catégories Square, sauf « Boutique », qui regroupe presque tout. Le menu
+les catégories Square, sauf « Boutique », qui regroupe presque tout, sur une
+seule ligne ; il n'y a pas de carte « Tous les produits » : toucher de nouveau
+la catégorie choisie, ou « Voir tous les produits », affiche toute la boutique. Le menu
 déroulant des marques lit la marque au début du nom de l'article, écrite en
 majuscules (« SMACK Chiens Poulet », « DOGMÄ Lotion Yeux ») ; « LB » devient
 Lucky Bones. Un article dont le nom ne commence pas par sa marque en majuscules
 n'a pas de marque. Une catégorie Square qui porte le nom d'une marque passe dans
 le menu des marques, avec tous ses articles. Lucky Bones a aussi sa propre
-carte de catégorie, juste après « Tous les produits » (`FEATURED_BRANDS` dans
+carte de catégorie, en tête de la rangée (`FEATURED_BRANDS` dans
 `js/boutique.js`), avec la photo de sa catégorie Square. L'adresse
 `boutique.html?categorie=<catégorie>` ouvre la boutique sur une catégorie : la
 page Lucky Bones y mène avec `?categorie=lucky-bones`.

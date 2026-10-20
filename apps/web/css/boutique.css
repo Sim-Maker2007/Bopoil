@@ -33,9 +33,11 @@
   margin-bottom: 40px;
 }
 
+/* Categories: one row of cards sharing the width, however many Square has. */
 .shop-cats {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 12px;
   list-style: none;
   margin: 0 0 28px;
@@ -91,15 +93,6 @@
   text-align: center;
   text-wrap: balance;
 }
-.shop-cat--all {
-  display: grid;
-  place-items: center;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(177, 79, 126, .55), transparent 42%),
-    radial-gradient(circle at 90% 80%, rgba(29, 60, 65, .9), transparent 46%),
-    #141414;
-}
-.shop-cat--all .shop-cat__label { position: static; }
 
 .shop-count { font-size: var(--font-step--1); color: var(--color-gray-60); margin: 0; }
 
@@ -334,7 +327,13 @@
   to { opacity: 1; transform: none; }
 }
 
-@media (max-width: 1100px) { .shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .shop-cats { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
+@media (max-width: 1100px) { .shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Small laptops: the row's cards get narrow, so they turn square, with the
+   phones' smaller labels, to keep long names on two lines. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .shop-cat { aspect-ratio: 1; border-radius: 14px; }
+  .shop-cat__label { left: 6px; right: 6px; bottom: 8px; font-size: .72rem; letter-spacing: .01em; line-height: 1.2; }
+}
 @media (max-width: 720px)  { .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; } }
 
 /* Phones and tablets: one swipeable row of compact category cards, edge to
@@ -357,7 +356,6 @@
   .shop-cat { aspect-ratio: 1; border-radius: 14px; }
   .shop-cat:hover { transform: none; }
   .shop-cat__label { left: 6px; right: 6px; bottom: 8px; font-size: .72rem; letter-spacing: .01em; line-height: 1.2; }
-  .shop-cat--all .shop-cat__label { padding-inline: 6px; }
 }
 
 /* --------------------------------------------------------------------------
@@ -623,6 +621,7 @@ body[data-product-open="true"] { overflow: hidden; }
 .shop-controls input, .shop-controls select { width: 100%; min-height: 48px; padding: 10px 14px; background: #fff; border: 1px solid #bbb; border-radius: 6px; font: inherit; font-size: 1rem; color: #141414; }
 .shop-toolbar { gap: 14px; margin-bottom: 24px; }
 .shop-count { white-space: nowrap; }
+.shop-show-all { min-height: 44px; padding: 0; background: none; border: 0; font: inherit; font-size: var(--font-step--1); color: var(--near-black); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 .product-card__title { overflow-wrap: anywhere; }
 .shop-empty { text-align: center; padding: 48px 20px; background: white; border: 1px solid #ddd; border-radius: 10px; }
 .shop-empty h3 { text-transform: none; margin-bottom: 12px; }
