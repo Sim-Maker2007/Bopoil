@@ -243,11 +243,14 @@
   text-transform: uppercase;
   color: rgba(255,255,255,.7);
 }
+/* Figures and prices in Libre Franklin semibold, like the boutique's prices. */
 .lb-result__big {
   margin: 0;
-  font-family: var(--headline-font);
-  font-size: var(--font-step-4);
-  line-height: 1;
+  font-family: var(--body-font);
+  font-size: var(--font-step-3);
+  font-weight: 600;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
 }
 .lb-result__patties { margin: 10px 0 0; font-size: var(--font-step-1); }
 
@@ -274,7 +277,7 @@
 .lb-result__list--small { font-size: var(--font-step--1); }
 
 .lb-budget { margin-top: 32px; }
-.lb-budget .lb-result__big { font-size: var(--font-step-3); }
+.lb-budget .lb-result__big { font-size: var(--font-step-2); }
 .lb-budget__missing { margin: 28px 0 0; color: rgba(255,255,255,.75); font-style: italic; }
 .lb-comparison {
   margin: 24px 0 0;
