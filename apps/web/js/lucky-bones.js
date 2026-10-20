@@ -2,8 +2,9 @@
    Même calcul que celui de Distribution Lucky Bones : la ration quotidienne
    est un pourcentage du poids de l'animal (le profil choisi), servie en
    galettes de 227 g, 20 galettes par sac de 10 lb, sur 30 jours, TPS et TVQ
-   en sus. Le prix de chaque recette vient du catalogue Square de la boutique;
-   sans catalogue (boutique masquée, réseau), il s'entre à la main. */
+   en sus, deux repas par jour. Le prix de chaque recette vient du catalogue
+   Square de la boutique; sans catalogue (boutique masquée, réseau), le
+   calculateur donne la ration sans le budget. */
 (function () {
   'use strict';
   var form = document.querySelector('[data-lb-calc]');
@@ -12,6 +13,7 @@
   var PATTY_G = 227;
   var PATTIES_PER_BAG = 20;
   var DAYS = 30;
+  var MEALS = 2;
   // 454 g par livre, comme le calculateur Lucky Bones (une galette de ½ lb : 227 g).
   var G_PER_LB = 454;
   var MAX_LB = 250;
@@ -27,25 +29,19 @@
   var prices = {};
 
   var weightEl = form.querySelector('#lb-poids');
-  var priceEl = form.querySelector('#lb-prix');
-  var currentPriceEl = form.querySelector('#lb-actuel-prix');
-  var currentDaysEl = form.querySelector('#lb-actuel-jours');
   function el(name) { return form.querySelector('[data-lb-' + name + ']'); }
 
   var money = new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' });
   var whole = new Intl.NumberFormat('fr-CA', { maximumFractionDigits: 0 });
   var oneDecimal = new Intl.NumberFormat('fr-CA', { maximumFractionDigits: 1 });
 
-  function checked(name) {
-    var input = form.querySelector('[name="' + name + '"]:checked');
-    return input ? input.value : '';
-  }
-  // « 54,99 », « 54.99 » et « 54,99 $ » se lisent tous 54.99.
+  // Le choix d'un menu déroulant ou d'un groupe de boutons radio.
+  function value(name) { return form.elements[name].value; }
+  // « 22,5 » et « 22.5 » se lisent tous deux 22.5.
   function number(input) {
-    var n = parseFloat(String(input.value).replace(/[\s$]/g, '').replace(',', '.'));
+    var n = parseFloat(String(input.value).replace(/\s/g, '').replace(',', '.'));
     return isFinite(n) ? n : NaN;
   }
-  function priceText(value) { return value.toFixed(2).replace('.', ','); }
 
   // Une galette congelée se coupe en quarts, en tiers ou en huitièmes : la
   // ration est arrondie à la fraction la plus proche, et le nom prend la
@@ -80,7 +76,7 @@
 
   function bodyWeightGrams() {
     var weight = number(weightEl);
-    var kg = checked('unite') === 'kg';
+    var kg = value('unite') === 'kg';
     var hint = el('weight-hint');
     var grams = weight * (kg ? 1000 : G_PER_LB);
     if (weightEl.value.trim() && !(grams > 0 && grams <= MAX_LB * G_PER_LB)) {
@@ -100,13 +96,11 @@
   function update() {
     var body = bodyWeightGrams();
     var ready = body > 0;
-    el('empty').hidden = ready;
     el('result').hidden = !ready;
     weightEl.setAttribute('aria-invalid', String(!!weightEl.value.trim() && !ready));
     if (!ready) { announce(''); return; }
 
-    var meals = Number(checked('repas')) || 2;
-    var day = body * Number(checked('profil')) / 100;
+    var day = body * Number(value('profil')) / 100;
     var dayPatties = day / PATTY_G;
     var monthPatties = dayPatties * DAYS;
     var bags = monthPatties / PATTIES_PER_BAG;
@@ -114,18 +108,13 @@
     el('day').textContent = whole.format(day) + ' g';
     el('day-patties').textContent = '≈ ' + patties(dayPatties);
     el('patty-icons').innerHTML = pattyIcons(dayPatties);
-    el('meal-label').textContent = meals === 1 ? 'En un repas' : 'Par repas (' + meals + ' par jour)';
-    el('meal').textContent = whole.format(day / meals) + ' g · ' + patties(dayPatties / meals);
+    el('meal').textContent = whole.format(day / MEALS) + ' g · ' + patties(dayPatties / MEALS);
     el('month').textContent = whole.format(monthPatties) + ' galettes · ' + oneDecimal.format(bags) + (bags >= 2 ? ' sacs' : ' sac');
 
-    var price = number(priceEl);
-    var hasPrice = price > 0;
-    el('budget').hidden = !hasPrice;
-    el('budget-missing').hidden = hasPrice;
-    var comparison = el('comparison');
-    comparison.hidden = true;
+    var price = prices[value('recette')];
+    el('budget').hidden = !price;
     var summary = 'Ration de ' + whole.format(day) + ' grammes par jour, environ ' + patties(dayPatties) + '.';
-    if (hasPrice) {
+    if (price) {
       var subtotal = bags * price;
       var total = subtotal * (1 + TPS + TVQ);
       el('total').textContent = money.format(total);
@@ -134,39 +123,23 @@
       el('tvq').textContent = money.format(subtotal * TVQ);
       el('per-day').textContent = money.format(total / DAYS);
       summary += ' Budget de ' + money.format(total) + ' pour 30 jours, taxes incluses.';
-
-      var currentPrice = number(currentPriceEl);
-      var currentDays = number(currentDaysEl);
-      if (currentPrice > 0 && currentDays > 0) {
-        var current = currentPrice / currentDays * DAYS * (1 + TPS + TVQ);
-        var diff = total - current;
-        var text = 'Votre nourriture actuelle : ' + money.format(current) + ' pour 30 jours, taxes incluses. ';
-        if (Math.abs(diff) < 1) text += 'Lucky Bones vous coûterait environ la même chose.';
-        else text += 'Lucky Bones vous coûterait ' + money.format(Math.abs(diff)) + (diff > 0 ? ' de plus' : ' de moins') + ' par mois.';
-        comparison.textContent = text;
-        comparison.hidden = false;
-      }
     }
     announce(summary);
   }
 
-  // Choisir une recette met son prix en boutique, s'il est connu.
-  function usePrice(recipe) {
-    if (prices[recipe]) priceEl.value = priceText(prices[recipe]);
-  }
+  // Le prix en boutique de chaque sac, dans le menu des recettes et sur les cartes.
   function showPrices() {
     Object.keys(prices).forEach(function (key) {
       form.ownerDocument.querySelectorAll('[data-lb-price="' + key + '"]').forEach(function (label) {
-        label.textContent = 'Sac de 10 lb · ' + money.format(prices[key]);
+        var amount = money.format(prices[key]);
+        label.textContent = label.dataset.name ? label.dataset.name + ' · ' + amount : 'Sac de 10 lb · ' + amount;
       });
     });
-    if (!priceEl.value.trim()) usePrice(checked('recette'));
     update();
   }
 
   form.addEventListener('input', update);
   form.addEventListener('change', function (e) {
-    if (e.target.name === 'recette') usePrice(e.target.value);
     // Passer de lb à kg convertit le poids déjà entré.
     if (e.target.name === 'unite') {
       var weight = number(weightEl);
@@ -194,5 +167,5 @@
       });
       showPrices();
     })
-    .catch(function () { /* Les prix s'entrent à la main. */ });
+    .catch(function () { /* Sans prix, la ration s'affiche sans le budget. */ });
 })();
