@@ -73,6 +73,8 @@ test("normalizeCatalog maps items to priced products with images and categories"
     name: "Shampooing doux",
     description: "Nettoie en douceur.",
     priceCents: 2400,
+    regularPriceCents: 2400,
+    promotion: null,
     currency: "CAD",
     imageUrl: "https://squarecdn.test/img1.jpg",
     imageUrls: ["https://squarecdn.test/img1.jpg"],
@@ -257,9 +259,9 @@ test("normalizeCategories returns the Square photo of each category a listed pro
   ];
   const products = normalizeCatalog(objects, related);
   assert.deepEqual(normalizeCategories(objects, related, products), [
-    { name: "Gâteries", imageUrl: "https://squarecdn.test/treats.jpg" },
-    { name: "Chiens", imageUrl: "" },
-    { name: "Boutique", imageUrl: "" },
+    { name: "Gâteries", imageUrl: "https://squarecdn.test/treats.jpg", parent: "" },
+    { name: "Chiens", imageUrl: "", parent: "" },
+    { name: "Boutique", imageUrl: "", parent: "" },
   ]);
 });
 
@@ -315,7 +317,7 @@ test("fetchShopCatalog posts a catalog search and returns normalized products", 
   assert.match(calls[0].url, /catalog\/search$/);
   assert.equal(calls[0].init.method, "POST");
   const sent = JSON.parse(calls[0].init.body);
-  assert.deepEqual(sent.object_types, ["ITEM", "CATEGORY", "ITEM_OPTION"]);
+  assert.deepEqual(sent.object_types, ["ITEM", "CATEGORY", "ITEM_OPTION", "PRICING_RULE", "PRODUCT_SET", "DISCOUNT"]);
   assert.equal(sent.include_related_objects, true);
   assert.equal(products.length, 1);
   assert.equal(products[0].id, "VAR_1");
@@ -505,7 +507,7 @@ test("fetchShop retrieves category photos Square leaves out of the search result
   });
   assert.deepEqual(retrieved, ["IMG_CAT"]);
   assert.equal(products.length, 1);
-  assert.deepEqual(categories, [{ name: "Gâteries", imageUrl: "https://squarecdn.test/cat.jpg" }]);
+  assert.deepEqual(categories, [{ name: "Gâteries", imageUrl: "https://squarecdn.test/cat.jpg", parent: "" }]);
 });
 
 test("fetchShopCatalog still returns the catalog if extra Square photos cannot be retrieved", async () => {
@@ -558,7 +560,7 @@ test("checkout refuses a partially unavailable cart instead of silently removing
   }), /plus disponible/);
 });
 
-test("checkout retry preserves its idempotency key and applies configured catalog taxes", async () => {
+test("checkout retry preserves its idempotency key and applies configured catalog taxes and promotions", async () => {
   await createShopCheckout([{ id: "VAR_1", quantity: 1 }], {
     idempotencyKey: "retry-key",
     fetcher: async (url, init) => {
@@ -566,6 +568,7 @@ test("checkout retry preserves its idempotency key and applies configured catalo
       const body = JSON.parse(init.body);
       assert.equal(body.idempotency_key, "retry-key");
       assert.equal(body.order.pricing_options.auto_apply_taxes, true);
+      assert.equal(body.order.pricing_options.auto_apply_discounts, true, "Square applies the boutique's promotions");
       return jsonResponse({ payment_link: { url: "https://square.link/u/test" } });
     },
   });
@@ -594,4 +597,95 @@ test("shared Square transport preserves implicit POST bodies when retrying", asy
     { method: "POST", body: JSON.stringify(payload) },
     { method: "POST", body: JSON.stringify(payload) },
   ]);
+});
+
+// Square automatic discounts: a discount, the products it covers, and the
+// pricing rule that ties them to dates.
+function promotion(id, { percentage = "20", ids, all = false, from, until, rule = {}, set = {}, discount = {} }) {
+  return [
+    { id: `${id}_D`, type: "DISCOUNT", discount_data: { name: `Remise ${id}`, discount_type: "FIXED_PERCENTAGE", percentage, ...discount } },
+    { id: `${id}_S`, type: "PRODUCT_SET", product_set_data: all ? { all_products: true, ...set } : { product_ids_any: ids, ...set } },
+    { id: `${id}_R`, type: "PRICING_RULE", pricing_rule_data: { name: `Promo ${id}`, discount_id: `${id}_D`, match_products_id: `${id}_S`, valid_from_date: from, valid_until_date: until, ...rule } },
+  ];
+}
+
+const promoItems = [
+  { id: "ITEM_P", type: "ITEM", item_data: { name: "Shampooing", categories: [{ id: "CAT_SOINS" }], variations: [
+    { id: "VAR_P1", item_variation_data: { name: "250 ml", price_money: { amount: 2499, currency: "CAD" } } },
+    { id: "VAR_P2", item_variation_data: { name: "1 L", price_money: { amount: 5999, currency: "CAD" } } },
+  ] } },
+  { id: "ITEM_Q", type: "ITEM", item_data: { name: "Brosse", categories: [{ id: "CAT_OUTILS" }], variations: [
+    { id: "VAR_Q", item_variation_data: { price_money: { amount: 1500, currency: "CAD" } } },
+  ] } },
+  { id: "CAT_SOINS", type: "CATEGORY", category_data: { name: "Soins" } },
+  { id: "CAT_OUTILS", type: "CATEGORY", category_data: { name: "Outils" } },
+];
+
+test("an active percentage promotion lowers the price and keeps the regular one", () => {
+  const products = normalizeCatalog([...promoItems, ...promotion("A", { ids: ["CAT_SOINS"], from: "2026-10-01", until: "2026-10-31" })], [], "", "2026-10-22");
+  const byId = Object.fromEntries(products.map((product) => [product.id, product]));
+  assert.equal(byId.VAR_P1.priceCents, 1999, "20 % off 24,99 $ rounds the discount to the cent");
+  assert.equal(byId.VAR_P1.regularPriceCents, 2499);
+  assert.deepEqual(byId.VAR_P1.promotion, { name: "Promo A", percentage: 20 });
+  assert.equal(byId.VAR_P2.priceCents, 4799);
+  assert.equal(byId.VAR_Q.priceCents, 1500, "a product outside the promotion keeps its price");
+  assert.equal(byId.VAR_Q.promotion, null);
+});
+
+test("a promotion runs from its first to its last day, inclusive", () => {
+  const rows = [...promoItems, ...promotion("A", { ids: ["ITEM_Q"], from: "2026-10-01", until: "2026-10-31" })];
+  const price = (day) => normalizeCatalog(rows, [], "", day).find((product) => product.id === "VAR_Q").priceCents;
+  assert.equal(price("2026-09-30"), 1500);
+  assert.equal(price("2026-10-01"), 1200);
+  assert.equal(price("2026-10-31"), 1200);
+  assert.equal(price("2026-11-01"), 1500);
+});
+
+test("the largest promotion wins and a variation, item or whole store can be targeted", () => {
+  const products = normalizeCatalog([
+    ...promoItems,
+    ...promotion("SMALL", { percentage: "10", all: true, from: "2026-10-01" }),
+    ...promotion("BIG", { percentage: "25", ids: ["VAR_P2"], from: "2026-10-01" }),
+  ], [], "", "2026-10-22");
+  const byId = Object.fromEntries(products.map((product) => [product.id, product]));
+  assert.equal(byId.VAR_P2.promotion.percentage, 25);
+  assert.equal(byId.VAR_P1.promotion.percentage, 10);
+  assert.equal(byId.VAR_Q.priceCents, 1350);
+});
+
+test("promotions the storefront cannot price exactly are left to Square's checkout", () => {
+  const conditional = [
+    ...promotion("AMOUNT", { ids: ["ITEM_Q"], discount: { discount_type: "FIXED_AMOUNT", percentage: undefined, amount_money: { amount: 500, currency: "CAD" } } }),
+    ...promotion("CAPPED", { ids: ["ITEM_Q"], discount: { maximum_amount_money: { amount: 100, currency: "CAD" } } }),
+    ...promotion("TWO", { ids: ["ITEM_Q"], set: { quantity_min: 2 } }),
+    ...promotion("HAPPY", { ids: ["ITEM_Q"], rule: { time_period_ids: ["TP"] } }),
+    ...promotion("MEMBERS", { ids: ["ITEM_Q"], rule: { customer_group_ids_any: ["GROUP"] } }),
+    ...promotion("MIN", { ids: ["ITEM_Q"], rule: { minimum_order_subtotal_money: { amount: 5000, currency: "CAD" } } }),
+    ...promotion("AFTERNOON", { ids: ["ITEM_Q"], rule: { valid_from_local_time: "14:00:00" } }),
+  ];
+  const product = normalizeCatalog([...promoItems, ...conditional], [], "", "2026-10-22").find((entry) => entry.id === "VAR_Q");
+  assert.equal(product.priceCents, 1500);
+  assert.equal(product.promotion, null);
+});
+
+test("a subcategory names its parent, which is listed even without products of its own", () => {
+  const objects = [
+    { id: "ITEM_C", type: "ITEM", item_data: { name: "Collier", categories: [{ id: "CAT_COLLIERS" }], variations: [{ id: "VAR_C", item_variation_data: { price_money: { amount: 2000, currency: "CAD" } } }] } },
+    { id: "CAT_ACC", type: "CATEGORY", category_data: { name: "Accessoires", image_ids: ["IMG_ACC"] } },
+    { id: "CAT_COLLIERS", type: "CATEGORY", category_data: { name: "Colliers", parent_category: { id: "CAT_ACC" } } },
+  ];
+  const related = [{ id: "IMG_ACC", type: "IMAGE", image_data: { url: "https://squarecdn.test/acc.jpg" } }];
+  const products = normalizeCatalog(objects, related);
+  assert.deepEqual(products[0].categories, ["Colliers"], "a product keeps the categories it is filed under");
+  assert.deepEqual(normalizeCategories(objects, related, products), [
+    { name: "Colliers", imageUrl: "", parent: "Accessoires" },
+    { name: "Accessoires", imageUrl: "https://squarecdn.test/acc.jpg", parent: "" },
+  ]);
+});
+
+test("descriptions keep Square's paragraphs and line breaks as new lines", async () => {
+  const { htmlToText } = await import("../lib/square-shop.ts");
+  assert.equal(htmlToText("<p>Doux &amp; efficace.<br>120 ml</p><p>Chiens &#233;t chats&nbsp;!</p><ul><li>Un</li><li>Deux</li></ul>"), "Doux & efficace.\n120 ml\n\nChiens ét chats !\n\n• Un\n• Deux");
+  const [product] = normalizeCatalog([{ id: "I", type: "ITEM", item_data: { name: "X", description: "ancienne", description_plaintext: "Doux.Pour tous.", description_html: "<p>Doux.</p><p>Pour tous.</p>", variations: [{ id: "V", item_variation_data: { price_money: { amount: 100, currency: "CAD" } } }] } }], []);
+  assert.equal(product.description, "Doux.\n\nPour tous.");
 });

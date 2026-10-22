@@ -201,6 +201,12 @@ export function requireInventoryMovementAccess(membership: { role: string; permi
   if (!["owner", "manager", "receptionist", "groomer", "bather"].includes(membership.role)) throw new SalonAccessError("Stock movement access is not available for this role", 403);
 }
 
+// Writes to the Square catalog, which the shop's point of sale shares.
+export function requireBoutiqueManagement(membership: { role: string; permissions?: WorkspacePermission[] }) {
+  requireWorkspacePermission(membership, "boutique");
+  if (!["owner", "manager"].includes(membership.role)) throw new SalonAccessError("Owner or manager access required", 403);
+}
+
 export function requirePayrollAccess(membership: { role: string; permissions?: WorkspacePermission[] }) {
   requireWorkspacePermission(membership, "workforce");
   if (!['owner', 'manager', 'accountant'].includes(membership.role)) throw new SalonAccessError("Payroll access is not available for this role", 403);

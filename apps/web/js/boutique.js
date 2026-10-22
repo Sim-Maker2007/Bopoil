@@ -9,6 +9,7 @@
   var fallbackHTML = grid.innerHTML;
   var filtersEl = document.querySelector('[data-shop-filters]');
   var fallbackFilters = filtersEl.innerHTML;
+  var subcatsEl = document.querySelector('[data-shop-subcats]');
   var brandsEl = document.querySelector('[data-shop-brands]');
   var brandField = document.querySelector('[data-shop-brand-field]');
   var countEl = document.querySelector('[data-shop-count]');
@@ -39,6 +40,10 @@
   var cards = [];
   var activeCategory = 'tous';
   var activeBrand = 'toutes';
+  // Square subcategories: the main category of each subcategory slug, and the
+  // subcategories of each main category as [slug, name].
+  var categoryParents = Object.create(null);
+  var childCategories = Object.create(null);
   var searchIndex = Search.createIndex([]);
   var requestedCategory = '';
   // Every brand of the catalog as [slug, name], and the slugs the menu lists now.
@@ -81,6 +86,20 @@
   function chromeHidden(hidden) {
     document.querySelectorAll('[data-shop-chrome]').forEach(function (el) { el.hidden = hidden; });
     brandField.hidden = hidden || !brandList.length;
+    if (hidden) subcatsEl.hidden = true;
+  }
+  // « Colliers » belongs to « Accessoires »: the card row shows the main categories.
+  function mainCategory(key) {
+    for (var depth = 0; categoryParents[key] && depth < 5; depth++) key = categoryParents[key];
+    return key;
+  }
+  // The price of a product on promotion, then its regular price struck through.
+  function priceHTML(cents, regularCents, currency) {
+    if (!(regularCents > cents)) return money(cents, currency);
+    return '<span class="visually-hidden">Prix réduit : </span><span class="shop-sale">' + money(cents, currency) + '</span> <s class="shop-was"><span class="visually-hidden">au lieu de </span>' + money(regularCents, currency) + '</s>';
+  }
+  function percentLabel(percentage) {
+    return '−' + String(percentage).replace('.', ',') + ' %';
   }
   function requestedProductId() {
     return new URLSearchParams(window.location.search).get('produit') || '';
@@ -176,7 +195,8 @@
     sheetMedia.innerHTML = galleryHTML(p);
     sheetCategory.textContent = p.category || '';
     sheetTitle.textContent = variantsOf(id).length > 1 ? p.itemName : p.name;
-    sheetPrice.textContent = money(p.price, p.currency);
+    sheetPrice.innerHTML = priceHTML(p.price, p.regular, p.currency) +
+      (p.promotion ? ' <span class="shop-promo-tag">' + escapeHtml(percentLabel(p.promotion.percentage) + ' · ' + p.promotion.name) + '</span>' : '');
     sheetOptions.innerHTML = optionsHTML(id);
     sheetOptions.hidden = !sheetOptions.innerHTML;
     sheetDesc.textContent = p.description || 'Demandez conseil à l’équipe du salon pour les détails de ce produit.';
@@ -265,6 +285,27 @@
   function cardBrands(card) {
     return (card.dataset.brand || '').split(' ').filter(Boolean);
   }
+  // The subcategories of the chosen main category, as a row of chips under the
+  // category cards. Rebuilt only when the main category changes, so a chip
+  // keeps the keyboard focus.
+  function renderSubcategories() {
+    var root = activeCategory === 'tous' ? '' : mainCategory(activeCategory);
+    var children = childCategories[root];
+    if (!children) {
+      subcatsEl.hidden = true;
+      subcatsEl.innerHTML = '';
+      subcatsEl.dataset.root = '';
+      return;
+    }
+    if (subcatsEl.dataset.root !== root) {
+      subcatsEl.dataset.root = root;
+      subcatsEl.innerHTML = [[root, 'Tout voir']].concat(children).map(function (entry) {
+        return '<button class="shop-subcat" type="button" data-subfilter="' + escapeHtml(entry[0]) + '" aria-pressed="false">' + escapeHtml(entry[1]) + '</button>';
+      }).join('');
+    }
+    subcatsEl.hidden = false;
+    subcatsEl.querySelectorAll('[data-subfilter]').forEach(function (el) { el.setAttribute('aria-pressed', String(el.dataset.subfilter === activeCategory)); });
+  }
   function filterProducts() {
     if (mode !== 'square' && mode !== 'preview') return;
     keepSearchInUrl();
@@ -305,7 +346,9 @@
       }
       grid.appendChild(card);
     });
-    filtersEl.querySelectorAll('[data-filter]').forEach(function (el) { el.setAttribute('aria-pressed', String(el.dataset.filter === activeCategory)); });
+    var shownCategory = mainCategory(activeCategory);
+    filtersEl.querySelectorAll('[data-filter]').forEach(function (el) { el.setAttribute('aria-pressed', String(el.dataset.filter === shownCategory)); });
+    renderSubcategories();
     showAllEl.hidden = activeCategory === 'tous';
     // iOS Safari ignores hidden options, so the menu is rebuilt when its brands change.
     var listed = brandList.filter(function (entry) { return available[entry[0]]; });
@@ -351,7 +394,8 @@
   function cardHTML(p, index) {
     var id = escapeHtml(p.id);
     var name = escapeHtml(p.name);
-    var badge = p.category ? '<span class="product-card__badge">' + escapeHtml(p.category) + '</span>' : '';
+    var badge = (p.category ? '<span class="product-card__badge">' + escapeHtml(p.category) + '</span>' : '') +
+      (p.promoPercent ? '<span class="product-card__promo">' + escapeHtml(percentLabel(p.promoPercent)) + '</span>' : '');
     var cat = escapeHtml(p.cat || slug(p.category));
     var desc = escapeHtml(p.description || '');
     var images = (p.imageUrls || []).filter(allowedImageUrl);
@@ -370,7 +414,7 @@
         '</span>' +
         '<span class="product-card__body">' +
           '<span class="product-card__title">' + name + '</span>' +
-          '<span class="product-card__price">' + (p.fromPrice ? '<span class="product-card__from">À partir de</span> ' : '') + money(p.priceCents, p.currency) + '</span>' +
+          '<span class="product-card__price">' + (p.fromPrice ? '<span class="product-card__from">À partir de</span> ' : '') + priceHTML(p.priceCents, p.regularCents, p.currency) + '</span>' +
           (p.choices || '') +
         '</span>' +
       '</button>' +
@@ -393,11 +437,24 @@
     }
     FEATURED_BRANDS.forEach(function (key) { if (brands.has(key)) addTile(key, brands.get(key)); });
     // Entries are [slug, Square category name], listed alphabetically like the Square dashboard.
-    // A category named after a brand is offered in the brand menu instead.
-    Array.from(categories).filter(function (entry) {
+    // A category named after a brand is offered in the brand menu instead, and
+    // a subcategory in the row of chips under its main category.
+    var byName = function (a, b) { return a[1].localeCompare(b[1], 'fr'); };
+    // A subcategory whose main category has no card (the catch-all, or a brand
+    // offered in the brand menu) gets a card of its own.
+    Object.keys(categoryParents).forEach(function (key) {
+      var parent = categoryParents[key];
+      var carded = FEATURED_BRANDS.indexOf(parent) !== -1 ? brands.has(parent) : HIDDEN_CATEGORIES.indexOf(parent) === -1 && !brands.has(parent);
+      if (!carded) delete categoryParents[key];
+    });
+    var listed = Array.from(categories).filter(function (entry) {
       return HIDDEN_CATEGORIES.indexOf(entry[0]) === -1 && !brands.has(entry[0]);
-    }).sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); }).forEach(function (entry) {
-      addTile(entry[0], entry[1]);
+    }).sort(byName);
+    childCategories = Object.create(null);
+    listed.forEach(function (entry) {
+      var parent = categoryParents[entry[0]];
+      if (parent) (childCategories[parent] = childCategories[parent] || []).push(entry);
+      else addTile(entry[0], entry[1]);
     });
     filtersEl.innerHTML = html;
     filtersEl.querySelectorAll('img[data-fallback]').forEach(function (img) {
@@ -450,9 +507,15 @@
     var categories = new Map();
     var brands = new Map();
     var photos = Object.create(null);
+    categoryParents = Object.create(null);
     categoryList.forEach(function (c) {
       var key = c && slug(c.name);
       if (key && !photos[key] && /^https:\/\//i.test(c.imageUrl || '')) photos[key] = c.imageUrl;
+      // A main category is listed even when its products all sit in its subcategories.
+      if (key && c.parent && slug(c.parent) !== key) {
+        categoryParents[key] = slug(c.parent);
+        categories.set(slug(c.parent), c.parent);
+      }
     });
     var known = Object.create(null);
     var members = Object.create(null);
@@ -472,10 +535,11 @@
       // The badge names the item's first category other than the catch-all; an
       // item filed only under it gets none rather than « Boutique ».
       var shownCategory = names.find(function (name) { return HIDDEN_CATEGORIES.indexOf(slug(name)) === -1; }) || '';
-      var slugs = names.map(function (name) {
-        var key = slug(name);
-        categories.set(key, name);
-        return key;
+      // A product in a subcategory is also listed under its main category.
+      var slugs = [];
+      names.forEach(function (name) {
+        categories.set(slug(name), name);
+        for (var key = slug(name), depth = 0; key && depth < 5 && slugs.indexOf(key) === -1; key = categoryParents[key], depth++) slugs.push(key);
       });
       var brandSlugs = (Array.isArray(p.brands) ? p.brands : []).map(function (name) {
         var key = slug(name);
@@ -491,6 +555,8 @@
           name: v.name,
           itemName: title,
           price: v.priceCents,
+          regular: v.regularPriceCents,
+          promotion: v.promotion || null,
           currency: v.currency || 'CAD',
           media: urls[0] ? '<img' + imageAttrs(urls[0], [256]) + ' alt="">' : paw(),
           images: urls,
@@ -502,12 +568,17 @@
         return v.id;
       });
       var prices = variants.map(function (v) { return v.priceCents; });
+      // The card shows the lowest price, struck through when it is a promotion's.
+      var cheapest = variants.reduce(function (best, v) { return v.priceCents < best.priceCents ? v : best; });
+      var percentages = variants.map(function (v) { return v.promotion ? v.promotion.percentage : 0; });
       var image = cardUrls[0] ? '<img' + imageAttrs(cardUrls[0], [384, 640], CARD_SIZES) + ' alt="' + escapeHtml(title) + '" loading="lazy" decoding="async">' : paw();
       return cardHTML({
         id: p.id,
         name: title,
         description: p.description || '',
         priceCents: Math.min.apply(null, prices),
+        regularCents: cheapest.regularPriceCents,
+        promoPercent: Math.max.apply(null, percentages),
         fromPrice: Math.min.apply(null, prices) !== Math.max.apply(null, prices),
         currency: p.currency,
         category: shownCategory,
@@ -576,10 +647,12 @@
       if (data.configured) {
         mode = 'square';
         known = renderSquareCatalog(data.products, Array.isArray(data.categories) ? data.categories : []);
-        if (requestedCategory && filtersEl.querySelector('[data-filter="' + CSS.escape(requestedCategory) + '"]')) activeCategory = requestedCategory;
+        if (requestedCategory && (filtersEl.querySelector('[data-filter="' + CSS.escape(requestedCategory) + '"]') || categoryParents[requestedCategory])) activeCategory = requestedCategory;
         notice.innerHTML = data.products.length ? 'Paiement sécurisé avec Square · Cueillette au 38 avenue Gatineau<br>Notre équipe communiquera avec vous lorsque votre commande sera prête à ramasser au salon. Livraison disponible sur demande.' : 'La boutique se prépare. Aucun produit n’est disponible en ligne pour le moment. Contactez le salon pour être conseillé.';
       } else {
         mode = 'preview';
+        categoryParents = Object.create(null);
+        childCategories = Object.create(null);
         grid.innerHTML = fallbackHTML;
         filtersEl.innerHTML = fallbackFilters;
         renderBrands(new Map());
@@ -597,7 +670,10 @@
     } finally {
       chromeHidden(mode === 'error' || !cards.length);
       grid.setAttribute('aria-busy', 'false');
-      if (activeCategory !== 'tous') revealFilter(filtersEl, filtersEl.querySelector('[aria-pressed="true"]'));
+      if (activeCategory !== 'tous') {
+        revealFilter(filtersEl, filtersEl.querySelector('[aria-pressed="true"]'));
+        revealFilter(subcatsEl, subcatsEl.querySelector('[aria-pressed="true"]'));
+      }
     }
   }
 
@@ -618,6 +694,7 @@
     if (btn.hasAttribute('data-product-inc')) { productQty = Math.min(99, productQty + 1); renderProductQty(); }
     if (btn.hasAttribute('data-product-dec')) { productQty = Math.max(1, productQty - 1); renderProductQty(); }
     if (btn.hasAttribute('data-filter')) { activeCategory = btn.dataset.filter === activeCategory ? 'tous' : btn.dataset.filter; filterProducts(); revealFilter(filtersEl, btn); }
+    if (btn.hasAttribute('data-subfilter')) { activeCategory = btn.dataset.subfilter; filterProducts(); revealFilter(subcatsEl, btn); }
     if (btn.hasAttribute('data-shop-all')) { activeCategory = 'tous'; filterProducts(); }
     if (btn.hasAttribute('data-shop-widen')) showWholeShop();
     if (btn.hasAttribute('data-shop-reset')) { searchEl.value = ''; sortEl.value = 'name'; showWholeShop(); }

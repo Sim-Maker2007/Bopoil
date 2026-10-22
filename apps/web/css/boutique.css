@@ -94,6 +94,34 @@
   text-wrap: balance;
 }
 
+/* Subcategories of the chosen category (« Colliers », « Laisses »): a row of
+   chips under the cards, swiped sideways on a phone. */
+.shop-subcats {
+  display: flex;
+  gap: 8px;
+  margin: -12px 0 28px;
+  padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.shop-subcats[hidden] { display: none; }
+.shop-subcats::-webkit-scrollbar { display: none; }
+.shop-subcat {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--color-gray-20);
+  border-radius: 999px;
+  background: var(--pure-white);
+  color: var(--near-black);
+  font-family: var(--body-font);
+  font-size: .875rem;
+  cursor: pointer;
+  transition: border-color .2s ease, background .2s ease, color .2s ease;
+}
+.shop-subcat:hover { border-color: var(--accent-plum); }
+.shop-subcat[aria-pressed="true"] { border-color: var(--accent-plum); background: var(--accent-plum); color: var(--pure-white); }
+
 .shop-count { font-size: var(--font-step--1); color: var(--color-gray-60); margin: 0; }
 
 /* --------------------------------------------------------------------------
@@ -211,6 +239,23 @@
   color: var(--primary-color);
 }
 
+/* A Square promotion: « −20 % » under the category badge. */
+.product-card__promo {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 3;
+  font-family: var(--body-font);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--accent-plum);
+  color: var(--pure-white);
+}
+.product-card__badge + .product-card__promo { top: 46px; }
+
 .product-card__view {
   position: absolute;
   left: 14px;
@@ -264,6 +309,27 @@
   font-weight: 600;
   line-height: 1.35;
   white-space: nowrap;
+}
+/* The promotion's price, then the regular price struck through; on a narrow
+   card the regular price moves to the next line. */
+.product-card__price:has(.shop-was) { white-space: normal; }
+.shop-sale { color: var(--accent-plum); white-space: nowrap; }
+.shop-was {
+  white-space: nowrap;
+  font-size: .85em;
+  font-weight: 400;
+  color: var(--color-gray-60);
+}
+.shop-promo-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent-plum);
+  color: var(--pure-white);
+  font-size: .8rem;
+  font-weight: 600;
+  vertical-align: middle;
 }
 .product-card__from {
   font-family: var(--body-font);
@@ -639,6 +705,7 @@ body[data-product-open="true"] { overflow: hidden; }
   .shop-controls { flex-direction: column; gap: 14px; }
   .shop-brand-filter, .shop-sort { grid-template-columns: 4.5rem 1fr; align-items: center; }
   .shop-cats { margin-bottom: 16px; }
+  .shop-subcats { margin: -4px 0 16px; }
   .shop-toolbar { min-width: 0; }
   .shop-toast { bottom: 16px; gap: 12px; }
   .boutique-page .sms-pill { display: none; }

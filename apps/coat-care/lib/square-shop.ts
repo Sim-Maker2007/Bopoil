@@ -1,4 +1,5 @@
 import { squareConfig, squareRequest } from "./square.ts";
+import { dateKeyInZone } from "./time-zone.ts";
 
 // Retail boutique layer on top of Square. Products, prices and images come
 // from the Square Catalog; checkout is a Square-hosted Online Checkout payment
@@ -10,7 +11,9 @@ export type ShopProduct = {
   itemId: string;
   name: string;
   description: string;
-  priceCents: number;
+  priceCents: number; // what the shopper pays today, after any promotion
+  regularPriceCents: number; // the Square price before the promotion, equal to priceCents without one
+  promotion: ShopPromotion | null;
   currency: string;
   imageUrl: string;
   imageUrls: string[];
@@ -27,9 +30,13 @@ export type ShopProduct = {
 // pattern, or "" when the choice is not a colour.
 export type ShopOption = { name: string; value: string; swatch: string };
 
-// A category used by at least one listed product, with the photo set on the
-// category in Square ("" when it has none).
-export type ShopCategory = { name: string; imageUrl: string };
+// A category used by at least one listed product, or the parent of one, with
+// the photo set on the category in Square ("" when it has none) and the name
+// of its parent category ("" for a top-level category).
+export type ShopCategory = { name: string; imageUrl: string; parent: string };
+
+// A Square automatic discount the storefront can show: « Soldes d’automne », 20 (%).
+export type ShopPromotion = { name: string; percentage: number };
 
 type Money = { amount?: number; currency?: string };
 
@@ -43,28 +50,76 @@ type Availability = {
 type CatalogObject = Availability & {
   id: string;
   type: string;
+  version?: number;
+  updated_at?: string;
   is_deleted?: boolean;
   item_data?: {
     name?: string;
     product_type?: string;
     is_archived?: boolean;
     description?: string;
+    description_html?: string;
     description_plaintext?: string;
     image_ids?: string[];
     category_id?: string;
     categories?: Array<{ id?: string }>;
     reporting_category?: { id?: string };
-    variations?: Array<Availability & { id: string; item_variation_data?: { name?: string; sellable?: boolean; pricing_type?: string; price_money?: Money; image_ids?: string[]; item_option_values?: Array<{ item_option_id?: string; item_option_value_id?: string }>; location_overrides?: Array<{ location_id?: string; price_money?: Money; sold_out?: boolean }> } }>;
+    variations?: Array<Availability & { id: string; item_variation_data?: { name?: string; sku?: string; sellable?: boolean; pricing_type?: string; price_money?: Money; image_ids?: string[]; item_option_values?: Array<{ item_option_id?: string; item_option_value_id?: string }>; location_overrides?: Array<{ location_id?: string; price_money?: Money; sold_out?: boolean }> } }>;
   };
   image_data?: { url?: string };
-  category_data?: { name?: string; image_ids?: string[] };
+  category_data?: { name?: string; image_ids?: string[]; parent_category?: { id?: string } };
+  pricing_rule_data?: PricingRuleData;
+  product_set_data?: ProductSetData;
+  discount_data?: DiscountData;
   item_option_data?: { name?: string; display_name?: string; show_colors?: boolean; values?: Array<{ id: string; item_option_value_data?: { name?: string; color?: string } }> };
+};
+
+export type PricingRuleData = {
+  name?: string;
+  discount_id?: string;
+  match_products_id?: string;
+  exclude_products_id?: string;
+  apply_products_id?: string;
+  time_period_ids?: string[];
+  valid_from_date?: string;
+  valid_until_date?: string;
+  valid_from_local_time?: string;
+  valid_until_local_time?: string;
+  customer_group_ids_any?: string[];
+  minimum_order_subtotal_money?: Money;
+};
+export type ProductSetData = {
+  name?: string;
+  product_ids_any?: string[];
+  product_ids_all?: string[];
+  all_products?: boolean;
+  quantity_exact?: number;
+  quantity_min?: number;
+  quantity_max?: number;
+};
+export type DiscountData = {
+  name?: string;
+  discount_type?: string;
+  percentage?: string;
+  amount_money?: Money;
+  maximum_amount_money?: Money;
+  pin_required?: boolean;
+  modify_tax_basis?: string;
 };
 
 type CatalogSearchResult = { objects?: CatalogObject[]; related_objects?: CatalogObject[]; cursor?: string };
 type PaymentLinkResult = { payment_link?: { id?: string; url?: string; long_url?: string } };
 
 export type ShopConfig = ReturnType<typeof shopConfig>;
+export type { CatalogObject };
+
+// Square reads a pricing rule's dates in the seller's time zone: the salon is
+// in Gatineau.
+export const SHOP_TIME_ZONE = "America/Toronto";
+
+export function shopToday(now = new Date()) {
+  return dateKeyInZone(now, SHOP_TIME_ZONE);
+}
 
 // Square's French dashboard labels the default variation "Article de base".
 // English dashboards use Regular / Default. None of those belong on a storefront title.
@@ -252,7 +307,7 @@ function httpsUrl(url = "") {
   return /^https:\/\//i.test(url) ? url : "";
 }
 
-function indexCatalogImages(objects: CatalogObject[] = []) {
+export function indexCatalogImages(objects: CatalogObject[] = []) {
   const images = new Map<string, string>();
   for (const object of objects) {
     const url = object.type === "IMAGE" ? httpsUrl(object.image_data?.url) : "";
@@ -261,7 +316,7 @@ function indexCatalogImages(objects: CatalogObject[] = []) {
   return images;
 }
 
-function uniqueIds(ids: Array<string | undefined>) {
+export function uniqueIds(ids: Array<string | undefined>) {
   const seen = new Set<string>();
   const ordered: string[] = [];
   for (const id of ids) {
@@ -277,7 +332,7 @@ function variationImageIds(item: NonNullable<CatalogObject["item_data"]>, variat
   return uniqueIds([...(variation?.item_variation_data?.image_ids || []), ...(item.image_ids || [])]);
 }
 
-function catalogImageIds(objects: CatalogObject[] = []) {
+export function catalogImageIds(objects: CatalogObject[] = []) {
   return uniqueIds(objects.flatMap((object) => {
     if (object.type === "CATEGORY") return object.category_data?.image_ids || [];
     if (object.type !== "ITEM" || !object.item_data) return [];
@@ -288,7 +343,7 @@ function catalogImageIds(objects: CatalogObject[] = []) {
   }));
 }
 
-async function retrieveMissingImages(ids: string[], images: Map<string, string>, fetcher?: typeof fetch) {
+export async function retrieveMissingImages(ids: string[], images: Map<string, string>, fetcher?: typeof fetch) {
   const missing = ids.filter((id) => !images.has(id));
   for (let offset = 0; offset < missing.length; offset += 100) {
     const result = await squareRequest<{ objects?: CatalogObject[] }>("catalog/batch-retrieve", {
@@ -311,15 +366,102 @@ export function shopConfig(config = squareConfig()) {
 }
 
 // Respect location availability for both the item and each sellable variation.
-function availableAt(object: Availability, locationId: string) {
+export function availableAt(object: Availability, locationId: string) {
   if (object.is_deleted) return false;
   if (!locationId) return true;
   if (object.absent_at_location_ids?.includes(locationId)) return false;
   return object.present_at_all_locations !== false || Boolean(object.present_at_location_ids?.includes(locationId));
 }
 
-export function normalizeCatalog(objects: CatalogObject[] = [], related: CatalogObject[] = [], locationId = ""): ShopProduct[] {
+// Whole-day rules: Square reads the dates in the salon's time zone, and the
+// end date is the promotion's last day.
+export function promotionRunsOn(rule: PricingRuleData, day: string) {
+  const wholeDay = (!rule.valid_from_local_time || rule.valid_from_local_time.startsWith("00:00"))
+    && (!rule.valid_until_local_time || rule.valid_until_local_time >= "23:59");
+  return wholeDay && (!rule.valid_from_date || rule.valid_from_date <= day) && (!rule.valid_until_date || day <= rule.valid_until_date);
+}
+
+// The percentage of a plain « x % off » discount, or 0 for any other kind
+// (a fixed amount, an amount entered at the till, a capped percentage).
+export function discountPercentage(discount?: DiscountData) {
+  if (discount?.discount_type !== "FIXED_PERCENTAGE" || discount.maximum_amount_money) return 0;
+  const percentage = Number(discount.percentage);
+  return Number.isFinite(percentage) && percentage > 0 && percentage <= 100 ? percentage : 0;
+}
+
+// A product set any one product of which earns the discount, with no quantity to reach.
+function plainProductSet(set?: ProductSetData) {
+  return Boolean(set && (set.all_products || set.product_ids_any?.length) && !set.product_ids_all?.length
+    && !set.quantity_exact && !(set.quantity_min && set.quantity_min > 1) && !set.quantity_max);
+}
+
+// Square applies every automatic discount (pricing rule) itself at checkout.
+// The storefront shows those it can price exactly: a percentage off listed
+// items, variations or categories, for whole days, for any shopper, without a
+// minimum order. Any other rule stays Square's alone and the card keeps its
+// regular price until checkout.
+export function readPromotions(objects: CatalogObject[] = [], today = shopToday()) {
+  const byId = new Map(objects.map((object) => [object.id, object]));
+  const promotions: Array<ShopPromotion & { ids: Set<string> | "all" }> = [];
+  for (const object of objects) {
+    const rule = object.type === "PRICING_RULE" && !object.is_deleted ? object.pricing_rule_data : undefined;
+    if (!rule || rule.time_period_ids?.length || rule.customer_group_ids_any?.length || rule.minimum_order_subtotal_money
+      || rule.exclude_products_id || rule.apply_products_id || !promotionRunsOn(rule, today)) continue;
+    const discount = byId.get(rule.discount_id || "")?.discount_data;
+    const set = byId.get(rule.match_products_id || "")?.product_set_data;
+    const percentage = discountPercentage(discount);
+    if (!percentage || !set || !plainProductSet(set)) continue;
+    promotions.push({ name: (rule.name || discount?.name || "").trim() || "Promotion", percentage, ids: set.all_products ? "all" : new Set(set.product_ids_any) });
+  }
+  return promotions;
+}
+
+// When several promotions cover a product, the shopper gets the largest.
+function bestPromotion(promotions: ReturnType<typeof readPromotions>, ids: string[]): ShopPromotion | null {
+  let best: ShopPromotion | null = null;
+  for (const promotion of promotions) {
+    if (promotion.ids !== "all" && !ids.some((id) => (promotion.ids as Set<string>).has(id))) continue;
+    if (!best || promotion.percentage > best.percentage) best = { name: promotion.name, percentage: promotion.percentage };
+  }
+  return best;
+}
+
+// Square rounds the discount to the cent, then takes it off the price.
+export function promotionalPrice(cents: number, percentage: number) {
+  return cents - Math.round(cents * percentage / 100);
+}
+
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: "\u00a0" };
+
+// The text of a Square description, its paragraphs, line breaks and list
+// items kept as new lines (the product sheet shows them as written).
+export function htmlToText(html = "") {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "• ")
+    .replace(/<\/(p|div|h[1-6]|ul|ol)>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, code: string) => {
+      if (code[0] !== "#") return ENTITIES[code.toLowerCase()] ?? entity;
+      const point = code[1] === "x" || code[1] === "X" ? parseInt(code.slice(2), 16) : Number(code.slice(1));
+      return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : entity;
+    })
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+// description_html is the field Square and the admin write; description is
+// its deprecated plain predecessor.
+export function descriptionText(item: { description?: string; description_html?: string; description_plaintext?: string }) {
+  if (item.description_html) return htmlToText(item.description_html);
+  return item.description_plaintext || htmlToText(item.description);
+}
+
+export function normalizeCatalog(objects: CatalogObject[] = [], related: CatalogObject[] = [], locationId = "", today = shopToday()): ShopProduct[] {
   const images = indexCatalogImages([...related, ...objects]);
+  const promotions = readPromotions([...related, ...objects], today);
   const categories = new Map<string, string>();
   for (const object of [...related, ...objects]) {
     if (object.type === "CATEGORY" && object.category_data?.name) categories.set(object.id, object.category_data.name);
@@ -331,11 +473,12 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
     const item = object.item_data;
     // Appointment services, gift cards and archived items are not retail goods.
     if (!item || item.is_archived || (item.product_type && item.product_type !== "REGULAR")) continue;
-    const categoryNames = uniqueIds([
+    const categoryIds = uniqueIds([
       item.reporting_category?.id,
       ...(item.categories || []).map((entry) => entry.id),
       item.category_id,
-    ].map((id) => (id && categories.get(id)) || ""));
+    ]);
+    const categoryNames = uniqueIds(categoryIds.map((id) => categories.get(id) || ""));
     const itemCategories = categoryNames.length ? categoryNames : ["Boutique"];
     const nameBrand = brandFromName(item.name);
     const listed: Array<{ product: ShopProduct; label: string; square: ShopOption[] | null }> = [];
@@ -347,13 +490,16 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
       const price = override?.price_money || data.price_money;
       if (!price || !Number.isSafeInteger(price.amount) || price.amount! < 0) continue;
       const imageUrls = variationImageIds(item, variation.id).map((id) => images.get(id) || "").filter(Boolean);
+      const promotion = bestPromotion(promotions, [variation.id, object.id, ...categoryIds]);
       const variationName = genericVariationName(data.name) ? "" : (data.name || "").trim();
       listed.push({ label: variationName || "Standard", square: squareOptionChoices(data.item_option_values, itemOptions), product: {
         id: variation.id,
         itemId: object.id,
         name: shopDisplayName(item.name || "Article", data.name || ""),
-        description: item.description_plaintext || (item.description || "").replace(/<[^>]*>/g, ""),
-        priceCents: price.amount!,
+        description: descriptionText(item),
+        priceCents: promotion ? promotionalPrice(price.amount!, promotion.percentage) : price.amount!,
+        regularPriceCents: price.amount!,
+        promotion,
         currency: price.currency || "CAD",
         imageUrl: imageUrls[0] || "",
         imageUrls,
@@ -373,17 +519,32 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
 
 export function normalizeCategories(objects: CatalogObject[] = [], related: CatalogObject[] = [], products: ShopProduct[] = []): ShopCategory[] {
   const images = indexCatalogImages([...related, ...objects]);
+  const listed = [...related, ...objects].filter((object) => object.type === "CATEGORY" && object.category_data?.name);
+  const byId = new Map(listed.map((object) => [object.id, object]));
+  // A subcategory (« Colliers » under « Accessoires ») names its parent, and
+  // the parent is listed even when no product is filed under it directly.
+  const parents = new Map<string, string>();
+  for (const object of listed) {
+    const name = object.category_data!.name!;
+    const parent = byId.get(object.category_data?.parent_category?.id || "")?.category_data?.name || "";
+    if (parent && parent !== name && !parents.get(name)) parents.set(name, parent);
+  }
   const used = new Set(products.flatMap((product) => product.categories));
+  for (const name of [...used]) {
+    for (let parent = parents.get(name); parent && !used.has(parent); parent = parents.get(parent)) used.add(parent);
+  }
   const photos = new Map<string, string>();
-  for (const object of [...related, ...objects]) {
-    const name = object.type === "CATEGORY" ? object.category_data?.name || "" : "";
+  for (const object of listed) {
+    const name = object.category_data!.name!;
     if (!used.has(name) || photos.get(name)) continue;
     photos.set(name, (object.category_data?.image_ids || []).map((id) => images.get(id) || "").find(Boolean) || "");
   }
-  return [...used].map((name) => ({ name, imageUrl: photos.get(name) || "" }));
+  return [...used].map((name) => ({ name, imageUrl: photos.get(name) || "", parent: parents.get(name) || "" }));
 }
 
-export async function fetchShop(fetcher?: typeof fetch): Promise<{ products: ShopProduct[]; categories: ShopCategory[] }> {
+// Every catalog object of these types, across all of Square's pages, plus the
+// photos of the items, variations and categories among them.
+export async function loadCatalogObjects(objectTypes: string[], fetcher?: typeof fetch) {
   const objects: CatalogObject[] = [];
   const related: CatalogObject[] = [];
   let cursor: string | undefined;
@@ -392,10 +553,7 @@ export async function fetchShop(fetcher?: typeof fetch): Promise<{ products: Sho
     const result = await squareRequest<CatalogSearchResult>("catalog/search", {
       method: "POST",
       fetcher,
-      // Square's related_objects only carry an item's reporting category, so the
-      // categories themselves are listed too to name every category an item is in,
-      // and so are the item options (Couleur, Taille…) that name variations.
-      body: { object_types: ["ITEM", "CATEGORY", "ITEM_OPTION"], include_related_objects: true, include_deleted_objects: false, ...(cursor ? { cursor } : {}) },
+      body: { object_types: objectTypes, include_related_objects: true, include_deleted_objects: false, ...(cursor ? { cursor } : {}) },
     });
     objects.push(...result.objects || []);
     related.push(...result.related_objects || []);
@@ -411,6 +569,17 @@ export async function fetchShop(fetcher?: typeof fetch): Promise<{ products: Sho
     // are worth a second fetch, but the catalog should still load without them.
   }
   related.push(...[...images.entries()].map(([id, url]) => ({ id, type: "IMAGE", image_data: { url } })));
+  return { objects, related };
+}
+
+// Square's related_objects only carry an item's reporting category, so the
+// categories themselves are listed too to name every category an item is in,
+// and so are the item options (Couleur, Taille…) that name variations and the
+// automatic discounts (pricing rule, product set, discount) of promotions.
+export const SHOP_OBJECT_TYPES = ["ITEM", "CATEGORY", "ITEM_OPTION", "PRICING_RULE", "PRODUCT_SET", "DISCOUNT"];
+
+export async function fetchShop(fetcher?: typeof fetch): Promise<{ products: ShopProduct[]; categories: ShopCategory[] }> {
+  const { objects, related } = await loadCatalogObjects(SHOP_OBJECT_TYPES, fetcher);
   const products = normalizeCatalog(objects, related, shopConfig().locationId);
   return { products, categories: normalizeCategories(objects, related, products) };
 }
@@ -422,8 +591,8 @@ export async function fetchShopCatalog(fetcher?: typeof fetch): Promise<ShopProd
 export type CheckoutItem = { id: string; quantity: number };
 
 // Pure transform: cart lines -> Square Online Checkout payment-link request.
-// Prices are intentionally omitted; Square resolves them from the catalog so
-// the client can never set its own price.
+// Prices are intentionally omitted; Square resolves them, and any promotion,
+// from the catalog so the client can never set its own price.
 export function buildPaymentLinkBody(
   items: CheckoutItem[],
   options: { locationId: string; idempotencyKey: string; redirectUrl?: string },
@@ -432,7 +601,8 @@ export function buildPaymentLinkBody(
     idempotency_key: options.idempotencyKey,
     order: {
       location_id: options.locationId,
-      pricing_options: { auto_apply_taxes: true },
+      // Square's automatic discounts are the boutique's promotions.
+      pricing_options: { auto_apply_taxes: true, auto_apply_discounts: true },
       line_items: items.map((item) => ({ quantity: String(item.quantity), catalog_object_id: item.id })),
     },
     checkout_options: {
