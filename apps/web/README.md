@@ -51,6 +51,17 @@ carte de catégorie, en tête de la rangée (`FEATURED_BRANDS` dans
 `boutique.html?categorie=<catégorie>` ouvre la boutique sur une catégorie : la
 page Lucky Bones y mène avec `?categorie=lucky-bones`.
 
+Une sous-catégorie Square (« Colliers » sous « Accessoires ») n'a pas sa propre
+carte : quand sa catégorie principale est choisie, ses sous-catégories
+apparaissent en boutons sous la rangée, et ses produits sont aussi listés dans
+la catégorie principale. `?categorie=colliers` ouvre directement une
+sous-catégorie.
+
+Les promotions sont les rabais automatiques de Square, créés dans l'espace du
+salon (`/salon` → Boutique en ligne). La carte et la fiche du produit affichent
+le prix réduit, le prix régulier barré et un badge « −20 % ». Square applique
+lui-même le rabais au paiement.
+
 Un article Square offert en plusieurs variations (couleurs, tailles, formats)
 forme une seule fiche, avec un sélecteur par choix : pastilles pour les
 couleurs, boutons pour le reste. Les choix viennent des options d'article

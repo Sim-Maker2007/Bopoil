@@ -41,6 +41,18 @@ export async function verifySquareWebhook(payload: string, signature: string, co
   return verifySquareWebhookSignature(payload, signature, config.webhookNotificationUrl, config.webhookSignatureKey);
 }
 
+// Square's error code (VERSION_MISMATCH, NOT_FOUND…) travels with the message,
+// so a caller can retry or explain a refusal without parsing the text.
+export class SquareRequestError extends Error {
+  status: number;
+  code: string;
+  constructor(message: string, status: number, code: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export async function squareRequest<T>(path: string, options: { query?: URLSearchParams; fetcher?: typeof fetch; method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown } = {}) {
   const config = squareConfig();
   if (!config.accessToken) throw new Error("Square synchronization is not configured.");
@@ -53,9 +65,11 @@ export async function squareRequest<T>(path: string, options: { query?: URLSearc
   };
   if (config.apiVersion) headers["Square-Version"] = config.apiVersion;
   const sendsBody = options.body !== undefined && method !== "GET";
-  if (sendsBody) headers["content-type"] = "application/json";
+  // A FormData body (a catalog photo) sets its own multipart content type.
+  const multipart = options.body instanceof FormData;
+  if (sendsBody && !multipart) headers["content-type"] = "application/json";
   const init: RequestInit = { method, headers };
-  if (sendsBody) init.body = JSON.stringify(options.body);
+  if (sendsBody) init.body = multipart ? options.body as FormData : JSON.stringify(options.body);
   const fetcher = options.fetcher || fetch;
   let response = await fetcher(url, init);
   // Square rate-limits bursts with 429 and occasionally answers 5xx; a short
@@ -65,8 +79,8 @@ export async function squareRequest<T>(path: string, options: { query?: URLSearc
     await new Promise((resolve) => setTimeout(resolve, Math.min(5_000, retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt)));
     response = await fetcher(url, init);
   }
-  const body = await response.json() as T & { errors?: Array<{ detail?: string }> };
-  if (!response.ok) throw new Error(body.errors?.[0]?.detail || `Square request failed (${response.status}).`);
+  const body = await response.json() as T & { errors?: Array<{ detail?: string; code?: string }> };
+  if (!response.ok) throw new SquareRequestError(body.errors?.[0]?.detail || `Square request failed (${response.status}).`, response.status, body.errors?.[0]?.code || "");
   return body;
 }
 

@@ -12,6 +12,7 @@ import { SettingsView } from "./settings-view";
 import { WaitlistView } from "./waitlist-view";
 import { SalonOnboarding } from "./salon-onboarding";
 import { InventoryView } from "./inventory-view";
+import { BoutiqueView } from "./boutique-view";
 import { WorkforceView } from "./workforce-view";
 import { QuickBookingModal } from "./quick-booking-modal";
 
@@ -25,6 +26,7 @@ type WorkspaceView =
   | "team"
   | "workforce"
   | "inventory"
+  | "boutique"
   | "finance"
   | "reports"
   | "settings";
@@ -796,6 +798,10 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
       "Inventory & purchasing",
       "Know what is on the shelf, what it costs, and what needs ordering.",
     ],
+    boutique: [
+      "Online store",
+      "Edit the boutique’s products, photos, prices, categories, and promotions in Square.",
+    ],
     finance: [
       "Finance & books",
       "Keep every sale, expense, receipt, tax amount, and closeout traceable.",
@@ -981,6 +987,14 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
                 <span>▤</span>Inventory
               </button>
             )}
+            {hasAccess("boutique") && (
+              <button
+                className={activeView === "boutique" ? "selected" : ""}
+                onClick={() => setActiveView("boutique")}
+              >
+                <span>◫</span>Online store
+              </button>
+            )}
             {hasAccess("finance") && (
               <button
                 className={activeView === "finance" ? "selected" : ""}
@@ -1153,6 +1167,8 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
             />
           ) : activeView === "inventory" ? (
             <InventoryView />
+          ) : activeView === "boutique" ? (
+            <BoutiqueView notify={showNotice} />
           ) : activeView === "finance" ? (
             <FinanceView
               onCheckout={setCheckoutAppointmentId}

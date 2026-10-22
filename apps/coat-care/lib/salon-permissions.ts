@@ -1,5 +1,5 @@
 export const WORKSPACE_PERMISSIONS = [
-  "calendar", "clients", "messages", "services", "team", "workforce", "inventory", "checkout", "finance", "reports", "settings",
+  "calendar", "clients", "messages", "services", "team", "workforce", "inventory", "boutique", "checkout", "finance", "reports", "settings",
 ] as const;
 
 export type WorkspacePermission = typeof WORKSPACE_PERMISSIONS[number];
@@ -12,6 +12,7 @@ export const PERMISSION_LABELS: Record<WorkspacePermission, { label: string; des
   team: { label: "Team & schedules", description: "Manage teammates, skills, and availability." },
   workforce: { label: "Timesheets", description: "View, correct, and approve worked hours." },
   inventory: { label: "Inventory", description: "View and adjust products in stock." },
+  boutique: { label: "Online store", description: "Edit products, photos, prices, categories, and promotions in Square." },
   checkout: { label: "Checkout", description: "Create payment links and collect appointment payments." },
   finance: { label: "Accounting", description: "View ledgers, expenses, receipts, and accounting exports." },
   reports: { label: "Reports", description: "View salon performance indicators." },
