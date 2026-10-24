@@ -4,6 +4,7 @@ import { requireBookkeepingAccess, requireSalonAccess, requireWorkspacePermissio
 import { dateKeyInZone, weekdayForDateKey, zonedDayBounds } from "../../../lib/time-zone";
 import { expenseBookValues } from "../../../lib/accounting";
 import { AnalyticsAppointment, AnalyticsPayment, buildInsights, change, signedNetSale, summarizeOperations } from "../../../lib/owner-analytics";
+import { squareAnalyticsPayments } from "../../../lib/square-ledger";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 function validDate(value: string) { const parsed = new Date(`${value}T12:00:00.000Z`); return datePattern.test(value) && !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value; }
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams, today = dateKeyInZone(new Date(), selected.timezone), to = params.get("to") || today, from = params.get("from") || plusDays(to, -29);
     if (!validDate(from) || !validDate(to) || from > to || rangeDays(from, to) > 366 || to > today) throw new SalonAccessError("Choose a completed reporting range of up to 366 days.", 400);
     const days = rangeDays(from, to), previousTo = plusDays(from, -1), previousFrom = plusDays(previousTo, -days + 1), broadStart = zonedDayBounds(previousFrom, selected.timezone).start.toISOString(), broadEnd = zonedDayBounds(to, selected.timezone).end.toISOString();
-    const [appointmentRows, paymentRows, expenseRows, inventoryRows, periodRows, lineRows, availabilityRows] = await Promise.all([
+    const [appointmentRows, ledgerRows, expenseRows, inventoryRows, periodRows, lineRows, availabilityRows, squareRows] = await Promise.all([
       db.select({ id: appointments.id, locationId: appointments.locationId, clientId: appointments.clientId, petId: appointments.petId, serviceId: appointments.serviceId, serviceName: services.name, staffId: appointments.staffId, staffName: staff.displayName, status: appointments.status, startsAt: appointments.startsAt, endsAt: appointments.endsAt }).from(appointments).innerJoin(services, eq(appointments.serviceId, services.id)).leftJoin(staff, eq(appointments.staffId, staff.id)).where(and(eq(appointments.organizationId, membership.organizationId), inArray(appointments.locationId, permittedIds))).orderBy(asc(appointments.startsAt)),
       db.select({ locationId: paymentEvents.locationId, appointmentId: paymentEvents.appointmentId, kind: paymentEvents.kind, amountCents: paymentEvents.amountCents, taxAmountCents: paymentEvents.taxAmountCents, tipAmountCents: paymentEvents.tipAmountCents, occurredAt: paymentEvents.occurredAt }).from(paymentEvents).where(and(eq(paymentEvents.organizationId, membership.organizationId), inArray(paymentEvents.locationId, permittedIds), eq(paymentEvents.status, "succeeded"), gte(paymentEvents.occurredAt, broadStart), lt(paymentEvents.occurredAt, broadEnd))),
       db.select().from(expenses).where(and(eq(expenses.organizationId, membership.organizationId), inArray(expenses.locationId, permittedIds), eq(expenses.status, "posted"), gte(expenses.paidOn, previousFrom), lt(expenses.paidOn, plusDays(to, 1)))),
@@ -29,7 +30,11 @@ export async function GET(request: Request) {
       db.select().from(payrollPeriods).where(and(eq(payrollPeriods.organizationId, membership.organizationId), inArray(payrollPeriods.locationId, permittedIds))),
       db.select().from(payrollLines).where(and(eq(payrollLines.organizationId, membership.organizationId), inArray(payrollLines.locationId, permittedIds))),
       db.select().from(staffAvailability).where(and(eq(staffAvailability.organizationId, membership.organizationId), inArray(staffAvailability.locationId, permittedIds), eq(staffAvailability.active, true))),
+      // Money taken through Square (terminal, point of sale, online store) is
+      // part of the salon's sales even though no Coat & Care invoice exists for it.
+      Promise.all(permittedIds.map((locationId) => squareAnalyticsPayments(db, { organizationId: membership.organizationId, locationId }, broadStart, broadEnd))).then((groups) => groups.flat()),
     ]);
+    const paymentRows = [...ledgerRows, ...squareRows];
     const periodById = new Map(periodRows.map((item) => [item.id, item]));
     type LocationRow = typeof locationRows[number];
     function bounds(dayFrom: string, dayTo: string, location: LocationRow) { return { start: zonedDayBounds(dayFrom, location.timezone).start.toISOString(), end: zonedDayBounds(dayTo, location.timezone).end.toISOString() }; }

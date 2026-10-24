@@ -22,6 +22,13 @@
       "when": 1789096824691,
       "tag": "0002_minor_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792810892871,
+      "tag": "0003_square_data_mirror",
+      "breakpoints": true
     }
   ]
 }

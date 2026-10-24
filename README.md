@@ -31,6 +31,8 @@ Set `SALON_OWNER_EMAIL` to the owner’s sign-in address. On the first secure si
 
 The configured 15-minute operations job and hourly Square reconciliation require a Vercel Pro project; Vercel Hobby projects only permit daily cron jobs.
 
+The hourly Square job also mirrors the Square customer directory, payments, refunds, orders and team members into the CRM (`/salon` → **Square**), where a manager can run the first import by hand with **Sync everything now**. After deploying this feature, run `npm run db:migrate` (migration `0003_square_data_mirror`), make sure the Square access token can read Customers, Orders, Payments, Team and Appointments, and subscribe the webhook endpoint to the event types listed on that page. See `apps/coat-care/README.md` → **Square data mirror**.
+
 ### Reservation gate
 
 Online booking is switched off the same way. `ONLINE_BOOKING_ENABLED=true` opens the reservation flow; any other value, or no value, pauses it everywhere:

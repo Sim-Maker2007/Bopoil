@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { requireSalonAccess, requireSchedulingAccess, requireWorkspacePermission, salonApiError, SalonAccessError } from "../../salon-access";
-import { appointments, auditEvents, clientMediaAssets, clients, pets, vaccinationRecords } from "../../../db/schema";
+import { appointments, auditEvents, clientMediaAssets, clients, pets, squareCustomers, squarePayments, vaccinationRecords } from "../../../db/schema";
 import { issuePortalEmailSession } from "../../../db/client-portal";
 import { portalAccessUrl } from "../../../lib/portal-links";
 
@@ -55,12 +55,40 @@ export async function GET(request: Request) {
       inArray(clientMediaAssets.clientId, clientIds),
     )).orderBy(asc(clientMediaAssets.createdAt));
 
+    // What Square knows about each client: the linked customer record and
+    // the money taken through Square's terminal, point of sale and online store.
+    const [squareRows, spendRows] = await Promise.all([
+      db.select({ id: squareCustomers.id, clientId: squareCustomers.clientId, note: squareCustomers.note, creationSource: squareCustomers.creationSource, referenceId: squareCustomers.referenceId, birthday: squareCustomers.birthday, emailUnsubscribed: squareCustomers.emailUnsubscribed, squareCreatedAt: squareCustomers.squareCreatedAt, squareUpdatedAt: squareCustomers.squareUpdatedAt })
+        .from(squareCustomers).where(and(eq(squareCustomers.organizationId, membership.organizationId), eq(squareCustomers.deleted, false), inArray(squareCustomers.clientId, clientIds))).orderBy(asc(squareCustomers.squareCreatedAt)),
+      db.select({ clientId: squarePayments.clientId, paymentCount: sql<number>`count(*)`.mapWith(Number), grossCents: sql<number>`coalesce(sum(${squarePayments.totalCents}), 0)`.mapWith(Number), refundedCents: sql<number>`coalesce(sum(${squarePayments.refundedCents}), 0)`.mapWith(Number), lastPaymentAt: sql<string>`max(${squarePayments.squareCreatedAt})` })
+        .from(squarePayments).where(and(eq(squarePayments.organizationId, membership.organizationId), eq(squarePayments.status, "COMPLETED"), inArray(squarePayments.clientId, clientIds))).groupBy(squarePayments.clientId),
+    ]);
+    const spendByClient = new Map(spendRows.map((row) => [row.clientId, row]));
+
     const records = clientRows.map((client) => ({
       id: client.id,
       fullName: client.fullName,
       email: client.email,
       phone: client.phone,
       marketingConsent: client.marketingConsent,
+      square: (() => {
+        const customer = squareRows.find((row) => row.clientId === client.id);
+        const spend = spendByClient.get(client.id);
+        if (!customer && !spend) return null;
+        return {
+          customerId: customer?.id || null,
+          note: customer?.note || "",
+          creationSource: customer?.creationSource || "",
+          referenceId: customer?.referenceId || "",
+          birthday: customer?.birthday || "",
+          emailUnsubscribed: customer?.emailUnsubscribed || false,
+          since: customer?.squareCreatedAt || null,
+          paymentCount: spend?.paymentCount || 0,
+          grossCents: spend?.grossCents || 0,
+          refundedCents: spend?.refundedCents || 0,
+          lastPaymentAt: spend?.lastPaymentAt || null,
+        };
+      })(),
       profilePhoto: [...mediaRows].reverse().find((asset) => asset.clientId === client.id && asset.kind === "profile") || null,
       media: mediaRows.filter((asset) => asset.clientId === client.id && asset.kind === "gallery"),
       pets: petRows.filter((pet) => pet.clientId === client.id).reduce<Array<{

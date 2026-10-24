@@ -16,22 +16,12 @@ import {
 import { normalizeClientPhone } from "./client-phone-auth";
 import { squareConfig, squareRequest } from "./square";
 import { squareBookingRanges } from "./square-booking-window";
+import { loadSyncState, parseCheckpoint, upsertSquareBookingDetails, type SquareBookingDetails } from "./square-data-sync";
+import { linkedEntity, linkedLocalId, linkEntity, type Db } from "./square-links";
 
-export type SquareBooking = {
-  id?: string;
-  version?: number;
-  status?: string;
-  start_at?: string;
-  location_id?: string;
-  customer_id?: string;
-  customer_note?: string;
-  appointment_segments?: Array<{
-    duration_minutes?: number;
-    intermission_minutes?: number;
-    service_variation_id?: string;
-    team_member_id?: string;
-  }>;
-};
+export { linkedLocalId, linkEntity };
+
+export type SquareBooking = SquareBookingDetails;
 
 type SquareCustomer = {
   id?: string;
@@ -48,9 +38,6 @@ type SquareCatalogObject = {
   item_data?: { name?: string };
   item_variation_data?: { name?: string; item_id?: string; price_money?: { amount?: number; currency?: string } };
 };
-
-type Db = ReturnType<typeof getDb>;
-type EntityType = "appointment" | "client" | "location" | "service" | "staff";
 
 const operationalStatuses = new Set(["arrived", "bathing", "drying", "grooming", "quality_check", "ready", "completed"]);
 
@@ -69,25 +56,6 @@ function squareStatus(status: string) {
   return "confirmed" as const;
 }
 
-async function linkedEntity(db: Db, organizationId: string, entityType: EntityType, externalEntityId: string) {
-  if (!externalEntityId) return null;
-  const [link] = await db.select({
-    localEntityId: externalEntityLinks.localEntityId,
-    externalVersion: externalEntityLinks.externalVersion,
-    lastSyncedAt: externalEntityLinks.lastSyncedAt,
-  }).from(externalEntityLinks).where(and(
-    eq(externalEntityLinks.organizationId, organizationId),
-    eq(externalEntityLinks.provider, "square"),
-    eq(externalEntityLinks.entityType, entityType),
-    eq(externalEntityLinks.externalEntityId, externalEntityId),
-  )).limit(1);
-  return link || null;
-}
-
-export async function linkedLocalId(db: Db, organizationId: string, entityType: EntityType, externalEntityId: string) {
-  return (await linkedEntity(db, organizationId, entityType, externalEntityId))?.localEntityId || "";
-}
-
 // Stored timestamps are text: ISO strings written by the app, or the column
 // default's "YYYY-MM-DD HH24:MI:SS" (UTC) form.
 function storedTimeMs(value: string) {
@@ -96,39 +64,6 @@ function storedTimeMs(value: string) {
 }
 
 const CLIENT_REFRESH_MS = 24 * 60 * 60 * 1000;
-
-export async function linkEntity(db: Db, input: {
-  organizationId: string;
-  locationId?: string | null;
-  entityType: EntityType;
-  localEntityId: string;
-  externalEntityId: string;
-  externalVersion?: string;
-  metadata?: Record<string, unknown>;
-}) {
-  const now = new Date().toISOString();
-  await db.insert(externalEntityLinks).values({
-    id: crypto.randomUUID(),
-    organizationId: input.organizationId,
-    locationId: input.locationId || null,
-    provider: "square",
-    entityType: input.entityType,
-    localEntityId: input.localEntityId,
-    externalEntityId: input.externalEntityId,
-    externalVersion: input.externalVersion || "",
-    metadataJson: JSON.stringify(input.metadata || {}),
-    lastSyncedAt: now,
-  }).onConflictDoUpdate({
-    target: [externalEntityLinks.organizationId, externalEntityLinks.provider, externalEntityLinks.entityType, externalEntityLinks.externalEntityId],
-    set: {
-      localEntityId: input.localEntityId,
-      locationId: input.locationId || null,
-      externalVersion: input.externalVersion || "",
-      metadataJson: JSON.stringify(input.metadata || {}),
-      lastSyncedAt: now,
-    },
-  });
-}
 
 async function resolveClient(db: Db, organizationId: string, locationId: string, externalCustomerId: string) {
   const link = await linkedEntity(db, organizationId, "client", externalCustomerId);
@@ -281,7 +216,10 @@ export async function syncSquareBooking(db: Db, booking: SquareBooking, preferre
   const existingLink = await linkedEntity(db, organization.id, "appointment", externalBookingId);
   if (existingLink && bookingVersion && existingLink.externalVersion === bookingVersion) {
     const [unchanged] = await db.select({ id: appointments.id }).from(appointments).where(and(eq(appointments.id, existingLink.localEntityId), eq(appointments.organizationId, organization.id))).limit(1);
-    if (unchanged) return { handled: true, unchanged: true, appointmentId: unchanged.id, organizationId: organization.id, locationId: location.id };
+    if (unchanged) {
+      await upsertSquareBookingDetails(db, { organizationId: organization.id, locationId: location.id }, booking, unchanged.id);
+      return { handled: true, unchanged: true, appointmentId: unchanged.id, organizationId: organization.id, locationId: location.id };
+    }
   }
   const durationMinutes = Math.max(1, segments.reduce((total, segment) => total + Number(segment.duration_minutes || 0) + Number(segment.intermission_minutes || 0), 0));
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
@@ -332,6 +270,7 @@ export async function syncSquareBooking(db: Db, booking: SquareBooking, preferre
   }
   if (["cancelled", "no_show"].includes(nextStatus)) await db.delete(appointmentReservations).where(eq(appointmentReservations.appointmentId, appointmentId));
   await Promise.all([
+    upsertSquareBookingDetails(db, { organizationId: organization.id, locationId: location.id }, booking, appointmentId),
     linkEntity(db, { organizationId: organization.id, locationId: location.id, entityType: "appointment", localEntityId: appointmentId, externalEntityId: externalBookingId, externalVersion: bookingVersion, metadata: { externalLocationId } }),
     linkEntity(db, { organizationId: organization.id, locationId: location.id, entityType: "location", localEntityId: location.id, externalEntityId: externalLocationId }),
     db.update(salonSettings).set({ allowOnlineBooking: false, requireOnlineDeposit: false, updatedAt: now }).where(and(eq(salonSettings.organizationId, organization.id), eq(salonSettings.locationId, location.id))),
@@ -346,20 +285,30 @@ export async function retrieveAndSyncSquareBooking(db: Db, bookingId: string) {
   return syncSquareBooking(db, response.booking);
 }
 
-export async function reconcileSquareBookings(db: Db = getDb(), now = new Date(), force = false) {
+// How far back the booking history is read in total, and how many 30-day
+// slices of it one hourly run adds. The regular window (30 days back, 180
+// ahead) is refreshed every run; the older history is filled in once, a few
+// slices per run, and recorded in the checkpoint so it is not read again.
+const BOOKING_HISTORY_DAYS = 400;
+const HISTORY_SLICES_PER_RUN = 3;
+
+export async function reconcileSquareBookings(db: Db = getDb(), now = new Date(), force = false, options: { deadline?: number } = {}) {
   const config = squareConfig();
   if (!config.syncConfigured) return { configured: false, synced: 0 };
   const storefront = await resolveStorefront({ organizationSlug: config.organizationSlug || undefined, locationSlug: config.locationSlug || undefined });
   const { organization, location } = storefront;
-  const [state] = await db.select().from(integrationSyncStates).where(and(eq(integrationSyncStates.provider, "square"), eq(integrationSyncStates.locationId, location.id))).limit(1);
-  if (!force && state?.lastStartedAt && new Date(state.lastStartedAt).getTime() > now.getTime() - 55 * 60_000) return { configured: true, synced: 0, skipped: true };
+  const state = await loadSyncState(db, location.id, "bookings");
+  if (!force && state?.lastStartedAt && state.status !== "failed" && new Date(state.lastStartedAt).getTime() > now.getTime() - 55 * 60_000) return { configured: true, synced: 0, skipped: true };
+  const checkpoint = parseCheckpoint(state);
   const startedAt = now.toISOString();
   const stateId = state?.id || crypto.randomUUID();
-  await db.insert(integrationSyncStates).values({ id: stateId, organizationId: organization.id, locationId: location.id, provider: "square", status: "running", lastStartedAt: startedAt, updatedAt: startedAt }).onConflictDoUpdate({ target: [integrationSyncStates.provider, integrationSyncStates.locationId], set: { status: "running", lastStartedAt: startedAt, error: "", updatedAt: startedAt } });
+  await db.insert(integrationSyncStates).values({ id: stateId, organizationId: organization.id, locationId: location.id, provider: "square", resource: "bookings", status: "running", lastStartedAt: startedAt, updatedAt: startedAt })
+    .onConflictDoUpdate({ target: [integrationSyncStates.provider, integrationSyncStates.locationId, integrationSyncStates.resource], set: { status: "running", lastStartedAt: startedAt, error: "", updatedAt: startedAt } });
+  const pastDeadline = () => options.deadline !== undefined && Date.now() > options.deadline;
   try {
     let synced = 0;
     let unchanged = 0;
-    for (const range of squareBookingRanges(now)) {
+    const readRange = async (range: { startAtMin: string; startAtMax: string }) => {
       let cursor = "";
       for (let page = 0; page < 10; page += 1) {
         const query = new URLSearchParams({ limit: "100", start_at_min: range.startAtMin, start_at_max: range.startAtMax });
@@ -375,10 +324,22 @@ export async function reconcileSquareBookings(db: Db = getDb(), now = new Date()
         cursor = response.cursor || "";
         if (!cursor) break;
       }
+    };
+    for (const range of squareBookingRanges(now)) {
+      if (pastDeadline()) break;
+      await readRange(range);
+    }
+    // Older history, a few slices per run, until BOOKING_HISTORY_DAYS is covered.
+    const historyFloor = now.getTime() - BOOKING_HISTORY_DAYS * 86_400_000;
+    let historyFrom = typeof checkpoint.historyFrom === "string" && !Number.isNaN(Date.parse(checkpoint.historyFrom)) ? Date.parse(checkpoint.historyFrom) : now.getTime() - 30 * 86_400_000;
+    for (let slice = 0; slice < HISTORY_SLICES_PER_RUN && historyFrom > historyFloor && !pastDeadline(); slice += 1) {
+      const startAtMin = Math.max(historyFloor, historyFrom - 30 * 86_400_000);
+      await readRange({ startAtMin: new Date(startAtMin).toISOString(), startAtMax: new Date(historyFrom).toISOString() });
+      historyFrom = startAtMin;
     }
     const completedAt = new Date().toISOString();
-    await db.update(integrationSyncStates).set({ status: "succeeded", lastSyncedAt: completedAt, error: "", updatedAt: completedAt }).where(eq(integrationSyncStates.id, stateId));
-    return { configured: true, synced, unchanged };
+    await db.update(integrationSyncStates).set({ status: "succeeded", lastSyncedAt: completedAt, lastRunCount: synced + unchanged, checkpointJson: JSON.stringify({ historyFrom: new Date(historyFrom).toISOString(), historyComplete: historyFrom <= historyFloor }), error: "", updatedAt: completedAt }).where(eq(integrationSyncStates.id, stateId));
+    return { configured: true, synced, unchanged, historyComplete: historyFrom <= historyFloor };
   } catch (error) {
     const message = (error instanceof Error ? error.message : "Square reconciliation failed").slice(0, 500);
     await db.update(integrationSyncStates).set({ status: "failed", error: message, updatedAt: new Date().toISOString() }).where(eq(integrationSyncStates.id, stateId));

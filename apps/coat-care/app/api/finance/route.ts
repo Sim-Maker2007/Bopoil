@@ -3,6 +3,7 @@ import { appointments, auditEvents, clients, dailyCloseouts, invoices, locations
 import { requireFinancialAccess, requireSalonAccess, requireSalonManager, salonApiError, SalonAccessError } from "../../salon-access";
 import { dateKeyInZone, zonedDayBounds } from "../../../lib/time-zone";
 import { summarizePayments } from "../../../lib/accounting";
+import { squareSalesBetween } from "../../../lib/square-ledger";
 
 const dayPattern = /^\d{4}-\d{2}-\d{2}$/;
 function validDay(value: string) { const parsed = new Date(`${value}T12:00:00.000Z`); return dayPattern.test(value) && !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value; }
@@ -14,7 +15,8 @@ async function financialDay(db: Awaited<ReturnType<typeof requireSalonAccess>>["
   const events = await db.select({ id: paymentEvents.id, invoiceId: paymentEvents.invoiceId, appointmentId: paymentEvents.appointmentId, kind: paymentEvents.kind, method: paymentEvents.method, amountCents: paymentEvents.amountCents, taxAmountCents: paymentEvents.taxAmountCents, tipAmountCents: paymentEvents.tipAmountCents, note: paymentEvents.note, parentPaymentId: paymentEvents.parentPaymentId, occurredAt: paymentEvents.occurredAt, invoiceNumber: invoices.invoiceNumber, petName: pets.name, clientName: clients.fullName })
     .from(paymentEvents).innerJoin(invoices, eq(paymentEvents.invoiceId, invoices.id)).innerJoin(appointments, eq(paymentEvents.appointmentId, appointments.id)).innerJoin(pets, eq(appointments.petId, pets.id)).innerJoin(clients, eq(appointments.clientId, clients.id))
     .where(and(eq(paymentEvents.organizationId, scope.organizationId), eq(paymentEvents.locationId, scope.locationId), eq(paymentEvents.status, "succeeded"), gte(paymentEvents.occurredAt, start.toISOString()), lt(paymentEvents.occurredAt, end.toISOString()))).orderBy(desc(paymentEvents.occurredAt));
-  return { location, events, metrics: summarizePayments(events) };
+  const square = await squareSalesBetween(db, scope, start.toISOString(), end.toISOString());
+  return { location, events, metrics: summarizePayments(events), square };
 }
 
 export async function GET(request: Request) {
@@ -28,7 +30,7 @@ export async function GET(request: Request) {
       .where(and(eq(invoices.organizationId, membership.organizationId), eq(invoices.locationId, membership.locationId))).orderBy(desc(invoices.updatedAt)).limit(30);
     const [snapshot] = await db.select().from(dailyCloseouts).where(and(eq(dailyCloseouts.organizationId, membership.organizationId), eq(dailyCloseouts.locationId, membership.locationId), eq(dailyCloseouts.businessDate, day))).limit(1);
     const closeout = snapshot ? { ...snapshot, drifted: snapshot.status === "closed" && (snapshot.netCollectedCents !== current.metrics.netCollectedCents || snapshot.expectedCashCents !== current.metrics.byMethod.cash || snapshot.salesTaxCents !== current.metrics.salesTaxCents || snapshot.tipsCents !== current.metrics.tipsCents || snapshot.refundsCents !== current.metrics.refundsCents || snapshot.transactionCount !== current.metrics.transactionCount) } : null;
-    return Response.json({ location: current.location, day, metrics: { collectedCents: current.metrics.netCollectedCents, paymentsCents: current.metrics.paymentsCents, refundsCents: current.metrics.refundsCents, tipsCents: current.metrics.tipsCents, taxCents: current.metrics.salesTaxCents, transactionCount: current.metrics.transactionCount, byMethod: current.metrics.byMethod }, events: current.events, invoices: recentInvoices, closeout, canManage: ["owner", "manager"].includes(membership.role) });
+    return Response.json({ location: current.location, day, metrics: { collectedCents: current.metrics.netCollectedCents, paymentsCents: current.metrics.paymentsCents, refundsCents: current.metrics.refundsCents, tipsCents: current.metrics.tipsCents, taxCents: current.metrics.salesTaxCents, transactionCount: current.metrics.transactionCount, byMethod: current.metrics.byMethod }, events: current.events, invoices: recentInvoices, closeout, square: current.square, canManage: ["owner", "manager"].includes(membership.role) });
   } catch (error) { return salonApiError(error, "Financials unavailable"); }
 }
 

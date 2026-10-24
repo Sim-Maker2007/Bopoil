@@ -15,6 +15,7 @@ import { InventoryView } from "./inventory-view";
 import { BoutiqueView } from "./boutique-view";
 import { WorkforceView } from "./workforce-view";
 import { QuickBookingModal } from "./quick-booking-modal";
+import { SquareView } from "./square-view";
 
 type WorkspaceView =
   | "today"
@@ -29,6 +30,7 @@ type WorkspaceView =
   | "boutique"
   | "finance"
   | "reports"
+  | "square"
   | "settings";
 
 type Appointment = {
@@ -53,6 +55,14 @@ type Appointment = {
   serviceName: string;
   staffName: string | null;
   managedBySquare: boolean;
+  square: {
+    status: string;
+    source: string;
+    sellerNote: string;
+    customerNote: string;
+    creatorType: string;
+    createdAt: string;
+  } | null;
 };
 
 type DashboardData = {
@@ -90,6 +100,13 @@ type DashboardData = {
     appointments: number;
     activePets: number;
     actionableMessages: number;
+    collectedToday: {
+      totalCents: number;
+      squareCents: number;
+      squareCount: number;
+      ledgerCents: number;
+      ledgerCount: number;
+    } | null;
   };
   appointments: Appointment[];
 };
@@ -117,6 +134,19 @@ type DirectoryClient = {
   email: string;
   phone: string;
   marketingConsent: boolean;
+  square: {
+    customerId: string | null;
+    note: string;
+    creationSource: string;
+    referenceId: string;
+    birthday: string;
+    emailUnsubscribed: boolean;
+    since: string | null;
+    paymentCount: number;
+    grossCents: number;
+    refundedCents: number;
+    lastPaymentAt: string | null;
+  } | null;
   profilePhoto: DirectoryMedia | null;
   media: DirectoryMedia[];
   pets: DirectoryPet[];
@@ -448,6 +478,14 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
       ["owner", "manager", "receptionist", "groomer", "bather"].includes(
         data.user.role,
       ),
+  );
+  const canSeeSquare = Boolean(
+    data &&
+      ((["owner", "manager"].includes(data.user.role) && hasAccess("settings")) ||
+        hasAccess("clients") ||
+        hasAccess("calendar") ||
+        (hasAccess("finance") &&
+          ["owner", "manager", "receptionist", "accountant"].includes(data.user.role))),
   );
 
   function showNotice(message: string) {
@@ -810,6 +848,10 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
       "Reports",
       "See the operational signals behind a healthier salon.",
     ],
+    square: [
+      "Square",
+      "Every customer, sale, refund, reservation and team member Square holds, kept in sync here.",
+    ],
     settings: [
       "Salon settings",
       "Shape the business, booking rules, access, and every location.",
@@ -1011,6 +1053,14 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
                 <span>▥</span>Intelligence
               </button>
             )}
+            {canSeeSquare && (
+              <button
+                className={activeView === "square" ? "selected" : ""}
+                onClick={() => setActiveView("square")}
+              >
+                <span>▣</span>Square
+              </button>
+            )}
             <button
               className="sidebar-more-button"
               aria-haspopup="dialog"
@@ -1176,6 +1226,14 @@ export function SalonWorkspace({ signedInName }: { signedInName: string }) {
             />
           ) : activeView === "reports" ? (
             <ReportsView />
+          ) : activeView === "square" ? (
+            <SquareView
+              notify={showNotice}
+              timezone={data?.salon.timezone || "America/Toronto"}
+              currency={data?.salon.currency || "CAD"}
+              permissions={data?.user.permissions || []}
+              role={data?.user.role || ""}
+            />
           ) : (
             <SettingsView notify={showNotice} />
           )}
@@ -1417,9 +1475,19 @@ function TodayView({
           <small>Live workflow count</small>
         </div>
         <div>
-          <span>Operations</span>
-          <strong className="live-metric">Live</strong>
-          <small className="up">✓ Every change audited</small>
+          <span>Collected today</span>
+          <strong>
+            {data
+              ? data.metrics.collectedToday
+                ? formatMoney(data.metrics.collectedToday.totalCents, data.salon.currency)
+                : "—"
+              : "—"}
+          </strong>
+          <small>
+            {data?.metrics.collectedToday
+              ? `${data.metrics.collectedToday.squareCount} Square · ${data.metrics.collectedToday.ledgerCount} in checkout`
+              : "Finance access required"}
+          </small>
         </div>
       </div>
       <div className="dashboard-grid">
@@ -1822,6 +1890,49 @@ function ClientsView({
                     : "Transactional only"}
                 </span>
               </header>
+              {selectedClient.square && (
+                <section className="square-client-card">
+                  <header>
+                    <strong>In Square</strong>
+                    <span className="square-state succeeded">
+                      {selectedClient.square.customerId ? "Linked customer" : "Sales only"}
+                    </span>
+                  </header>
+                  <dl className="square-facts">
+                    <div>
+                      <dt>Lifetime spend</dt>
+                      <dd>
+                        {formatMoney(selectedClient.square.grossCents - selectedClient.square.refundedCents)}{" "}
+                        · {selectedClient.square.paymentCount} payment{selectedClient.square.paymentCount === 1 ? "" : "s"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Last payment</dt>
+                      <dd>{selectedClient.square.lastPaymentAt ? formatDay(selectedClient.square.lastPaymentAt, timezone) : "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Customer since</dt>
+                      <dd>{selectedClient.square.since ? formatDay(selectedClient.square.since, timezone) : "—"}</dd>
+                    </div>
+                    {selectedClient.square.birthday && (
+                      <div>
+                        <dt>Birthday</dt>
+                        <dd>{selectedClient.square.birthday}</dd>
+                      </div>
+                    )}
+                    <div>
+                      <dt>Square email marketing</dt>
+                      <dd>{selectedClient.square.emailUnsubscribed ? "Unsubscribed" : "Allowed"}</dd>
+                    </div>
+                  </dl>
+                  {selectedClient.square.note && (
+                    <p className="square-note">
+                      <strong>Square note</strong>
+                      {selectedClient.square.note}
+                    </p>
+                  )}
+                </section>
+              )}
               <section className="client-photo-file">
                 <div className="client-photo-upload">
                   <div><strong>Client photos</strong><small>Profile and gallery photos are visible in this client’s private portal. Internal notes and safety warnings stay team-only.</small></div>
@@ -2129,6 +2240,24 @@ function AppointmentDrawer({
           <p className="drawer-error" role="alert">
             {error}
           </p>
+        )}
+        {appointment.square && (
+          <div className="square-drawer-note">
+            <strong>In Square</strong>
+            <p>
+              {statusLabel(appointment.square.status.toLowerCase())} ·{" "}
+              {({ FIRST_PARTY_MERCHANT: "booked by the salon", FIRST_PARTY_BUYER: "booked online by the client", THIRD_PARTY_BUYER: "booked through a partner", API: "booked through the website" } as Record<string, string>)[appointment.square.source] || "source unknown"}
+              {appointment.square.createdAt
+                ? ` · created ${formatDay(appointment.square.createdAt, timezone)}`
+                : ""}
+            </p>
+            {appointment.square.sellerNote && (
+              <p>Salon note: {appointment.square.sellerNote}</p>
+            )}
+            {appointment.square.customerNote && (
+              <p>Client note: {appointment.square.customerNote}</p>
+            )}
+          </div>
         )}
         {appointment.managedBySquare && (
           <p className="square-managed-note">Square manages this appointment’s time and booking status. Coat & Care will keep it synchronized while your team records the pet’s care journey here.</p>
