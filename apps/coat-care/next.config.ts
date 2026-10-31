@@ -12,6 +12,11 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
+  // Product pages wear boutique.html's header, cart and footer
+  // (lib/storefront.ts), read from the copy the build puts in public/.
+  outputFileTracingIncludes: {
+    "/boutique/produit/*": ["./public/boutique.html"],
+  },
   turbopack: { root: monorepoRoot },
   // The boutique's product photos are Square's original uploads, often 2 000
   // to 3 000 pixels a side. apps/web/js/cart.js shows them through

@@ -27,6 +27,9 @@
   var toastTimer;
   var checkoutBusy = false;
   var checkoutAttempt = null;
+  // A product page (js/produit.js) knows its own product only (know()).
+  var pageMode = '';
+  var pageProducts = Object.create(null);
 
   function escapeHtml(value) {
     return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -258,8 +261,26 @@
     saveLines();
     renderCart();
   }
+  function addPageProducts() {
+    if (!pageMode) return;
+    if (mode !== pageMode) products = Object.create(null);
+    mode = pageMode;
+    Object.keys(pageProducts).forEach(function (id) { products[id] = pageProducts[id]; });
+  }
+  // A product page's product joins what the cart knows from the boutique's last
+  // visit, so the rest of the cart stays as it was (load() replaces it all).
+  function know(nextMode, known) {
+    if (catalogLoaded) return;
+    pageMode = nextMode;
+    pageProducts = known;
+    addPageProducts();
+    checkoutAttempt = null;
+    cart = readCart();
+    if (Object.keys(known).some(function (id) { return cart[id]; })) saveLines();
+    renderCart();
+  }
   function reload() {
-    if (!catalogLoaded) readLines();
+    if (!catalogLoaded) { readLines(); addPageProducts(); }
     cart = readCart();
     renderCart();
   }
@@ -291,6 +312,7 @@
 
   window.BopoilCart = {
     load: load,
+    know: know,
     add: addToCart,
     busy: function () { return checkoutBusy; },
     isOpen: isOpen,

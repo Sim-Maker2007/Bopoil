@@ -3,19 +3,38 @@ import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const { decideBoutiqueAccess, isBoutiquePath, boutiquePreviewKey, keysMatch, BOUTIQUE_PREVIEW_COOKIE } = await import("../lib/boutique-gate.ts");
-const { transformPublicFile, hideBoutiqueInHtml, hideCartInHtml, hideBoutiqueSlide, hideBoutiqueInSitemap, refreshSitemapDates } = await import("../../../scripts/public-site-boutique.mjs");
+const { transformPublicFile, hideBoutiqueInHtml, hideCartInHtml, hideBoutiqueSlide, hideBoutiqueInSitemap, hideBoutiqueInRobots, refreshSitemapDates } = await import("../../../scripts/public-site-boutique.mjs");
 
 const hidden = {};
 const published = { BOUTIQUE_ENABLED: "true" };
 const withKey = { BOUTIQUE_PREVIEW_KEY: "ninja-secret-key" };
 
-test("the boutique gate covers the page, its assets, the cart and the shop API only", () => {
-  for (const path of ["/boutique.html", "/boutique", "/css/boutique.css", "/js/boutique.js", "/js/shop-search.js", "/css/cart.css", "/js/cart.js", "/api/public/shop", "/api/public/shop/checkout"]) {
+test("the boutique gate covers the page, its product pages, their assets, the cart and the shop API only", () => {
+  for (const path of ["/boutique.html", "/boutique", "/boutique/produit/shampooing-doux-x7k2m9", "/boutique/sitemap.xml", "/css/boutique.css", "/js/boutique.js", "/css/produit.css", "/js/produit.js", "/js/shop-search.js", "/css/cart.css", "/js/cart.js", "/api/public/shop", "/api/public/shop/checkout"]) {
     assert.equal(isBoutiquePath(path), true, path);
   }
-  for (const path of ["/", "/index.html", "/nos-services.html", "/css/style.css", "/api/public/contact", "/salon"]) {
+  for (const path of ["/", "/index.html", "/nos-services.html", "/css/style.css", "/api/public/contact", "/salon", "/boutiques.html", "/sitemap.xml"]) {
     assert.equal(isBoutiquePath(path), false, path);
   }
+  assert.deepEqual(decideBoutiqueAccess({ pathname: "/boutique/produit/shampooing-doux-x7k2m9" }, hidden), { action: "hide" });
+  assert.deepEqual(decideBoutiqueAccess({ pathname: "/boutique/sitemap.xml" }, published), { action: "pass" });
+});
+
+test("robots.txt names the product sitemap and lets search engines read the catalog only while the store is published", async () => {
+  const robots = await readFile(new URL("../../web/robots.txt", import.meta.url), "utf8");
+  // Google renders boutique.html with the products of the shop API: /api stays
+  // closed to crawlers, except that one address.
+  assert.match(robots, /^Allow: \/api\/public\/shop\$$/m);
+  assert.match(robots, /^Disallow: \/api$/m);
+  assert.match(robots, /^Sitemap: https:\/\/www\.bopoil\.ca\/sitemap\.xml$/m);
+  assert.match(robots, /^Sitemap: https:\/\/www\.bopoil\.ca\/boutique\/sitemap\.xml$/m);
+  assert.equal(transformPublicFile("robots.txt", robots, published), null);
+  const hiddenRobots = transformPublicFile("robots.txt", robots, hidden);
+  assert.equal(hideBoutiqueInRobots(robots), hiddenRobots);
+  assert.doesNotMatch(hiddenRobots, /boutique|public\/shop/);
+  assert.match(hiddenRobots, /^Disallow: \/api$/m);
+  assert.match(hiddenRobots, /^Sitemap: https:\/\/www\.bopoil\.ca\/sitemap\.xml\n?$/m);
+  assert.equal(hiddenRobots.split("\n").length, robots.split("\n").length - 2);
 });
 
 test("the boutique is hidden unless BOUTIQUE_ENABLED is exactly true", () => {
@@ -106,7 +125,7 @@ test("the Next.js proxy enforces the gate on every boutique address", async () =
     readFile(new URL("../../../scripts/sync-public-site.mjs", import.meta.url), "utf8"),
   ]);
   assert.match(proxy, /export function proxy\(/);
-  for (const path of ["/boutique.html", "/css/boutique.css", "/js/boutique.js", "/js/shop-search.js", "/css/cart.css", "/js/cart.js", "/api/public/shop/:path*"]) {
+  for (const path of ["/boutique.html", "/boutique/:path*", "/css/boutique.css", "/js/boutique.js", "/css/produit.css", "/js/produit.js", "/js/shop-search.js", "/css/cart.css", "/js/cart.js", "/api/public/shop/:path*"]) {
     assert.ok(proxy.includes(`"${path}"`), path);
   }
   assert.match(proxy, /decideBoutiqueAccess/);

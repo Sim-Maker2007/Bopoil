@@ -1,0 +1,109 @@
+/* ==========================================================================
+   PAGE PRODUIT — /boutique/produit/…, rendue par le serveur
+   (apps/coat-care/lib/shop-pages.ts). Les pièces de la fiche produit de la
+   boutique (boutique.css) mises en page : photo, nom, prix, choix, panier.
+   ========================================================================== */
+
+.product-page { padding-block: 28px 48px; }
+
+.product-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  font-size: .875rem;
+  color: var(--color-gray-60);
+}
+.product-crumbs li { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.product-crumbs li + li::before { content: "›"; }
+.product-crumbs a { display: inline-flex; align-items: center; min-height: 32px; color: var(--near-black); text-decoration: underline; text-underline-offset: 3px; }
+.product-crumbs [aria-current] { overflow-wrap: anywhere; }
+
+.product-page__panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  background: var(--color-white);
+  color: var(--color-black);
+  border-radius: 28px;
+  box-shadow: 0 18px 48px rgba(20, 20, 20, .06);
+}
+
+/* The photo stays in view while the description scrolls past it. */
+.product-page__media {
+  position: sticky;
+  top: 104px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 420px;
+  padding: 32px 28px;
+  border-radius: 28px;
+  background: #fff;
+}
+.product-page__media > img { width: min(100%, 520px); height: auto; aspect-ratio: 1; object-fit: contain; }
+.product-page__media > svg { width: 120px; height: 120px; color: var(--accent-plum); }
+
+.product-page__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 44px 40px 40px;
+}
+/* The product's name keeps the typeface of its card, like the product sheet. */
+.product-page__title {
+  margin: 0;
+  font-family: var(--body-font);
+  font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+  font-weight: 500;
+  line-height: 1.2;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.product-page__heading {
+  margin: 18px 0 0;
+  font-family: var(--body-font);
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--color-gray-70);
+}
+.product-page .product-sheet__desc { font-size: 1rem; }
+.product-page .product-sheet__add:disabled { opacity: .55; cursor: default; }
+
+.product-page__facts { display: grid; gap: 10px; margin: 0; }
+.product-page__facts > div {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-gray-10);
+}
+.product-page__facts dt { font-size: .9rem; color: var(--color-gray-60); }
+.product-page__facts dd { margin: 0; overflow-wrap: anywhere; }
+.product-page__facts a { text-decoration: underline; text-underline-offset: 3px; }
+
+.product-related { padding-block: 8px 64px; }
+.product-related__title { margin: 0 0 24px; }
+.product-related__more { margin: 32px 0 0; text-align: center; }
+.product-related__more .btn { height: auto; min-height: var(--button-large-height); max-width: 100%; white-space: normal; text-align: center; }
+
+.product-page--missing .container { max-width: 760px; padding-block: 48px; text-align: center; }
+.product-page--missing .product-page__title { margin-bottom: 16px; }
+.product-page__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+
+@media (max-width: 860px) {
+  .product-page { padding-block: 16px 36px; }
+  .product-page__panel { grid-template-columns: 1fr; border-radius: 22px; }
+  .product-page__media { position: static; min-height: 0; padding: 20px 16px; border-radius: 22px 22px 0 0; }
+  .product-page__media > img { width: min(100%, 420px); max-height: 52vh; }
+  .product-page__body { padding: 22px 20px 28px; }
+  .product-page__facts > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .product-related { padding-bottom: 44px; }
+}

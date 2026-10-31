@@ -407,7 +407,11 @@
       ? '<button class="product-card__quick" type="button" data-open-product="' + id + '" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Choisir les options : ' + name + '">' + PLUS + '</button>'
       : '<button class="product-card__quick" type="button" data-add="' + id + '" aria-label="Ajouter au panier : ' + name + '">' + PLUS + '</button>';
     return '<article class="product-card" style="--i:' + index + (p.tint ? ';--tint:' + escapeHtml(p.tint) + ';--tint-ink:' + escapeHtml(p.ink || '') : '') + '" data-product data-id="' + id + '" data-name="' + name + '" data-price="' + p.priceCents + '" data-currency="' + escapeHtml(p.currency || 'CAD') + '" data-cat="' + cat + '" data-brand="' + escapeHtml(p.brand || '') + '" data-variants="' + escapeHtml(p.variants || '') + '" data-desc="' + desc + '" data-images="' + escapeHtml(images.join('|')) + '">' +
-      '<button class="product-card__hit" type="button" data-open-product="' + id + '" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : ' + name + '">' +
+      // A Square product's card links to its own page (search engines follow
+      // it); a plain click opens the product sheet here instead.
+      (p.path
+        ? '<a class="product-card__hit" href="' + escapeHtml(p.path) + '" data-open-product="' + id + '" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : ' + name + '">'
+        : '<button class="product-card__hit" type="button" data-open-product="' + id + '" aria-haspopup="dialog" aria-controls="product-sheet" aria-label="Voir le produit : ' + name + '">') +
         '<span class="product-card__media">' +
           badge + image + dots +
           '<span class="product-card__view">Voir le produit</span>' +
@@ -417,7 +421,7 @@
           '<span class="product-card__price">' + (p.fromPrice ? '<span class="product-card__from">À partir de</span> ' : '') + priceHTML(p.priceCents, p.regularCents, p.currency) + '</span>' +
           (p.choices || '') +
         '</span>' +
-      '</button>' +
+      (p.path ? '</a>' : '</button>') +
       quick +
     '</article>';
   }
@@ -587,7 +591,8 @@
         variants: several ? variants.map(function (v) { return v.variation || ''; }).join(' ') : '',
         choices: several ? choicesHTML(groups[key], known) : '',
         imageHtml: image,
-        imageUrls: cardUrls
+        imageUrls: cardUrls,
+        path: /^\/boutique\/produit\/[\w-]+$/.test(p.path || '') ? p.path : ''
       }, index);
     }).join('');
     renderFilters(categories, photos, brands);
@@ -680,6 +685,8 @@
   document.addEventListener('click', function (e) {
     var openHit = e.target.closest('[data-open-product]');
     if (openHit) {
+      // A card's link still opens the product's page in a new tab.
+      if (openHit.tagName === 'A' && (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return;
       e.preventDefault();
       openProduct(openHit.dataset.openProduct);
       return;

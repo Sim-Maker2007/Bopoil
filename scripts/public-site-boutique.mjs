@@ -1,8 +1,9 @@
 // Build-time half of the boutique gate (the request-time half lives in
 // apps/coat-care/proxy.ts). While the store is hidden, the synchronized copy of
 // the public website carries no "Boutique" navigation link, no link marked
-// data-boutique-link, no cart, no boutique slide on the home page and no
-// sitemap entry, so nothing on the live site points to the page.
+// data-boutique-link, no cart, no boutique slide on the home page, no sitemap
+// entry and no boutique line in robots.txt, so nothing on the live site points
+// to the store.
 
 export const BOUTIQUE_ENABLED_VARIABLE = "BOUTIQUE_ENABLED";
 // Build-time half of the reservation gate (request-time half in
@@ -27,6 +28,9 @@ const boutiqueSlide = /\s*<div class="hero-slide"[^>]*\bdata-boutique-slide\b[^>
 const lastHeroDot = /<button class="hero-dot"[^>]*><\/button>(?=\s*<\/div>\s*<\/section>)/;
 const slideNumber = /(aria-roledescription="diapositive" aria-label=")(\d+) de (\d+)"/g;
 const sitemapEntry = /\s*<url><loc>[^<]*\/boutique\.html<\/loc>(?:(?!<\/url>).)*<\/url>/gs;
+// robots.txt lets search engines read the shop API (boutique.html lists the
+// products from it) and names the sitemap of the product pages.
+const robotsLines = /^(Allow: \/api\/public\/shop\$?|Sitemap: \S*\/boutique\/sitemap\.xml)[ \t]*\r?\n?/gm;
 
 export function boutiqueEnabled(env = process.env) {
   return (env[BOUTIQUE_ENABLED_VARIABLE] || "").trim().toLowerCase() === "true";
@@ -68,6 +72,10 @@ export function hideBoutiqueInSitemap(xml) {
   return xml.replace(sitemapEntry, "");
 }
 
+export function hideBoutiqueInRobots(text) {
+  return text.replace(robotsLines, "");
+}
+
 // Brings each page's <lastmod> up to the date of its last change, as given by
 // dateOf(file name) — "" when unknown, which keeps the committed date.
 export function refreshSitemapDates(xml, dateOf) {
@@ -87,6 +95,7 @@ export function transformPublicFile(name, content, env = process.env, dateOf = n
     if (name.endsWith(".html") && name !== "boutique.html") output = hideCartInHtml(output);
     if (name === "index.html") output = hideBoutiqueSlide(output);
     if (name === "sitemap.xml") output = hideBoutiqueInSitemap(output);
+    if (name === "robots.txt") output = hideBoutiqueInRobots(output);
   }
   if (!onlineBookingEnabled(env) && name === "rendez-vous.html") output = pauseBookingInHtml(output);
   return output === content ? null : output;

@@ -23,7 +23,35 @@ export type ShopProduct = {
   itemName: string; // the item alone, shared by all of its variations
   variation: string; // the variation's own name ("M Vert", "250g"), "" when it has none
   options: ShopOption[]; // what sets the variation apart from the item's others; empty for an item sold one way
+  path: string; // the item's own page (productPath), shared by all of its variations
+  updatedAt: string; // when Square last changed the item (ISO 8601), "" when unknown
 };
+
+// Every product has its own page, which search engines index: the words of its
+// name, then the end of its Square item id (« /boutique/produit/shampooing-doux-x7k2m9 »).
+// The id keeps the address working when the product is renamed: an address
+// with an old name redirects to the current one (lib/shop-pages.ts).
+export const PRODUCT_PAGE_PATH = "/boutique/produit/";
+
+export function urlSlug(value = "") {
+  const words = value.toLowerCase().replace(/œ/g, "oe").replace(/æ/g, "ae").normalize("NFD").replace(/\p{M}/gu, "")
+    .replace(/&/g, " et ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (words.length <= 70) return words;
+  // Long names stop at the last whole word.
+  const cut = words.slice(0, 71);
+  const atWord = cut.lastIndexOf("-");
+  return atWord > 0 ? cut.slice(0, atWord) : words.slice(0, 70);
+}
+
+export function productIdKey(itemId = "") {
+  return itemId.toLowerCase().replace(/[^a-z0-9]/g, "").slice(-6);
+}
+
+export function productPath(itemName: string, itemId: string) {
+  const name = urlSlug(itemName) || "produit";
+  const key = productIdKey(itemId);
+  return PRODUCT_PAGE_PATH + (key ? `${name}-${key}` : name);
+}
 
 // One choice that sets a variation apart, e.g. { name: "Couleur", value: "Bleu",
 // swatch: "#2f6db5" }. The swatch is a hex colour, "camo" for the camouflage
@@ -509,6 +537,8 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
         itemName: shopDisplayName(item.name || "Article"),
         variation: variationName,
         options: [],
+        path: productPath(shopDisplayName(item.name || "Article"), object.id),
+        updatedAt: object.updated_at || "",
       } });
     }
     const options = variantOptions(listed);
