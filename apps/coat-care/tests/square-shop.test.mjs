@@ -17,6 +17,9 @@ const {
   fetchShopCatalog,
   createShopCheckout,
   shopConfig,
+  productPath,
+  productIdKey,
+  urlSlug,
 } = await import("../lib/square-shop.ts");
 
 function jsonResponse(payload) {
@@ -84,7 +87,23 @@ test("normalizeCatalog maps items to priced products with images and categories"
     itemName: "Shampooing doux",
     variation: "",
     options: [],
+    path: "/boutique/produit/shampooing-doux-item1",
+    updatedAt: "",
   });
+});
+
+test("every product has its own address: the words of its name, then the end of its Square id", () => {
+  assert.equal(productPath("Gâterie au saumon & bœuf", "4JHXWD4WQGYPEZBVA4XN5UHM"), "/boutique/produit/gaterie-au-saumon-et-boeuf-xn5uhm");
+  assert.equal(productPath("*SAFARI SW404", "AAAAAABBBBBB"), "/boutique/produit/safari-sw404-bbbbbb", "marks around a name are dropped");
+  assert.equal(productPath("!!!", "ID123456"), "/boutique/produit/produit-123456");
+  assert.equal(productIdKey("4JHXWD4WQGYPEZBVA4XN5UHM"), "xn5uhm");
+  const long = urlSlug("Collier réfléchissant ajustable en nylon tressé pour grands chiens actifs et aventuriers");
+  assert.equal(long, "collier-reflechissant-ajustable-en-nylon-tresse-pour-grands-chiens", "a long name stops at the last whole word within 70 characters");
+  const [variation] = normalizeCatalog([
+    { id: "ITEM_DATED", type: "ITEM", updated_at: "2026-10-12T14:03:00Z", item_data: { name: "LB Os - Article de base", variations: [{ id: "V1", item_variation_data: { name: "S", price_money: { amount: 500, currency: "CAD" } } }, { id: "V2", item_variation_data: { name: "M", price_money: { amount: 700, currency: "CAD" } } }] } },
+  ], []);
+  assert.equal(variation.path, "/boutique/produit/lb-os-mdated", "the item name, without « Article de base », names the page of all its variations");
+  assert.equal(variation.updatedAt, "2026-10-12T14:03:00Z");
 });
 
 test("normalizeCatalog files a product under every Square category, reporting category first", () => {

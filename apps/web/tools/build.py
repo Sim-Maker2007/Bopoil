@@ -2019,6 +2019,12 @@ PAGES = [
 
 # Chemins de Coat & Care (CRM) servis sur le même domaine : jamais indexés.
 ROBOTS_DISALLOW = ["/salon", "/employee", "/portal", "/book", "/booking", "/approval", "/api"]
+# boutique.html lit ses produits dans l'API de la boutique : Google doit pouvoir
+# la lire pour voir les vrais produits. Les pages produits ont leur propre plan
+# de site (apps/coat-care/app/boutique/sitemap.xml). Tant que la boutique est
+# masquée, scripts/public-site-boutique.mjs retire ces deux lignes.
+ROBOTS_ALLOW = ["/api/public/shop$"]
+EXTRA_SITEMAPS = ["/boutique/sitemap.xml"]
 
 
 def page_lastmod(filename):
@@ -2218,9 +2224,15 @@ def write_sitemap():
     with open(os.path.join(ROOT, "sitemap.xml"), "w", encoding="utf-8") as fh:
         fh.write(xml)
 
-    disallow = "".join(f"Disallow: {path}\n" for path in ROBOTS_DISALLOW)
     with open(os.path.join(ROOT, "robots.txt"), "w", encoding="utf-8") as fh:
-        fh.write(f"User-agent: *\nAllow: /\n{disallow}\nSitemap: {SITE_URL}/sitemap.xml\n")
+        fh.write(robots_txt())
+
+
+def robots_txt():
+    allow = "".join(f"Allow: {path}\n" for path in ROBOTS_ALLOW)
+    disallow = "".join(f"Disallow: {path}\n" for path in ROBOTS_DISALLOW)
+    sitemaps = "".join(f"Sitemap: {SITE_URL}{path}\n" for path in ["/sitemap.xml", *EXTRA_SITEMAPS])
+    return f"User-agent: *\nAllow: /\n{allow}{disallow}\n{sitemaps}"
 
 
 def main():

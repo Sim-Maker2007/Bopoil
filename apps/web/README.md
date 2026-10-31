@@ -31,6 +31,16 @@ du plan de site, et `apps/coat-care/proxy.ts` répond
 la boutique sur un navigateur donné (`boutique.html?apercu=<clé>`). Les fichiers
 de ce dossier ne sont jamais modifiés ; voir le README à la racine du dépôt.
 
+**Pages produits.** Chaque produit a sa propre page, rendue par le serveur pour
+les moteurs de recherche : `/boutique/produit/<nom>-<id>`. C'est `boutique.html`
+avec son propre `<head>` et son `<main>` (`apps/coat-care/lib/shop-pages.ts`),
+plus `css/produit.css` et `js/produit.js` (choix de taille ou de couleur, photos,
+ajout au panier). Les cartes de la boutique sont des liens vers ces pages ; un
+clic ouvre toujours la fiche produit sur place. `robots.txt` permet aux moteurs
+de lire l'API de la boutique et nomme le plan de site des produits
+(`/boutique/sitemap.xml`) ; `tools/build.py` l'écrit ainsi. Voir « Search
+engines » dans le README à la racine du dépôt.
+
 **Panier.** Le bouton « Panier » de l'en-tête et son tiroir sont sur toutes les
 pages (`css/cart.css`, `js/cart.js`). Le panier reste sur l'appareil du
 visiteur. La boutique y enregistre le nom, le prix et la photo de chaque
@@ -267,11 +277,13 @@ css/tokens.css            jetons de design extraits de l'ancien site
 css/style.css             mise en page et composants
 css/cart.css              bouton et tiroir du panier, sur toutes les pages
 css/boutique.css          page boutique — catalogue, filtres, fiche produit
+css/produit.css           page de chaque produit (/boutique/produit/…)
 css/lucky-bones.css       page Lucky Bones et son calculateur
 js/config.js              ⚙️ configuration — Square, CRM, coordonnées, mesure d'audience
 js/main.js                carrousel, navigation, formulaires, repli réservation
 js/cart.js                panier sur toutes les pages, paiement Square
 js/boutique.js            catalogue Square de la page boutique
+js/produit.js             page de chaque produit : choix, photos, ajout au panier
 js/lucky-bones.js         calculateur de ration Lucky Bones (prix des sacs lus dans le catalogue Square)
 images/                   photos JPEG + WebP en plusieurs largeurs (srcset) + logo
 tools/build.py            générateur de pages, données structurées, sitemap, robots

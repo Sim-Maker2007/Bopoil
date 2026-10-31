@@ -6,7 +6,9 @@ import { fetchShop, shopConfig } from "../../../../lib/square-shop";
 // without accepting sample-product orders.
 export async function GET() {
   const shop = shopConfig();
-  const cacheable = { "cache-control": "public, max-age=60, stale-while-revalidate=300" };
+  // Search engines may read the catalog to render boutique.html (robots.txt
+  // allows it), but the JSON itself is never a search result.
+  const cacheable = { "cache-control": "public, max-age=60, stale-while-revalidate=300", "x-robots-tag": "noindex" };
 
   if (!shop.configured) {
     return Response.json(
@@ -25,7 +27,7 @@ export async function GET() {
     console.error("Square catalog is unavailable.", error);
     return Response.json(
       { configured: true, checkout: "unavailable", currency: "CAD", products: [], error: "catalog_unavailable" },
-      { status: 503, headers: { "cache-control": "no-store" } },
+      { status: 503, headers: { "cache-control": "no-store", "x-robots-tag": "noindex" } },
     );
   }
 }

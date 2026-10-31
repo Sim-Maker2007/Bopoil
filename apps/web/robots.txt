@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
+Allow: /api/public/shop$
 Disallow: /salon
 Disallow: /employee
 Disallow: /portal
@@ -9,3 +10,4 @@ Disallow: /approval
 Disallow: /api
 
 Sitemap: https://www.bopoil.ca/sitemap.xml
+Sitemap: https://www.bopoil.ca/boutique/sitemap.xml
