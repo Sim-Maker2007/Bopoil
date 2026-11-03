@@ -873,6 +873,7 @@ footer > span { color: rgba(255,255,255,.45); text-align: right; font-size: 11px
 .shop-admin-modal label small { color: var(--muted); font-size: 12px !important; font-weight: 400; text-transform: none; letter-spacing: 0; }
 .shop-admin-modal .field-pair { gap: 12px; }
 .shop-admin-modal-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 22px; border-top: 1px solid var(--line); background: white; color: var(--ink); }
+.shop-admin-modal-footer .shop-admin-modal-error { flex: 1 0 100%; margin: 0; }
 .shop-admin-modal-footer button, .shop-admin-modal-footer a { min-height: 42px; font-size: 13px; }
 .shop-admin-modal .secondary-button.danger { border-color: #f0c4bb; color: #963626; }
 .shop-admin-spacer { flex: 1; }

@@ -642,7 +642,8 @@
     notice.textContent = 'Chargement de la boutique…';
     grid.querySelectorAll('[data-add]').forEach(function (btn) { btn.disabled = true; });
     try {
-      var res = await fetch('/api/public/shop', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+      // Fresh right after a change in the salon's Online store admin (cart.js).
+      var res = await fetch('/api/public/shop', { headers: { Accept: 'application/json' }, cache: Cart.catalogCacheMode(), signal: AbortSignal.timeout(12000) });
       if (!res.ok) throw new Error('catalog');
       var data = await res.json();
       if (!data || data.error || typeof data.configured !== 'boolean' || !Array.isArray(data.products)) throw new Error('catalog');

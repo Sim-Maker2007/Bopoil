@@ -310,8 +310,19 @@
   window.addEventListener('storage', function (e) { if ((e.key === storageKey() || e.key === LINES_KEY) && !checkoutBusy) reload(); });
   window.addEventListener('pageshow', function (e) { if (e.persisted) setBusy(false); });
 
+  // The browser keeps the shop's catalog for a few minutes (the shop API's
+  // Cache-Control). For ten minutes after a change in the salon's Online store
+  // admin made in this browser, the boutique reads it fresh instead, so the
+  // change shows right away (apps/coat-care/app/salon/boutique-view.tsx).
+  function catalogCacheMode() {
+    try {
+      var changedAt = Number(localStorage.getItem('bopoil-shop-changed-at')) || 0;
+      return Date.now() - changedAt < 10 * 60 * 1000 ? 'reload' : 'default';
+    } catch (e) { return 'default'; }
+  }
   window.BopoilCart = {
     load: load,
+    catalogCacheMode: catalogCacheMode,
     know: know,
     add: addToCart,
     busy: function () { return checkoutBusy; },

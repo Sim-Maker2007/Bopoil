@@ -296,3 +296,52 @@ test("the salon workspace opens the online store for those allowed to edit it", 
   assert.match(workspace, /<BoutiqueView notify=\{showNotice\} \/>/);
   assert.match(access, /requireBoutiqueManagement/);
 });
+
+test("a promotion that cannot be saved says why, next to the Save button", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const view = await readFile(new URL("../app/salon/boutique-view.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const { translateCrmText } = await import("../app/crm-language.ts");
+  // The modal body scrolls: a refusal at its top was out of sight when Save was clicked further down.
+  assert.match(view, /<div className="shop-admin-modal-footer">\{error && <p className="inline-error shop-admin-modal-error" role="alert">/);
+  assert.doesNotMatch(view, /\{error && <p className="inline-error" role="alert">/);
+  assert.match(styles, /\.shop-admin-modal-footer \.shop-admin-modal-error \{ flex: 1 0 100%;/);
+  // Save stays clickable and names the missing field instead of greying out.
+  assert.match(view, /<button className="primary-button" disabled=\{busy\} onClick=\{\(\) => void save\(\)\}>\{busy \? "Saving…" : "Save promotion"\}/);
+  for (const message of ["Enter a name for the promotion.", "Enter the discount as a number between 0.01 and 100, for example 20.", "Choose a start date, and an end date on or after it.", "Choose the products or categories on promotion."]) {
+    assert.ok(view.includes(`"${message}"`), message);
+    assert.notEqual(translateCrmText(message), message, `${message} has a French translation`);
+  }
+  assert.equal(translateCrmText("e.g. Fall sale"), "ex. Soldes d’automne");
+  assert.equal(translateCrmText("e.g. 20"), "ex. 20");
+});
+
+test("the admin's percentage reads « 20 % » and « 12,5 » like the API does", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const view = await readFile(new URL("../app/salon/boutique-view.tsx", import.meta.url), "utf8");
+  const body = view.match(/function parsePercentage\(value: string\) \{([\s\S]*?)\n\}/)?.[1];
+  assert.ok(body, "parsePercentage is defined");
+  const parsePercentage = new Function("value", body);
+  assert.equal(parsePercentage("20"), 20);
+  assert.equal(parsePercentage("20 %"), 20);
+  assert.equal(parsePercentage("20 %"), 20, "a narrow no-break space before %, as French typing often has");
+  assert.equal(parsePercentage("12,5"), 12.5);
+  assert.equal(parsePercentage("0.07"), 0.07);
+  for (const bad of ["", "abc", "0", "-5", "101", "12.345"]) assert.equal(parsePercentage(bad), null, bad);
+});
+
+test("after a change in the admin, the boutique in the same browser skips its cached catalog", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const view = await readFile(new URL("../app/salon/boutique-view.tsx", import.meta.url), "utf8");
+  const boutique = await readFile(new URL("../../web/js/boutique.js", import.meta.url), "utf8");
+  const cart = await readFile(new URL("../../web/js/cart.js", import.meta.url), "utf8");
+  // Every write goes through post() or uploadPhoto(), and both mark the change once Square accepted it.
+  assert.match(view, /async function post<T>[\s\S]{0,300}json<T>\(response\)\);\s*markShopChanged\(\);/);
+  assert.match(view, /fetch\("\/api\/shop-admin\/images"[\s\S]{0,40}\);\s*markShopChanged\(\);/);
+  assert.match(view, /localStorage\.setItem\("bopoil-shop-changed-at"/);
+  // cart.js owns the store's device storage; boutique.js asks it.
+  assert.match(cart, /localStorage\.getItem\('bopoil-shop-changed-at'\)/);
+  assert.match(cart, /Date\.now\(\) - changedAt < 10 \* 60 \* 1000 \? 'reload' : 'default'/);
+  assert.match(cart, /catalogCacheMode: catalogCacheMode,/);
+  assert.match(boutique, /fetch\('\/api\/public\/shop', \{ headers: \{ Accept: 'application\/json' \}, cache: Cart\.catalogCacheMode\(\)/);
+});

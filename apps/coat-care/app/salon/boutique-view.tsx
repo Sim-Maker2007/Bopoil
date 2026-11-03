@@ -27,14 +27,30 @@ function parsePrice(value: string) {
   const number = Number(value.replace(/[\s$]/g, "").replace(",", "."));
   return value.trim() && Number.isFinite(number) && number >= 0 && number <= 100_000 ? Math.round(number * 100) : null;
 }
+// « 20 », « 20 % », « 12,5 » and « 12.5 » all read as a percentage, to the
+// hundredth like Square's (the same check as the shop-admin API).
+function parsePercentage(value: string) {
+  const number = Number(value.replace(/[\s%]/g, "").replace(",", "."));
+  const valid = value.trim() && Number.isFinite(number) && number > 0 && number <= 100 && Math.abs(Math.round(number * 100) - number * 100) <= 1e-9;
+  return valid ? number : null;
+}
 function sameIds(a: string[], b: string[]) { return a.length === b.length && a.every((id, index) => id === b[index]); }
 async function json<T>(response: Response) {
   const body = await response.json().catch(() => ({})) as T & { error?: string };
   if (!response.ok) throw new Error(body.error || "Something went wrong.");
   return body;
 }
-function post<T>(body: Record<string, unknown>) {
-  return fetch("/api/shop-admin", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((response) => json<T>(response));
+// Each visitor's browser keeps the boutique's catalog for a few minutes
+// (/api/public/shop). After a change, the boutique opened in this browser
+// reads it fresh for a while instead (apps/web/js/cart.js), so whoever
+// made the change sees it on the website right away.
+function markShopChanged() {
+  try { window.localStorage.setItem("bopoil-shop-changed-at", String(Date.now())); } catch { /* Device storage is optional. */ }
+}
+async function post<T>(body: Record<string, unknown>) {
+  const result = await fetch("/api/shop-admin", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((response) => json<T>(response));
+  markShopChanged();
+  return result;
 }
 function failure(reason: unknown, fallback: string) { return reason instanceof Error ? reason.message : fallback; }
 // The page's text is translated where it is shown (CrmLanguageBoundary); a
@@ -70,7 +86,9 @@ async function uploadPhoto(file: File, kind: "product" | "category", objectId: s
   form.append("file", blob, `${file.name.replace(/\.[^.]+$/, "") || "photo"}.jpg`);
   form.append("kind", kind);
   form.append("objectId", objectId);
-  return json<{ product?: AdminProduct }>(await fetch("/api/shop-admin/images", { method: "POST", body: form }));
+  const result = await json<{ product?: AdminProduct }>(await fetch("/api/shop-admin/images", { method: "POST", body: form }));
+  markShopChanged();
+  return result;
 }
 
 // The categories as main categories, each followed by its subcategories.
@@ -296,7 +314,9 @@ function CategoryRow({ category, sub = false, onEdit }: { category: AdminCategor
   </div>;
 }
 
-function ShopModal({ title, eyebrow, onClose, children, footer, wide = false }: { title: string; eyebrow: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode; wide?: boolean }) {
+// A refusal shows above the buttons: the body scrolls, and a message at its
+// top was out of sight when Save was clicked further down.
+function ShopModal({ title, eyebrow, onClose, children, footer, error = "", wide = false }: { title: string; eyebrow: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode; error?: string; wide?: boolean }) {
   useEffect(() => {
     function onKey(event: KeyboardEvent) { if (event.key === "Escape") onClose(); }
     window.addEventListener("keydown", onKey);
@@ -306,7 +326,7 @@ function ShopModal({ title, eyebrow, onClose, children, footer, wide = false }: 
     <section className={`business-modal shop-admin-modal${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
       <header><div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2></div><button onClick={onClose} aria-label="Close">×</button></header>
       <div className="shop-admin-modal-body">{children}</div>
-      <div className="shop-admin-modal-footer">{footer}</div>
+      <div className="shop-admin-modal-footer">{error && <p className="inline-error shop-admin-modal-error" role="alert">{error}</p>}{footer}</div>
     </section>
   </div>;
 }
@@ -415,14 +435,13 @@ function ProductEditor({ product: initial, catalog, onClose, onUpdated, onPromot
   const uploading = busy.startsWith("upload ") ? busy.slice(7).split("/") : null;
   const firstVariation = product.variations[0]?.id;
 
-  return <ShopModal wide title={product.name || "Product"} eyebrow="Square product" onClose={close} footer={<>
+  return <ShopModal wide title={product.name || "Product"} eyebrow="Square product" onClose={close} error={error} footer={<>
     {product.onSite && firstVariation && <a className="secondary-button" href={`/boutique.html?produit=${encodeURIComponent(firstVariation)}`} target="_blank" rel="noreferrer">View on the website ↗</a>}
     <span className="shop-admin-spacer" />
     <button className="secondary-button" onClick={close} disabled={Boolean(busy)}>Cancel</button>
     <button className="primary-button" onClick={() => void save()} disabled={!dirty || Boolean(busy)}>{busy === "save" ? "Saving…" : "Save changes"}</button>
   </>}>
     {!product.onSite && <p className="shop-admin-banner">Not on the website: Square has no fixed price for it, it is sold out, or it is not offered at the salon’s location.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
 
     <section className="shop-admin-section">
       <h3>Photos</h3>
@@ -500,10 +519,19 @@ function PromotionEditor({ draft, catalog, onClose, onSaved }: { draft: Promotio
   const words = plain(productQuery).split(/\s+/).filter(Boolean);
   const choices = catalog.products.filter((product) => productIds.includes(product.id) || (words.length > 0 && words.every((word) => plain(product.name).includes(word)))).slice(0, 60);
 
+  // Save stays clickable and says what is missing: a greyed-out button next to
+  // the grey sample text of an empty field looked like it did not respond.
   async function save() {
+    const percent = parsePercentage(percentage);
+    const problem = !name.trim() ? "Enter a name for the promotion."
+      : percent === null ? "Enter the discount as a number between 0.01 and 100, for example 20."
+      : !startsOn || (endsOn && endsOn < startsOn) ? "Choose a start date, and an end date on or after it."
+      : !allProducts && !covered ? "Choose the products or categories on promotion."
+      : "";
+    if (problem) { setError(problem); return; }
     setBusy(true); setError("");
     try {
-      await post({ action: "save_promotion", id: existing?.id || "", name, percentage: Number(percentage.replace(",", ".")), startsOn, endsOn, allProducts, productIds, categoryIds });
+      await post({ action: "save_promotion", id: existing?.id || "", name, percentage: percent, startsOn, endsOn, allProducts, productIds, categoryIds });
       onSaved(`Saved in Square: ${name.trim()}`);
     } catch (reason) { setError(failure(reason, "The promotion could not be saved.")); setBusy(false); }
   }
@@ -517,17 +545,16 @@ function PromotionEditor({ draft, catalog, onClose, onSaved }: { draft: Promotio
     } catch (reason) { setError(failure(reason, "The promotion could not be deleted.")); setBusy(false); }
   }
 
-  return <ShopModal wide title={existing ? existing.name : "New promotion"} eyebrow="Square automatic discount" onClose={() => { if (!busy) onClose(); }} footer={<>
+  return <ShopModal wide title={existing ? existing.name : "New promotion"} eyebrow="Square automatic discount" onClose={() => { if (!busy) onClose(); }} error={error} footer={<>
     {existing && <button className="secondary-button danger" disabled={busy} onClick={() => void remove()}>Delete</button>}
     <span className="shop-admin-spacer" />
     <button className="secondary-button" disabled={busy} onClick={onClose}>Cancel</button>
-    <button className="primary-button" disabled={busy || !name.trim() || !percentage || (!allProducts && !covered)} onClick={() => void save()}>{busy ? "Saving…" : "Save promotion"}</button>
+    <button className="primary-button" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : "Save promotion"}</button>
   </>}>
-    {error && <p className="inline-error" role="alert">{error}</p>}
     <section className="shop-admin-section">
       <div className="field-pair">
-        <label>Name<input value={name} maxLength={255} placeholder="Fall sale" onChange={(event) => setName(event.target.value)} /></label>
-        <label>Discount (%)<input inputMode="decimal" value={percentage} placeholder="20" onChange={(event) => setPercentage(event.target.value)} /></label>
+        <label>Name<input value={name} maxLength={255} placeholder="e.g. Fall sale" onChange={(event) => setName(event.target.value)} /></label>
+        <label>Discount (%)<input inputMode="decimal" value={percentage} placeholder="e.g. 20" onChange={(event) => setPercentage(event.target.value)} /></label>
       </div>
       <div className="field-pair">
         <label>Starts on<input type="date" value={startsOn} onChange={(event) => setStartsOn(event.target.value)} /></label>
@@ -583,12 +610,11 @@ function CategoryEditor({ category, catalog, onClose, onSaved }: { category: Adm
     } catch (reason) { setError(failure(reason, "The photo could not be added.")); setBusy(""); }
   }
 
-  return <ShopModal title={category ? category.name : "New category"} eyebrow="Square category" onClose={() => { if (!busy) onClose(); }} footer={<>
+  return <ShopModal title={category ? category.name : "New category"} eyebrow="Square category" onClose={() => { if (!busy) onClose(); }} error={error} footer={<>
     <span className="shop-admin-spacer" />
     <button className="secondary-button" disabled={Boolean(busy)} onClick={onClose}>Cancel</button>
     <button className="primary-button" disabled={Boolean(busy) || !name.trim()} onClick={() => void save()}>{busy === "save" ? "Saving…" : category ? "Save category" : "Create category"}</button>
   </>}>
-    {error && <p className="inline-error" role="alert">{error}</p>}
     <label>Name<input value={name} maxLength={255} placeholder="Collars" onChange={(event) => setName(event.target.value)} /></label>
     <label>Place in the boutique<select value={parentId} disabled={hasChildren} onChange={(event) => setParentId(event.target.value)}>
       <option value="">Main category (photo card)</option>
