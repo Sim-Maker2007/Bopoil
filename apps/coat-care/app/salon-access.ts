@@ -4,6 +4,7 @@ import { getDb, databaseErrorMessage } from "../db";
 import { ensurePilotData, PILOT } from "../db/pilot";
 import { locations, organizations, staff, staffInvitations, staffLocations } from "../db/schema";
 import { getChatGPTUser } from "./chatgpt-auth";
+import { DATABASE_UPDATE_REQUIRED_MESSAGE, isMissingMigrationError } from "../lib/database-errors";
 import { parsePermissions, type WorkspacePermission } from "../lib/salon-permissions";
 
 export class SalonAccessError extends Error {
@@ -219,6 +220,10 @@ export function requirePayrollManagement(membership: { role: string; permissions
 
 export function salonApiError(error: unknown, fallback: string) {
   if (error instanceof SalonAccessError) return Response.json({ error: error.message, code: error.code }, { status: error.status });
+  if (isMissingMigrationError(error)) {
+    console.error(`${fallback}: the database is missing a migration (run npm run db:migrate with the production DATABASE_URL)`, error);
+    return Response.json({ error: DATABASE_UPDATE_REQUIRED_MESSAGE, code: "database_update_required" }, { status: 503 });
+  }
   console.error(fallback, error);
   return Response.json({ error: fallback }, { status: 500 });
 }

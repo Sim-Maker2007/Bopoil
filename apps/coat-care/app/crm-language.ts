@@ -494,6 +494,9 @@ const french: Record<string, string> = {
   "This promotion no longer exists in Square. Refresh the list.": "Cette promotion n’existe plus dans Square. Actualisez la liste.",
   "This promotion has conditions set in Square. Change it in the Square dashboard.": "Cette promotion a des conditions définies dans Square. Modifiez-la dans le tableau de bord Square.",
   "Owner or manager access required": "Accès propriétaire ou gestionnaire requis",
+  "Dashboard unavailable": "Tableau de bord indisponible",
+  "Square sales unavailable": "Ventes Square indisponibles",
+  "The CRM database is missing an update. Run npm run db:migrate with the production DATABASE_URL.": "La base de données du CRM n’est pas à jour. Exécutez npm run db:migrate avec la DATABASE_URL de production.",
 };
 
 const inlinePhrases: Array<[RegExp, string]> = [
