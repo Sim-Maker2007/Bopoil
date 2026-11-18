@@ -9,6 +9,7 @@ import {
   indexCatalogImages,
   loadCatalogObjects,
   normalizeCatalog,
+  quantityCondition,
   retrieveMissingImages,
   shopConfig,
   shopToday,
@@ -154,7 +155,7 @@ function toAdminPromotion(rule: CatalogObject, byId: Map<string, CatalogObject>,
   // This admin writes « x % off these items or categories, from one day to
   // another ». A rule with anything more stays editable in Square only.
   const editable = Boolean(percentage && set && (set.all_products || ids.length) && !otherIds.length
-    && !set.product_ids_all?.length && !set.quantity_exact && !set.quantity_min && !set.quantity_max
+    && !set.product_ids_all?.length && !quantityCondition(set)
     && !data.time_period_ids?.length && !data.customer_group_ids_any?.length && !data.minimum_order_subtotal_money
     && !data.exclude_products_id && !data.apply_products_id && !data.valid_from_local_time && !data.valid_until_local_time);
   return {

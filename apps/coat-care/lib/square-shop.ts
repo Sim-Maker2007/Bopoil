@@ -417,10 +417,17 @@ export function discountPercentage(discount?: DiscountData) {
   return Number.isFinite(percentage) && percentage > 0 && percentage <= 100 ? percentage : 0;
 }
 
+// True when the set asks for a number of items: « buy 2 », « up to 3 ». A
+// quantity of one is no condition: it is Square's default for quantity_exact,
+// and the Square dashboard writes it on an ordinary « x % off this item »
+// discount, which Square then takes off every unit at checkout.
+export function quantityCondition(set: ProductSetData) {
+  return Boolean((set.quantity_exact && set.quantity_exact > 1) || (set.quantity_min && set.quantity_min > 1) || set.quantity_max);
+}
+
 // A product set any one product of which earns the discount, with no quantity to reach.
 function plainProductSet(set?: ProductSetData) {
-  return Boolean(set && (set.all_products || set.product_ids_any?.length) && !set.product_ids_all?.length
-    && !set.quantity_exact && !(set.quantity_min && set.quantity_min > 1) && !set.quantity_max);
+  return Boolean(set && (set.all_products || set.product_ids_any?.length) && !set.product_ids_all?.length && !quantityCondition(set));
 }
 
 // Square applies every automatic discount (pricing rule) itself at checkout.

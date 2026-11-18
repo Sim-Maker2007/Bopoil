@@ -233,12 +233,12 @@ test("a new promotion is one Square discount, product set and pricing rule", asy
   ]);
 });
 
-function existingPromotion(extraRule = {}) {
+function existingPromotion(extraRule = {}, extraSet = {}) {
   return {
     "GET catalog/object/R1": () => ({ object: { id: "R1", type: "PRICING_RULE", version: 3, pricing_rule_data: { name: "Soldes", discount_id: "D1", match_products_id: "S1", valid_from_date: "2026-11-01", valid_until_date: "2026-11-30", ...extraRule } } }),
     "POST catalog/batch-retrieve": (body) => ({ objects: body.object_ids.map((id) => ({
       D1: { id: "D1", type: "DISCOUNT", version: 3, discount_data: { name: "Soldes", discount_type: "FIXED_PERCENTAGE", percentage: "10", label_color: "9da2a6" } },
-      S1: { id: "S1", type: "PRODUCT_SET", version: 3, product_set_data: { product_ids_any: ["ITEM_1"] } },
+      S1: { id: "S1", type: "PRODUCT_SET", version: 3, product_set_data: { product_ids_any: ["ITEM_1"], ...extraSet } },
       ITEM_1: { id: "ITEM_1", type: "ITEM" },
     })[id]).filter(Boolean) }),
   };
@@ -259,9 +259,18 @@ test("editing a promotion rewrites its three Square objects over their current v
 });
 
 test("a promotion set up in Square with conditions cannot be changed or deleted here", async () => {
-  const { fetcher } = fakeSquare(existingPromotion({ customer_group_ids_any: ["VIP"] }));
-  await assert.rejects(savePromotion("R1", { name: "X", percentage: 10, startsOn: "2026-11-01", endsOn: "", allProducts: true, productIds: [], categoryIds: [] }, fetcher), /Square dashboard/);
-  await assert.rejects(deletePromotion("R1", fetcher), /Square dashboard/);
+  for (const [rule, set] of [[{ customer_group_ids_any: ["VIP"] }, {}], [{}, { quantity_min: 2 }]]) {
+    const { fetcher } = fakeSquare(existingPromotion(rule, set));
+    await assert.rejects(savePromotion("R1", { name: "X", percentage: 10, startsOn: "2026-11-01", endsOn: "", allProducts: true, productIds: [], categoryIds: [] }, fetcher), /Square dashboard/);
+    await assert.rejects(deletePromotion("R1", fetcher), /Square dashboard/);
+  }
+});
+
+test("a dashboard discount for one unit of a product can be edited here", async () => {
+  const { fetcher, calls } = fakeSquare({ ...existingPromotion({}, { quantity_exact: 1 }), "POST catalog/batch-upsert": () => ({}) });
+  await savePromotion("R1", { name: "Soldes", percentage: 15, startsOn: "2026-11-01", endsOn: "2026-11-30", allProducts: false, productIds: ["ITEM_1"], categoryIds: [] }, fetcher);
+  const set = calls.find((call) => call.path === "catalog/batch-upsert").body.batches[0].objects.find((object) => object.id === "S1");
+  assert.deepEqual(set.product_set_data, { name: "Soldes", product_ids_any: ["ITEM_1"] });
 });
 
 test("deleting a promotion removes its rule, product set and discount", async () => {

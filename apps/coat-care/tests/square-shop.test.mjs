@@ -672,11 +672,24 @@ test("the largest promotion wins and a variation, item or whole store can be tar
   assert.equal(byId.VAR_Q.priceCents, 1350);
 });
 
+test("a discount set up in the Square dashboard for one unit of a product shows on the boutique", () => {
+  // The dashboard writes a quantity of one on an ordinary item discount;
+  // Square takes it off every unit at checkout.
+  for (const set of [{ quantity_exact: 1 }, { quantity_min: 1 }]) {
+    const products = normalizeCatalog([...promoItems, ...promotion("DASH", { ids: ["ITEM_Q"], from: "2026-11-15", until: "2026-11-30", set })], [], "", "2026-11-18");
+    const product = products.find((entry) => entry.id === "VAR_Q");
+    assert.equal(product.priceCents, 1200, JSON.stringify(set));
+    assert.deepEqual(product.promotion, { name: "Promo DASH", percentage: 20 });
+  }
+});
+
 test("promotions the storefront cannot price exactly are left to Square's checkout", () => {
   const conditional = [
     ...promotion("AMOUNT", { ids: ["ITEM_Q"], discount: { discount_type: "FIXED_AMOUNT", percentage: undefined, amount_money: { amount: 500, currency: "CAD" } } }),
     ...promotion("CAPPED", { ids: ["ITEM_Q"], discount: { maximum_amount_money: { amount: 100, currency: "CAD" } } }),
     ...promotion("TWO", { ids: ["ITEM_Q"], set: { quantity_min: 2 } }),
+    ...promotion("EXACTLY_TWO", { ids: ["ITEM_Q"], set: { quantity_exact: 2 } }),
+    ...promotion("UP_TO_THREE", { ids: ["ITEM_Q"], set: { quantity_max: 3 } }),
     ...promotion("HAPPY", { ids: ["ITEM_Q"], rule: { time_period_ids: ["TP"] } }),
     ...promotion("MEMBERS", { ids: ["ITEM_Q"], rule: { customer_group_ids_any: ["GROUP"] } }),
     ...promotion("MIN", { ids: ["ITEM_Q"], rule: { minimum_order_subtotal_money: { amount: 5000, currency: "CAD" } } }),
