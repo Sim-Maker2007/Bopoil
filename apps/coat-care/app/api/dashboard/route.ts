@@ -5,6 +5,20 @@ import { squareManagedAppointmentIds } from "../../../lib/square-sync";
 import { squareSalesBetween } from "../../../lib/square-ledger";
 import { dateKeyInZone, zonedDayBounds } from "../../../lib/time-zone";
 
+// The Square mirror (square_bookings, square_payments, square_refunds) adds
+// detail to the CRM's own appointments and checkout; the workspace does not
+// need it to open. When it cannot be read (for instance before migration 0003
+// reaches the production database), the dashboard loads without it and the
+// failure goes to the function logs.
+async function readSquareMirror<T>(label: string, read: () => PromiseLike<T>): Promise<T | null> {
+  try {
+    return await read();
+  } catch (error) {
+    console.error(`Dashboard: Square ${label} could not be read`, error);
+    return null;
+  }
+}
+
 export async function GET() {
   try {
     const { db, membership } = await requireSalonAccess();
@@ -47,10 +61,10 @@ export async function GET() {
 
     const [squareManaged, squareDetails] = await Promise.all([
       squareManagedAppointmentIds(db, membership.organizationId, rows.map((row) => row.id)),
-      rows.length ? db.select({ appointmentId: squareBookings.appointmentId, status: squareBookings.status, source: squareBookings.source, sellerNote: squareBookings.sellerNote, customerNote: squareBookings.customerNote, creatorType: squareBookings.creatorType, squareCreatedAt: squareBookings.squareCreatedAt })
-        .from(squareBookings).where(and(eq(squareBookings.organizationId, membership.organizationId), inArray(squareBookings.appointmentId, rows.map((row) => row.id)))) : Promise.resolve([]),
+      rows.length ? readSquareMirror("booking details", () => db.select({ appointmentId: squareBookings.appointmentId, status: squareBookings.status, source: squareBookings.source, sellerNote: squareBookings.sellerNote, customerNote: squareBookings.customerNote, creatorType: squareBookings.creatorType, squareCreatedAt: squareBookings.squareCreatedAt })
+        .from(squareBookings).where(and(eq(squareBookings.organizationId, membership.organizationId), inArray(squareBookings.appointmentId, rows.map((row) => row.id))))) : Promise.resolve([]),
     ]);
-    const squareByAppointment = new Map(squareDetails.map((detail) => [detail.appointmentId, detail]));
+    const squareByAppointment = new Map((squareDetails || []).map((detail) => [detail.appointmentId, detail]));
     const dashboardRows = rows.map((row) => {
       const square = squareByAppointment.get(row.id);
       return { ...row, managedBySquare: squareManaged.has(row.id), square: square ? { status: square.status, source: square.source, sellerNote: square.sellerNote, customerNote: square.customerNote, creatorType: square.creatorType, createdAt: square.squareCreatedAt } : null };
@@ -77,10 +91,12 @@ export async function GET() {
     const todayBounds = zonedDayBounds(dateKeyInZone(new Date(), timezone), timezone);
     const canSeeMoney = membership.permissions.includes("finance") || membership.permissions.includes("checkout");
     const [square, [ledger]] = canSeeMoney ? await Promise.all([
-      squareSalesBetween(db, membership, todayBounds.start.toISOString(), todayBounds.end.toISOString()),
+      readSquareMirror("sales", () => squareSalesBetween(db, membership, todayBounds.start.toISOString(), todayBounds.end.toISOString())),
       db.select({ paymentsCents: sql<number>`coalesce(sum(case when ${paymentEvents.kind} = 'payment' then ${paymentEvents.amountCents} else -${paymentEvents.amountCents} end), 0)`.mapWith(Number), count: sql<number>`count(*)`.mapWith(Number) })
         .from(paymentEvents).where(and(eq(paymentEvents.organizationId, membership.organizationId), eq(paymentEvents.locationId, membership.locationId), eq(paymentEvents.status, "succeeded"), gte(paymentEvents.occurredAt, todayBounds.start.toISOString()), lt(paymentEvents.occurredAt, todayBounds.end.toISOString()))),
     ]) : [null, [{ paymentsCents: 0, count: 0 }]];
+    // Without Square's side the total would be short, so show none rather than a partial one.
+    const squareSalesUnavailable = canSeeMoney && !square;
     return Response.json({
       user: { id: membership.id, displayName: membership.displayName, role: membership.role, permissions: membership.permissions },
       salon,
@@ -91,7 +107,8 @@ export async function GET() {
         appointments: dashboardRows.length,
         activePets: dashboardRows.filter((row) => ["arrived", "bathing", "drying", "grooming", "quality_check", "ready"].includes(row.status)).length,
         actionableMessages: actionableMessages?.count || 0,
-        collectedToday: canSeeMoney ? { totalCents: (square?.totals.netCents || 0) + (ledger?.paymentsCents || 0), squareCents: square?.totals.netCents || 0, squareCount: square?.totals.count || 0, ledgerCents: ledger?.paymentsCents || 0, ledgerCount: ledger?.count || 0 } : null,
+        collectedToday: canSeeMoney && square ? { totalCents: square.totals.netCents + (ledger?.paymentsCents || 0), squareCents: square.totals.netCents, squareCount: square.totals.count, ledgerCents: ledger?.paymentsCents || 0, ledgerCount: ledger?.count || 0 } : null,
+        squareSalesUnavailable,
       },
       appointments: dashboardRows,
     });

@@ -107,6 +107,7 @@ type DashboardData = {
       ledgerCents: number;
       ledgerCount: number;
     } | null;
+    squareSalesUnavailable?: boolean;
   };
   appointments: Appointment[];
 };
@@ -1486,7 +1487,9 @@ function TodayView({
           <small>
             {data?.metrics.collectedToday
               ? `${data.metrics.collectedToday.squareCount} Square · ${data.metrics.collectedToday.ledgerCount} in checkout`
-              : "Finance access required"}
+              : data?.metrics.squareSalesUnavailable
+                ? "Square sales unavailable"
+                : "Finance access required"}
           </small>
         </div>
       </div>
