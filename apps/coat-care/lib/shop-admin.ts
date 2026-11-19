@@ -5,6 +5,7 @@ import {
   type PricingRuleData,
   type ProductSetData,
   descriptionText,
+  discountAmount,
   discountPercentage,
   indexCatalogImages,
   loadCatalogObjects,
@@ -51,6 +52,7 @@ export type AdminPromotion = {
   id: string;
   name: string;
   percentage: number; // 0 when the discount is not a plain percentage
+  amountCents: number; // the amount off each unit of a « x $ off » discount set up in Square, else 0
   startsOn: string;
   endsOn: string;
   allProducts: boolean;
@@ -162,6 +164,7 @@ function toAdminPromotion(rule: CatalogObject, byId: Map<string, CatalogObject>,
     id: rule.id,
     name: (data.name || discount?.name || "").trim() || "Promotion",
     percentage,
+    amountCents: percentage ? 0 : discountAmount(discount)?.cents || 0,
     startsOn: data.valid_from_date || "",
     endsOn: data.valid_until_date || "",
     allProducts: Boolean(set?.all_products),

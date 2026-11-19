@@ -1,4 +1,4 @@
-import { PRODUCT_PAGE_PATH, productIdKey, type ShopCategory, type ShopProduct } from "./square-shop.ts";
+import { PRODUCT_PAGE_PATH, productIdKey, type ShopCategory, type ShopProduct, type ShopPromotion } from "./square-shop.ts";
 
 // The boutique's product pages, as search engines read them. boutique.html
 // lists the products in the browser; each product also has a page of its own
@@ -166,13 +166,26 @@ function priceHtml(cents: number, regularCents: number, currency: string) {
   return `<span class="visually-hidden">Prix réduit : </span><span class="shop-sale">${money(cents, currency)}</span> <s class="shop-was"><span class="visually-hidden">au lieu de </span>${money(regularCents, currency)}</s>`;
 }
 
-function percentLabel(percentage: number) {
-  return `−${String(percentage).replace(".", ",")} %`;
+// « −20 % », or « −9 $ » for an amount off each unit (js/boutique.js writes the same).
+export function promotionLabel(promotion: ShopPromotion, currency = "CAD") {
+  if (promotion.amountCents > 0) {
+    const amount = money(promotion.amountCents, currency);
+    return `−${promotion.amountCents % 100 ? amount : amount.replace(",00", "")}`;
+  }
+  return `−${String(promotion.percentage).replace(".", ",")} %`;
+}
+
+// The size or colour whose price is cut the most, relative to its regular
+// price: its promotion is the card's badge.
+export function mostReduced(variants: ShopProduct[]) {
+  const share = (variant: ShopProduct) => (variant.regularPriceCents - variant.priceCents) / variant.regularPriceCents;
+  return variants.filter((variant) => variant.promotion && variant.regularPriceCents > variant.priceCents)
+    .reduce<ShopProduct | null>((best, variant) => (!best || share(variant) > share(best) ? variant : best), null);
 }
 
 export function variantPriceHtml(variant: ShopProduct) {
   return priceHtml(variant.priceCents, variant.regularPriceCents, variant.currency)
-    + (variant.promotion ? ` <span class="shop-promo-tag">${escapeHtml(`${percentLabel(variant.promotion.percentage)} · ${variant.promotion.name}`)}</span>` : "");
+    + (variant.promotion ? ` <span class="shop-promo-tag">${escapeHtml(`${promotionLabel(variant.promotion, variant.currency)} · ${variant.promotion.name}`)}</span>` : "");
 }
 
 function optionValue(variant: ShopProduct, name: string) {
@@ -264,13 +277,13 @@ function factsHtml(item: ShopItem, trail: string[]) {
 
 function cardHtml(item: ShopItem, index: number) {
   const cheapest = item.variants.reduce((best, variant) => (variant.priceCents < best.priceCents ? variant : best));
-  const promo = Math.max(...item.variants.map((variant) => variant.promotion?.percentage || 0));
+  const promo = mostReduced(item.variants);
   const image = item.images[0]
     ? `<img${imageAttrs(item.images[0], [384, 640], CARD_SIZES)} alt="" loading="lazy" decoding="async">`
     : PAW;
   return `<article class="product-card" style="--i:${index}"><a class="product-card__hit" href="${escapeHtml(item.path)}"><span class="product-card__media">`
     + (item.category ? `<span class="product-card__badge">${escapeHtml(item.category)}</span>` : "")
-    + (promo ? `<span class="product-card__promo">${escapeHtml(percentLabel(promo))}</span>` : "")
+    + (promo?.promotion ? `<span class="product-card__promo">${escapeHtml(promotionLabel(promo.promotion, promo.currency))}</span>` : "")
     + `${image}<span class="product-card__view">Voir le produit</span></span><span class="product-card__body"><span class="product-card__title">${escapeHtml(item.name)}</span><span class="product-card__price">`
     + (item.lowCents !== item.highCents ? '<span class="product-card__from">À partir de</span> ' : "")
     + `${priceHtml(cheapest.priceCents, cheapest.regularPriceCents, cheapest.currency)}</span></span></a></article>`;

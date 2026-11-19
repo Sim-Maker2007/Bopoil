@@ -645,7 +645,7 @@ test("an active percentage promotion lowers the price and keeps the regular one"
   const byId = Object.fromEntries(products.map((product) => [product.id, product]));
   assert.equal(byId.VAR_P1.priceCents, 1999, "20 % off 24,99 $ rounds the discount to the cent");
   assert.equal(byId.VAR_P1.regularPriceCents, 2499);
-  assert.deepEqual(byId.VAR_P1.promotion, { name: "Promo A", percentage: 20 });
+  assert.deepEqual(byId.VAR_P1.promotion, { name: "Promo A", percentage: 20, amountCents: 0 });
   assert.equal(byId.VAR_P2.priceCents, 4799);
   assert.equal(byId.VAR_Q.priceCents, 1500, "a product outside the promotion keeps its price");
   assert.equal(byId.VAR_Q.promotion, null);
@@ -679,13 +679,46 @@ test("a discount set up in the Square dashboard for one unit of a product shows 
     const products = normalizeCatalog([...promoItems, ...promotion("DASH", { ids: ["ITEM_Q"], from: "2026-11-15", until: "2026-11-30", set })], [], "", "2026-11-18");
     const product = products.find((entry) => entry.id === "VAR_Q");
     assert.equal(product.priceCents, 1200, JSON.stringify(set));
-    assert.deepEqual(product.promotion, { name: "Promo DASH", percentage: 20 });
+    assert.deepEqual(product.promotion, { name: "Promo DASH", percentage: 20, amountCents: 0 });
   }
+});
+
+// « 9,00 $ off » in the Square dashboard (Type de montant : Montant).
+const amountOff = (cents, currency = "CAD") => ({ discount_type: "FIXED_AMOUNT", percentage: undefined, amount_money: { amount: cents, currency } });
+
+test("an amount off set up in Square comes off each unit of every product it covers", () => {
+  const products = normalizeCatalog([...promoItems, ...promotion("BACI", { ids: ["ITEM_P", "ITEM_Q"], from: "2026-11-19", until: "2026-11-30", set: { quantity_exact: 1 }, discount: amountOff(900) })], [], "", "2026-11-20");
+  const byId = Object.fromEntries(products.map((product) => [product.id, product]));
+  assert.equal(byId.VAR_P1.priceCents, 1599, "24,99 $ − 9 $");
+  assert.equal(byId.VAR_P2.priceCents, 5099, "every size of the product");
+  assert.equal(byId.VAR_Q.priceCents, 600);
+  assert.equal(byId.VAR_Q.regularPriceCents, 1500);
+  assert.deepEqual(byId.VAR_Q.promotion, { name: "Promo BACI", percentage: 0, amountCents: 900 });
+});
+
+test("an amount off never takes a price below zero, and needs the price's currency", () => {
+  const price = (discount) => normalizeCatalog([...promoItems, ...promotion("X", { ids: ["ITEM_Q"], from: "2026-11-01", discount })], [], "", "2026-11-20").find((product) => product.id === "VAR_Q");
+  assert.equal(price(amountOff(2000)).priceCents, 0);
+  assert.equal(price(amountOff(500, "USD")).priceCents, 1500);
+  assert.equal(price(amountOff(500, "USD")).promotion, null);
+});
+
+test("when a percentage and an amount cover the same product, the one that saves more is shown, as Square applies it", () => {
+  const products = normalizeCatalog([
+    ...promoItems,
+    ...promotion("TEN", { percentage: "10", all: true, from: "2026-11-01" }),
+    ...promotion("FIVE", { ids: ["ITEM_P"], from: "2026-11-01", discount: amountOff(500) }),
+  ], [], "", "2026-11-20");
+  const byId = Object.fromEntries(products.map((product) => [product.id, product]));
+  assert.equal(byId.VAR_P1.priceCents, 1999, "5 $ off 24,99 $ saves more than 10 % (2,50 $)");
+  assert.equal(byId.VAR_P1.promotion.name, "Promo FIVE");
+  assert.equal(byId.VAR_P2.priceCents, 5399, "10 % off 59,99 $ (6 $) saves more than 5 $");
+  assert.equal(byId.VAR_P2.promotion.name, "Promo TEN");
 });
 
 test("promotions the storefront cannot price exactly are left to Square's checkout", () => {
   const conditional = [
-    ...promotion("AMOUNT", { ids: ["ITEM_Q"], discount: { discount_type: "FIXED_AMOUNT", percentage: undefined, amount_money: { amount: 500, currency: "CAD" } } }),
+    ...promotion("TYPED_AT_TILL", { ids: ["ITEM_Q"], discount: { discount_type: "VARIABLE_AMOUNT", percentage: undefined } }),
     ...promotion("CAPPED", { ids: ["ITEM_Q"], discount: { maximum_amount_money: { amount: 100, currency: "CAD" } } }),
     ...promotion("TWO", { ids: ["ITEM_Q"], set: { quantity_min: 2 } }),
     ...promotion("EXACTLY_TWO", { ids: ["ITEM_Q"], set: { quantity_exact: 2 } }),

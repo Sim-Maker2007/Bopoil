@@ -123,6 +123,11 @@ function priceRange(product: AdminProduct) {
   return low === high ? money(low, currency) : `${money(low, currency)} – ${money(high, currency)}`;
 }
 
+// « −20 % », « −$9.00 », or "" for a discount of another kind.
+function promotionAmount(promotion: AdminPromotion) {
+  return promotion.percentage ? `−${promotion.percentage} %` : promotion.amountCents ? `−${money(promotion.amountCents)}` : "";
+}
+
 function promotionDates(promotion: AdminPromotion) {
   if (promotion.startsOn && promotion.endsOn) return `${promotion.startsOn} → ${promotion.endsOn}`;
   return promotion.startsOn ? `${promotion.startsOn} →` : promotion.endsOn ? `→ ${promotion.endsOn}` : "";
@@ -235,7 +240,7 @@ export function BoutiqueView({ notify }: { notify: (message: string) => void }) 
               </span>
               <span className="shop-admin-row-price">{priceRange(product)}</span>
               <span className="shop-admin-row-chips">
-                {promotions.filter((promotion) => promotion.percentage > 0).slice(0, 1).map((promotion) => <span key={promotion.id} className="shop-chip promo">{`−${promotion.percentage} %`}</span>)}
+                {promotions.filter(promotionAmount).slice(0, 1).map((promotion) => <span key={promotion.id} className="shop-chip promo">{promotionAmount(promotion)}</span>)}
                 {!product.onSite && <span className="shop-chip warn">Not on the website</span>}
                 {product.images.length === 0 && <span className="shop-chip muted">No photo</span>}
               </span>
@@ -251,7 +256,7 @@ export function BoutiqueView({ notify }: { notify: (message: string) => void }) 
           {catalog.promotions.map((promotion) => {
             const covered = catalog.products.filter((product) => coveringPromotions(product, [{ ...promotion, status: "active" }]).length).length;
             return <article key={promotion.id} className={`shop-promo-card ${promotion.status}`}>
-              <div className="shop-promo-amount">{promotion.percentage ? `−${promotion.percentage} %` : "—"}</div>
+              <div className="shop-promo-amount">{promotionAmount(promotion) || "—"}</div>
               <div className="shop-promo-main">
                 <strong>{promotion.name}</strong>
                 <small>{promotionDates(promotion) || "No dates"}</small>
@@ -484,7 +489,7 @@ function ProductEditor({ product: initial, catalog, onClose, onUpdated, onPromot
     <section className="shop-admin-section">
       <h3>Promotion</h3>
       {promotions.map((promotion) => <div key={promotion.id} className="shop-promo-inline">
-        <span className="shop-chip promo">{promotion.percentage ? `−${promotion.percentage} %` : STATUS_LABELS[promotion.status]}</span>
+        <span className="shop-chip promo">{promotionAmount(promotion) || STATUS_LABELS[promotion.status]}</span>
         <span><strong>{promotion.name}</strong><small>{promotionDates(promotion)}</small></span>
         {promotion.editable && <button className="secondary-button" onClick={() => { if (!dirty || ask("Close without saving your changes?")) onEditPromotion(promotion); }}>Edit</button>}
       </div>)}
