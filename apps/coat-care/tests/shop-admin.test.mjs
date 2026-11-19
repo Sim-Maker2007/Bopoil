@@ -133,7 +133,7 @@ test("the admin catalog lists retail products, categories with their parents, an
     }),
   });
   const catalog = await loadAdminCatalog(fetcher, "2026-10-22");
-  assert.deepEqual(calls[0].body.object_types, ["ITEM", "CATEGORY", "PRICING_RULE", "PRODUCT_SET", "DISCOUNT"]);
+  assert.deepEqual(calls[0].body.object_types, ["ITEM", "CATEGORY", "PRICING_RULE", "PRODUCT_SET", "DISCOUNT", "TIME_PERIOD"]);
   assert.deepEqual(catalog.products.map((product) => product.name), ["Accessoire sans prix", "Shampooing doux"]);
   const [unpriced, product] = catalog.products;
   assert.equal(unpriced.onSite, false, "a product with no fixed price is not in the boutique");
@@ -157,7 +157,13 @@ test("the admin catalog lists retail products, categories with their parents, an
     { id: "CAT_COLLIERS", name: "Colliers", parentId: "CAT_ACC", imageUrl: "", productCount: 1 },
     { id: "CAT_SOINS", name: "Soins", parentId: "", imageUrl: "https://squarecdn.test/cat.jpg", productCount: 1 },
   ]);
-  assert.deepEqual(catalog.promotions, [
+  // Each promotion says whether the boutique shows it, and carries Square's own fields.
+  const [autumn, fiveDollars] = catalog.promotions;
+  assert.equal(autumn.website, "");
+  assert.equal(fiveDollars.website, "It is not running right now (its dates or times).");
+  assert.deepEqual(JSON.parse(autumn.details).products, { product_ids_any: "1 CATEGORY, 1 ITEM, 1 not sent" });
+  assert.equal(JSON.parse(fiveDollars.details).discount.discount_type, "FIXED_AMOUNT");
+  assert.deepEqual(catalog.promotions.map((promotion) => Object.fromEntries(Object.entries(promotion).filter(([key]) => key !== "website" && key !== "details"))), [
     { id: "P1_R", name: "Soldes d’automne", percentage: 15, startsOn: "2026-10-01", endsOn: "2026-10-31", allProducts: false, productIds: ["ITEM_NOPRICE"], categoryIds: ["CAT_SOINS"], status: "active", editable: true, amountCents: 0 },
     { id: "P2_R", name: "Cinq dollars", percentage: 0, amountCents: 500, startsOn: "2026-12-01", endsOn: "", allProducts: false, productIds: [], categoryIds: [], status: "scheduled", editable: false },
   ]);

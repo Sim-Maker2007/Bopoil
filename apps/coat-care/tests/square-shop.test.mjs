@@ -20,6 +20,8 @@ const {
   productPath,
   productIdKey,
   urlSlug,
+  promotionIssue,
+  PROMOTION_ISSUES,
 } = await import("../lib/square-shop.ts");
 
 function jsonResponse(payload) {
@@ -658,6 +660,40 @@ test("a promotion runs from its first to its last day, inclusive", () => {
   assert.equal(price("2026-10-01"), 1200);
   assert.equal(price("2026-10-31"), 1200);
   assert.equal(price("2026-11-01"), 1500);
+});
+
+test("a start or end time cuts the promotion's first or last day short", () => {
+  const rows = [...promoItems, ...promotion("BF", { ids: ["ITEM_Q"], from: "2026-11-27", until: "2026-11-30", rule: { valid_from_local_time: "09:00:00", valid_until_local_time: "18:00:00" } })];
+  const price = (day, time) => normalizeCatalog(rows, [], "", day, time).find((product) => product.id === "VAR_Q").priceCents;
+  assert.equal(price("2026-11-27", "08:59"), 1500);
+  assert.equal(price("2026-11-27", "09:00"), 1200);
+  assert.equal(price("2026-11-28", "03:00"), 1200, "a day inside the period, whatever the hour");
+  assert.equal(price("2026-11-30", "18:00"), 1200);
+  assert.equal(price("2026-11-30", "18:01"), 1500);
+});
+
+test("every Square rule the boutique leaves to Square's checkout says why", () => {
+  const objects = [...promoItems, ...promotion("OK", { ids: ["ITEM_Q"] })];
+  const byId = new Map(objects.map((object) => [object.id, object]));
+  const okRule = byId.get("OK_R").pricing_rule_data;
+  const issue = (rule = {}, discount = {}, set = {}) => {
+    const map = new Map(byId);
+    map.set("OK_D", { ...byId.get("OK_D"), discount_data: { ...byId.get("OK_D").discount_data, ...discount } });
+    map.set("OK_S", { ...byId.get("OK_S"), product_set_data: { ...byId.get("OK_S").product_set_data, ...set } });
+    return promotionIssue({ ...okRule, ...rule }, map, "2026-11-20", "12:00");
+  };
+  assert.equal(issue(), "");
+  assert.equal(issue({ application_mode: "ATTACHED" }), PROMOTION_ISSUES.coupon);
+  assert.equal(issue({ time_period_ids: ["TP"] }), PROMOTION_ISSUES.schedule);
+  assert.equal(issue({ customer_group_ids_any: ["G"] }), PROMOTION_ISSUES.customerGroup);
+  assert.equal(issue({ minimum_order_subtotal_money: { amount: 5000, currency: "CAD" } }), PROMOTION_ISSUES.minimumSpend);
+  assert.equal(issue({ exclude_products_id: "X" }), PROMOTION_ISSUES.excludes);
+  assert.equal(issue({ apply_products_id: "Y" }), PROMOTION_ISSUES.otherProducts);
+  assert.equal(issue({ valid_until_date: "2026-11-19" }), PROMOTION_ISSUES.notNow);
+  assert.equal(issue({}, { discount_type: "VARIABLE_AMOUNT", percentage: undefined }), PROMOTION_ISSUES.discountKind);
+  assert.equal(issue({ match_products_id: "GONE" }), PROMOTION_ISSUES.noProducts);
+  assert.equal(issue({}, {}, { quantity_min: 2 }), PROMOTION_ISSUES.quantity);
+  assert.equal(issue({ discount_target_scope: "WHOLE_PURCHASE" }, { discount_type: "FIXED_AMOUNT", percentage: undefined, amount_money: { amount: 500, currency: "CAD" } }, { all_products: true }), PROMOTION_ISSUES.wholeOrder);
 });
 
 test("the largest promotion wins and a variation, item or whole store can be targeted", () => {
