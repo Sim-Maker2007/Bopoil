@@ -15,6 +15,8 @@ const {
   pageTitle,
   metaDescription,
   salonNode,
+  promotionLabel,
+  mostReduced,
 } = await import("../lib/shop-pages.ts");
 
 const shell = await readFile(new URL("../../web/boutique.html", import.meta.url), "utf8");
@@ -243,6 +245,28 @@ test("the product sitemap lists every product page with its last change and phot
   assert.match(xml, /<url><loc>https:\/\/www\.bopoil\.ca\/boutique\/produit\/dogma-shampooing-doux-mpoo01<\/loc><lastmod>2026-10-12<\/lastmod><image:image><image:loc>https:\/\/items-images-production[^<]*<\/image:loc><\/image:image><image:image>/);
   assert.match(productSitemapXml([{ ...shampoo, images: ["https://x.test/a.jpg?a=1&b=2"], updatedAt: "" }]), /<url><loc>[^<]*<\/loc><image:image><image:loc>https:\/\/x\.test\/a\.jpg\?a=1&amp;b=2<\/image:loc>/);
   assert.match(productSitemapXml([]), /<urlset [^>]*>\n<\/urlset>\n$/);
+});
+
+test("a promotion reads « −20 % », or « −9 $ » for an amount off each unit", () => {
+  assert.equal(promotionLabel({ name: "A", percentage: 12.5, amountCents: 0 }), "−12,5 %");
+  assert.equal(promotionLabel({ name: "B", percentage: 0, amountCents: 900 }), "−9\u00a0$");
+  assert.equal(promotionLabel({ name: "C", percentage: 0, amountCents: 250 }), "−2,50\u00a0$");
+});
+
+test("an amount off shows on the product page and the card shows the size it cuts the most", () => {
+  const objects = [
+    item("ITEM_BUCO", "BUCO+ Chats Chiens", [variation("VAR_SMALL", "15 kg", 5399), variation("VAR_BIG", "20 kg", 7099)]),
+    { id: "D9", type: "DISCOUNT", discount_data: { name: "9 $", discount_type: "FIXED_AMOUNT", amount_money: { amount: 900, currency: "CAD" } } },
+    { id: "S9", type: "PRODUCT_SET", product_set_data: { product_ids_any: ["ITEM_BUCO"], quantity_exact: 1 } },
+    { id: "R9", type: "PRICING_RULE", pricing_rule_data: { name: "Vente Fournisseur Black Friday", discount_id: "D9", match_products_id: "S9", valid_from_date: "2026-11-19" } },
+  ];
+  const [buco] = groupShopItems(normalizeCatalog(objects, [], "", "2026-11-20"));
+  assert.deepEqual(buco.variants.map((variant) => variant.priceCents), [4499, 6199]);
+  assert.equal(mostReduced(buco.variants).id, "VAR_SMALL", "9 $ is a larger share of 53,99 $");
+  assert.match(productPageHtml(shell, buco, { categories }), /−9\u00a0\$ · Vente Fournisseur Black Friday/);
+  const percent = { ...buco.variants[1], id: "VAR_PCT", priceCents: 3550, regularPriceCents: 7099, promotion: { name: "Moitié prix", percentage: 50, amountCents: 0 } };
+  assert.equal(mostReduced([...buco.variants, percent]).id, "VAR_PCT");
+  assert.equal(mostReduced([{ ...percent, promotion: null, priceCents: 7099 }]), null);
 });
 
 test("the salon falls back to a minimal seller when boutique.html has no structured data", () => {

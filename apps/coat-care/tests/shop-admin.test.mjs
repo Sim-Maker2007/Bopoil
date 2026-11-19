@@ -155,8 +155,8 @@ test("the admin catalog lists retail products, categories with their parents, an
     { id: "CAT_SOINS", name: "Soins", parentId: "", imageUrl: "https://squarecdn.test/cat.jpg", productCount: 1 },
   ]);
   assert.deepEqual(catalog.promotions, [
-    { id: "P1_R", name: "Soldes d’automne", percentage: 15, startsOn: "2026-10-01", endsOn: "2026-10-31", allProducts: false, productIds: ["ITEM_NOPRICE"], categoryIds: ["CAT_SOINS"], status: "active", editable: true },
-    { id: "P2_R", name: "Cinq dollars", percentage: 0, startsOn: "2026-12-01", endsOn: "", allProducts: false, productIds: [], categoryIds: [], status: "scheduled", editable: false },
+    { id: "P1_R", name: "Soldes d’automne", percentage: 15, startsOn: "2026-10-01", endsOn: "2026-10-31", allProducts: false, productIds: ["ITEM_NOPRICE"], categoryIds: ["CAT_SOINS"], status: "active", editable: true, amountCents: 0 },
+    { id: "P2_R", name: "Cinq dollars", percentage: 0, amountCents: 500, startsOn: "2026-12-01", endsOn: "", allProducts: false, productIds: [], categoryIds: [], status: "scheduled", editable: false },
   ]);
 });
 

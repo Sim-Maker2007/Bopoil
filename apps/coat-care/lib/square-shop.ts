@@ -63,8 +63,10 @@ export type ShopOption = { name: string; value: string; swatch: string };
 // of its parent category ("" for a top-level category).
 export type ShopCategory = { name: string; imageUrl: string; parent: string };
 
-// A Square automatic discount the storefront can show: « Soldes d’automne », 20 (%).
-export type ShopPromotion = { name: string; percentage: number };
+// A Square automatic discount the storefront can show: « Soldes d’automne »,
+// 20 (%), or « Black Friday Baci+ », 900 (cents off each unit). One of
+// percentage and amountCents is set, the other is 0.
+export type ShopPromotion = { name: string; percentage: number; amountCents: number };
 
 type Money = { amount?: number; currency?: string };
 
@@ -425,19 +427,27 @@ export function quantityCondition(set: ProductSetData) {
   return Boolean((set.quantity_exact && set.quantity_exact > 1) || (set.quantity_min && set.quantity_min > 1) || set.quantity_max);
 }
 
+// The amount of a plain « x $ off » discount, which Square takes off each unit
+// of a matching product, or null for any other kind (a percentage, an amount
+// entered at the till).
+export function discountAmount(discount?: DiscountData) {
+  const amount = discount?.discount_type === "FIXED_AMOUNT" ? discount.amount_money : undefined;
+  return amount && Number.isSafeInteger(amount.amount) && amount.amount! > 0 ? { cents: amount.amount!, currency: amount.currency || "" } : null;
+}
+
 // A product set any one product of which earns the discount, with no quantity to reach.
 function plainProductSet(set?: ProductSetData) {
   return Boolean(set && (set.all_products || set.product_ids_any?.length) && !set.product_ids_all?.length && !quantityCondition(set));
 }
 
 // Square applies every automatic discount (pricing rule) itself at checkout.
-// The storefront shows those it can price exactly: a percentage off listed
-// items, variations or categories, for whole days, for any shopper, without a
-// minimum order. Any other rule stays Square's alone and the card keeps its
-// regular price until checkout.
+// The storefront shows those it can price exactly: a percentage or an amount
+// off each unit of listed items, variations or categories, for whole days, for
+// any shopper, without a minimum order. Any other rule stays Square's alone
+// and the card keeps its regular price until checkout.
 export function readPromotions(objects: CatalogObject[] = [], today = shopToday()) {
   const byId = new Map(objects.map((object) => [object.id, object]));
-  const promotions: Array<ShopPromotion & { ids: Set<string> | "all" }> = [];
+  const promotions: Array<ShopPromotion & { currency: string; ids: Set<string> | "all" }> = [];
   for (const object of objects) {
     const rule = object.type === "PRICING_RULE" && !object.is_deleted ? object.pricing_rule_data : undefined;
     if (!rule || rule.time_period_ids?.length || rule.customer_group_ids_any?.length || rule.minimum_order_subtotal_money
@@ -445,25 +455,36 @@ export function readPromotions(objects: CatalogObject[] = [], today = shopToday(
     const discount = byId.get(rule.discount_id || "")?.discount_data;
     const set = byId.get(rule.match_products_id || "")?.product_set_data;
     const percentage = discountPercentage(discount);
-    if (!percentage || !set || !plainProductSet(set)) continue;
-    promotions.push({ name: (rule.name || discount?.name || "").trim() || "Promotion", percentage, ids: set.all_products ? "all" : new Set(set.product_ids_any) });
+    const amount = percentage ? null : discountAmount(discount);
+    if (!(percentage || amount) || !set || !plainProductSet(set)) continue;
+    promotions.push({
+      name: (rule.name || discount?.name || "").trim() || "Promotion",
+      percentage,
+      amountCents: amount?.cents || 0,
+      currency: amount?.currency || "",
+      ids: set.all_products ? "all" : new Set(set.product_ids_any),
+    });
   }
   return promotions;
 }
 
-// When several promotions cover a product, the shopper gets the largest.
-function bestPromotion(promotions: ReturnType<typeof readPromotions>, ids: string[]): ShopPromotion | null {
-  let best: ShopPromotion | null = null;
-  for (const promotion of promotions) {
-    if (promotion.ids !== "all" && !ids.some((id) => (promotion.ids as Set<string>).has(id))) continue;
-    if (!best || promotion.percentage > best.percentage) best = { name: promotion.name, percentage: promotion.percentage };
-  }
-  return best;
+// What a promotion takes off one unit priced `cents`. Square rounds a
+// percentage to the cent, and an amount never takes off more than the price.
+export function promotionSaving(cents: number, currency: string, promotion: { percentage: number; amountCents: number; currency?: string }) {
+  if (promotion.amountCents) return promotion.currency && promotion.currency !== currency ? 0 : Math.min(cents, promotion.amountCents);
+  return Math.round(cents * promotion.percentage / 100);
 }
 
-// Square rounds the discount to the cent, then takes it off the price.
-export function promotionalPrice(cents: number, percentage: number) {
-  return cents - Math.round(cents * percentage / 100);
+// When several promotions cover a product, Square gives the shopper the one
+// that saves the most.
+function bestPromotion(promotions: ReturnType<typeof readPromotions>, ids: string[], cents: number, currency: string) {
+  let best: { promotion: ShopPromotion; saving: number } | null = null;
+  for (const promotion of promotions) {
+    if (promotion.ids !== "all" && !ids.some((id) => (promotion.ids as Set<string>).has(id))) continue;
+    const saving = promotionSaving(cents, currency, promotion);
+    if (saving > (best?.saving || 0)) best = { promotion: { name: promotion.name, percentage: promotion.percentage, amountCents: promotion.amountCents }, saving };
+  }
+  return best;
 }
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: "\u00a0" };
@@ -525,16 +546,16 @@ export function normalizeCatalog(objects: CatalogObject[] = [], related: Catalog
       const price = override?.price_money || data.price_money;
       if (!price || !Number.isSafeInteger(price.amount) || price.amount! < 0) continue;
       const imageUrls = variationImageIds(item, variation.id).map((id) => images.get(id) || "").filter(Boolean);
-      const promotion = bestPromotion(promotions, [variation.id, object.id, ...categoryIds]);
+      const best = bestPromotion(promotions, [variation.id, object.id, ...categoryIds], price.amount!, price.currency || "CAD");
       const variationName = genericVariationName(data.name) ? "" : (data.name || "").trim();
       listed.push({ label: variationName || "Standard", square: squareOptionChoices(data.item_option_values, itemOptions), product: {
         id: variation.id,
         itemId: object.id,
         name: shopDisplayName(item.name || "Article", data.name || ""),
         description: descriptionText(item),
-        priceCents: promotion ? promotionalPrice(price.amount!, promotion.percentage) : price.amount!,
+        priceCents: price.amount! - (best?.saving || 0),
         regularPriceCents: price.amount!,
-        promotion,
+        promotion: best?.promotion || null,
         currency: price.currency || "CAD",
         imageUrl: imageUrls[0] || "",
         imageUrls,

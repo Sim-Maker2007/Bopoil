@@ -98,8 +98,13 @@
     if (!(regularCents > cents)) return money(cents, currency);
     return '<span class="visually-hidden">Prix réduit : </span><span class="shop-sale">' + money(cents, currency) + '</span> <s class="shop-was"><span class="visually-hidden">au lieu de </span>' + money(regularCents, currency) + '</s>';
   }
-  function percentLabel(percentage) {
-    return '−' + String(percentage).replace('.', ',') + ' %';
+  // « −20 % », or « −9 $ » for an amount off each unit (lib/shop-pages.ts writes the same).
+  function promotionLabel(promotion, currency) {
+    if (promotion.amountCents > 0) {
+      var amount = money(promotion.amountCents, currency);
+      return '−' + (promotion.amountCents % 100 ? amount : amount.replace(',00', ''));
+    }
+    return '−' + String(promotion.percentage).replace('.', ',') + ' %';
   }
   function requestedProductId() {
     return new URLSearchParams(window.location.search).get('produit') || '';
@@ -196,7 +201,7 @@
     sheetCategory.textContent = p.category || '';
     sheetTitle.textContent = variantsOf(id).length > 1 ? p.itemName : p.name;
     sheetPrice.innerHTML = priceHTML(p.price, p.regular, p.currency) +
-      (p.promotion ? ' <span class="shop-promo-tag">' + escapeHtml(percentLabel(p.promotion.percentage) + ' · ' + p.promotion.name) + '</span>' : '');
+      (p.promotion ? ' <span class="shop-promo-tag">' + escapeHtml(promotionLabel(p.promotion, p.currency) + ' · ' + p.promotion.name) + '</span>' : '');
     sheetOptions.innerHTML = optionsHTML(id);
     sheetOptions.hidden = !sheetOptions.innerHTML;
     sheetDesc.textContent = p.description || 'Demandez conseil à l’équipe du salon pour les détails de ce produit.';
@@ -395,7 +400,7 @@
     var id = escapeHtml(p.id);
     var name = escapeHtml(p.name);
     var badge = (p.category ? '<span class="product-card__badge">' + escapeHtml(p.category) + '</span>' : '') +
-      (p.promoPercent ? '<span class="product-card__promo">' + escapeHtml(percentLabel(p.promoPercent)) + '</span>' : '');
+      (p.promo ? '<span class="product-card__promo">' + escapeHtml(promotionLabel(p.promo, p.currency)) + '</span>' : '');
     var cat = escapeHtml(p.cat || slug(p.category));
     var desc = escapeHtml(p.description || '');
     var images = (p.imageUrls || []).filter(allowedImageUrl);
@@ -574,7 +579,10 @@
       var prices = variants.map(function (v) { return v.priceCents; });
       // The card shows the lowest price, struck through when it is a promotion's.
       var cheapest = variants.reduce(function (best, v) { return v.priceCents < best.priceCents ? v : best; });
-      var percentages = variants.map(function (v) { return v.promotion ? v.promotion.percentage : 0; });
+      // The badge is the promotion of the size cut the most, relative to its price.
+      var reduced = variants.filter(function (v) { return v.promotion && v.regularPriceCents > v.priceCents; });
+      var share = function (v) { return (v.regularPriceCents - v.priceCents) / v.regularPriceCents; };
+      var promoted = reduced.length ? reduced.reduce(function (best, v) { return share(v) > share(best) ? v : best; }) : null;
       var image = cardUrls[0] ? '<img' + imageAttrs(cardUrls[0], [384, 640], CARD_SIZES) + ' alt="' + escapeHtml(title) + '" loading="lazy" decoding="async">' : paw();
       return cardHTML({
         id: p.id,
@@ -582,7 +590,7 @@
         description: p.description || '',
         priceCents: Math.min.apply(null, prices),
         regularCents: cheapest.regularPriceCents,
-        promoPercent: Math.max.apply(null, percentages),
+        promo: promoted ? promoted.promotion : null,
         fromPrice: Math.min.apply(null, prices) !== Math.max.apply(null, prices),
         currency: p.currency,
         category: shownCategory,
