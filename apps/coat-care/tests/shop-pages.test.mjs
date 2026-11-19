@@ -16,6 +16,7 @@ const {
   metaDescription,
   salonNode,
   promotionLabel,
+  promotionTag,
   mostReduced,
 } = await import("../lib/shop-pages.ts");
 
@@ -251,6 +252,8 @@ test("a promotion reads « −20 % », or « −9 $ » for an amount off each un
   assert.equal(promotionLabel({ name: "A", percentage: 12.5, amountCents: 0 }), "−12,5 %");
   assert.equal(promotionLabel({ name: "B", percentage: 0, amountCents: 900 }), "−9\u00a0$");
   assert.equal(promotionLabel({ name: "C", percentage: 0, amountCents: 250 }), "−2,50\u00a0$");
+  assert.equal(promotionTag({ name: "Soldes", percentage: 20, amountCents: 0, perOrder: false }), "−20 % · Soldes");
+  assert.equal(promotionTag({ name: "Black Friday Baci+", percentage: 0, amountCents: 900, perOrder: true }), "−9\u00a0$ par commande · Black Friday Baci+");
 });
 
 test("an amount off shows on the product page and the card shows the size it cuts the most", () => {

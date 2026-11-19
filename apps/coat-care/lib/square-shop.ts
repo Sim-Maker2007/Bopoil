@@ -64,9 +64,12 @@ export type ShopOption = { name: string; value: string; swatch: string };
 export type ShopCategory = { name: string; imageUrl: string; parent: string };
 
 // A Square automatic discount the storefront can show: « Soldes d’automne »,
-// 20 (%), or « Black Friday Baci+ », 900 (cents off each unit). One of
-// percentage and amountCents is set, the other is 0.
-export type ShopPromotion = { name: string; percentage: number; amountCents: number };
+// 20 (%), or « Black Friday Baci+ », 900 (cents off). One of percentage and
+// amountCents is set, the other is 0. perOrder: the amount comes off once per
+// order that holds any of its products (how the Square dashboard saves an
+// amount off), not off each unit; the cart takes it off once (js/cart.js).
+// id is the Square pricing rule's.
+export type ShopPromotion = { id: string; name: string; percentage: number; amountCents: number; perOrder: boolean };
 
 type Money = { amount?: number; currency?: string };
 
@@ -121,7 +124,8 @@ export type PricingRuleData = {
   // applies the rule by itself; ATTACHED: a Loyalty reward or a Marketing
   // coupon, applied only to the order of a customer who redeems it.
   application_mode?: string;
-  // LINE_ITEM: off each matching item; WHOLE_PURCHASE: once off the order.
+  // LINE_ITEM: off each matching item; WHOLE_PURCHASE: once off the order,
+  // which the Square dashboard writes on an amount off.
   discount_target_scope?: string;
 };
 export type ProductSetData = {
@@ -409,12 +413,11 @@ export function availableAt(object: Availability, locationId: string) {
   return object.present_at_all_locations !== false || Boolean(object.present_at_location_ids?.includes(locationId));
 }
 
-// A rule Square applies by itself to every shopper. Loyalty rewards and
-// Marketing coupons (« Obtenez 5 $ de remise lors de votre prochaine visite »)
-// are pricing rules too, over the whole store, but only a customer who
-// redeems one gets it.
-export function automaticRule(rule: PricingRuleData) {
-  return !rule.application_mode || rule.application_mode === "AUTOMATIC";
+// A Loyalty reward or a Marketing coupon (« Obtenez 5 $ de remise lors de
+// votre prochaine visite »): a pricing rule too, over the whole store, but
+// Square attaches it only to the order of a customer who redeems it.
+export function couponRule(rule: PricingRuleData) {
+  return rule.application_mode === "ATTACHED";
 }
 
 // Whole-day rules: Square reads the dates in the salon's time zone, and the
@@ -441,9 +444,9 @@ export function quantityCondition(set: ProductSetData) {
   return Boolean((set.quantity_exact && set.quantity_exact > 1) || (set.quantity_min && set.quantity_min > 1) || set.quantity_max);
 }
 
-// The amount of a plain « x $ off » discount, which Square takes off each unit
-// of a matching product, or null for any other kind (a percentage, an amount
-// entered at the till).
+// The amount of a plain « x $ off » discount, or null for any other kind (a
+// percentage, an amount entered at the till). Square takes it off each unit of
+// a matching product, or once off the order (ShopPromotion.perOrder).
 export function discountAmount(discount?: DiscountData) {
   const amount = discount?.discount_type === "FIXED_AMOUNT" ? discount.amount_money : undefined;
   return amount && Number.isSafeInteger(amount.amount) && amount.amount! > 0 ? { cents: amount.amount!, currency: amount.currency || "" } : null;
@@ -456,27 +459,32 @@ function plainProductSet(set?: ProductSetData) {
 
 // Square applies every automatic discount (pricing rule) itself at checkout.
 // The storefront shows those it can price exactly: a percentage or an amount
-// off each unit of listed items, variations or categories, for whole days, for
-// any shopper, without a minimum order. Any other rule stays Square's alone
-// and the card keeps its regular price until checkout.
+// off listed items, variations or categories, for whole days, for any
+// shopper, without a minimum order. Any other rule stays Square's alone and
+// the card keeps its regular price until checkout.
 export function readPromotions(objects: CatalogObject[] = [], today = shopToday()) {
   const byId = new Map(objects.map((object) => [object.id, object]));
   const promotions: Array<ShopPromotion & { currency: string; ids: Set<string> | "all" }> = [];
   for (const object of objects) {
     const rule = object.type === "PRICING_RULE" && !object.is_deleted ? object.pricing_rule_data : undefined;
-    if (!rule || !automaticRule(rule) || rule.time_period_ids?.length || rule.customer_group_ids_any?.length || rule.minimum_order_subtotal_money
+    if (!rule || couponRule(rule) || rule.time_period_ids?.length || rule.customer_group_ids_any?.length || rule.minimum_order_subtotal_money
       || rule.exclude_products_id || rule.apply_products_id || !promotionRunsOn(rule, today)) continue;
     const discount = byId.get(rule.discount_id || "")?.discount_data;
     const set = byId.get(rule.match_products_id || "")?.product_set_data;
     const percentage = discountPercentage(discount);
-    // An amount off the whole purchase comes off once per order, not off each item.
-    const perItem = !rule.discount_target_scope || rule.discount_target_scope === "LINE_ITEM";
-    const amount = percentage || !perItem ? null : discountAmount(discount);
+    const amount = percentage ? null : discountAmount(discount);
     if (!(percentage || amount) || !set || !plainProductSet(set)) continue;
+    // An amount Square takes once off the whole purchase. Over chosen products
+    // it lowers the price of one of them; over the whole store it is a
+    // discount on the order, not on any product.
+    const perOrder = Boolean(amount) && rule.discount_target_scope === "WHOLE_PURCHASE";
+    if (perOrder && set.all_products) continue;
     promotions.push({
+      id: object.id,
       name: (rule.name || discount?.name || "").trim() || "Promotion",
       percentage,
       amountCents: amount?.cents || 0,
+      perOrder,
       currency: amount?.currency || "",
       ids: set.all_products ? "all" : new Set(set.product_ids_any),
     });
@@ -498,7 +506,10 @@ function bestPromotion(promotions: ReturnType<typeof readPromotions>, ids: strin
   for (const promotion of promotions) {
     if (promotion.ids !== "all" && !ids.some((id) => (promotion.ids as Set<string>).has(id))) continue;
     const saving = promotionSaving(cents, currency, promotion);
-    if (saving > (best?.saving || 0)) best = { promotion: { name: promotion.name, percentage: promotion.percentage, amountCents: promotion.amountCents }, saving };
+    if (saving > (best?.saving || 0)) {
+      const { id, name, percentage, amountCents, perOrder } = promotion;
+      best = { promotion: { id, name, percentage, amountCents, perOrder }, saving };
+    }
   }
   return best;
 }

@@ -79,6 +79,29 @@
     img.removeAttribute('sizes');
     img.src = original;
   }, true);
+  // An amount set up on products in the Square dashboard comes off once per
+  // order that holds any of them (promotion.perOrder), not off each unit: the
+  // cart lists those products at their regular price and takes the amount off
+  // once, as Square's checkout does.
+  function orderPromotion(p) {
+    var promo = p && p.promotion;
+    if (!promo || promo.perOrder !== true || !Number.isInteger(promo.amountCents) || promo.amountCents <= 0) return null;
+    return Number.isInteger(p.regular) && p.regular >= p.price ? promo : null;
+  }
+  function unitPrice(p) { return orderPromotion(p) ? p.regular : p.price; }
+  function orderDiscounts() {
+    var byKey = Object.create(null);
+    var list = [];
+    Object.keys(cart).forEach(function (id) {
+      var p = products[id];
+      var promo = orderPromotion(p);
+      if (!promo) return;
+      var key = String(promo.id || promo.name);
+      if (!byKey[key]) list.push(byKey[key] = { name: String(promo.name || 'Promotion'), amount: promo.amountCents, total: 0, currency: p.currency });
+      byKey[key].total += p.regular * cart[id];
+    });
+    return list.map(function (d) { return { name: d.name, cents: Math.min(d.amount, d.total), currency: d.currency }; });
+  }
   function ready() { return mode === 'square' || mode === 'preview'; }
   function storageKey() { return mode === 'square' ? 'bopoil_cart_v1' : 'bopoil_cart_preview_v1'; }
   function readCart() {
@@ -103,9 +126,12 @@
         var line = data.lines[id];
         if (!line || typeof line.name !== 'string' || !Number.isInteger(line.price) || line.price < 0) return;
         var image = allowedImageUrl(line.image) ? String(line.image).trim() : '';
+        var promo = line.promotion && typeof line.promotion === 'object' ? line.promotion : null;
         known[id] = {
           name: line.name,
           price: line.price,
+          regular: line.regular,
+          promotion: promo && typeof promo.name === 'string' ? { id: String(promo.id || ''), name: promo.name, amountCents: promo.amountCents, perOrder: promo.perOrder === true } : null,
           currency: /^[A-Z]{3}$/.test(line.currency) ? line.currency : 'CAD',
           media: image ? '<img' + imageAttrs(image, [256]) + ' alt="">' : paw(),
           images: image ? [image] : []
@@ -120,6 +146,11 @@
     Object.keys(cart).forEach(function (id) {
       var p = products[id];
       lines[id] = { name: p.name, price: p.price, currency: p.currency, image: (p.images || []).filter(allowedImageUrl)[0] || '' };
+      var promo = orderPromotion(p);
+      if (promo) {
+        lines[id].regular = p.regular;
+        lines[id].promotion = { id: promo.id || '', name: promo.name, amountCents: promo.amountCents, perOrder: true };
+      }
     });
     try { localStorage.setItem(LINES_KEY, JSON.stringify({ mode: mode, lines: lines })); } catch (e) { /* Device storage is optional. */ }
   }
@@ -128,7 +159,10 @@
     saveLines();
   }
   function itemCount() { return Object.keys(cart).reduce(function (n, id) { return n + cart[id]; }, 0); }
-  function subtotal() { return Object.keys(cart).reduce(function (n, id) { return n + products[id].price * cart[id]; }, 0); }
+  function subtotal() {
+    var lines = Object.keys(cart).reduce(function (n, id) { return n + unitPrice(products[id]) * cart[id]; }, 0);
+    return orderDiscounts().reduce(function (n, d) { return n - d.cents; }, lines);
+  }
   function announce(message) {
     if (!toast) return;
     clearTimeout(toastTimer);
@@ -154,7 +188,9 @@
     } else {
       itemsEl.innerHTML = ids.map(function (id) {
         var p = products[id], key = escapeHtml(id), name = escapeHtml(p.name);
-        return '<li class="cart-line"><span class="cart-line__thumb">' + p.media + '</span><div class="cart-line__info"><p class="cart-line__name">' + name + '</p><p class="cart-line__unit">' + money(p.price, p.currency) + ' l’unité</p><div class="qty-stepper" role="group" aria-label="Quantité : ' + name + '"><button type="button" data-dec="' + key + '" aria-label="Retirer un : ' + name + '"' + (checkoutBusy ? ' disabled' : '') + '>−</button><span class="qty-stepper__val">' + cart[id] + '</span><button type="button" data-inc="' + key + '" aria-label="Ajouter un : ' + name + '"' + (cart[id] >= 99 || checkoutBusy ? ' disabled' : '') + '>+</button></div></div><div class="cart-line__end"><span class="cart-line__price">' + money(p.price * cart[id], p.currency) + '</span><button class="cart-line__remove" type="button" data-remove="' + key + '" aria-label="Retirer du panier : ' + name + '"' + (checkoutBusy ? ' disabled' : '') + '>Retirer</button></div></li>';
+        return '<li class="cart-line"><span class="cart-line__thumb">' + p.media + '</span><div class="cart-line__info"><p class="cart-line__name">' + name + '</p><p class="cart-line__unit">' + money(unitPrice(p), p.currency) + ' l’unité</p><div class="qty-stepper" role="group" aria-label="Quantité : ' + name + '"><button type="button" data-dec="' + key + '" aria-label="Retirer un : ' + name + '"' + (checkoutBusy ? ' disabled' : '') + '>−</button><span class="qty-stepper__val">' + cart[id] + '</span><button type="button" data-inc="' + key + '" aria-label="Ajouter un : ' + name + '"' + (cart[id] >= 99 || checkoutBusy ? ' disabled' : '') + '>+</button></div></div><div class="cart-line__end"><span class="cart-line__price">' + money(unitPrice(p) * cart[id], p.currency) + '</span><button class="cart-line__remove" type="button" data-remove="' + key + '" aria-label="Retirer du panier : ' + name + '"' + (checkoutBusy ? ' disabled' : '') + '>Retirer</button></div></li>';
+      }).join('') + orderDiscounts().map(function (d) {
+        return '<li class="cart-discount"><span>' + escapeHtml(d.name) + '</span><span class="cart-discount__amount">−' + money(d.cents, d.currency) + '</span></li>';
       }).join('');
     }
     footEl.hidden = !ids.length;

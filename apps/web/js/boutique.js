@@ -106,6 +106,10 @@
     }
     return '−' + String(promotion.percentage).replace('.', ',') + ' %';
   }
+  // « −20 % · Soldes d’automne », « −9 $ par commande · Black Friday Baci+ ».
+  function promotionTag(promotion, currency) {
+    return promotionLabel(promotion, currency) + (promotion.perOrder ? ' par commande' : '') + ' · ' + promotion.name;
+  }
   function requestedProductId() {
     return new URLSearchParams(window.location.search).get('produit') || '';
   }
@@ -201,7 +205,7 @@
     sheetCategory.textContent = p.category || '';
     sheetTitle.textContent = variantsOf(id).length > 1 ? p.itemName : p.name;
     sheetPrice.innerHTML = priceHTML(p.price, p.regular, p.currency) +
-      (p.promotion ? ' <span class="shop-promo-tag">' + escapeHtml(promotionLabel(p.promotion, p.currency) + ' · ' + p.promotion.name) + '</span>' : '');
+      (p.promotion ? ' <span class="shop-promo-tag">' + escapeHtml(promotionTag(p.promotion, p.currency)) + '</span>' : '');
     sheetOptions.innerHTML = optionsHTML(id);
     sheetOptions.hidden = !sheetOptions.innerHTML;
     sheetDesc.textContent = p.description || 'Demandez conseil à l’équipe du salon pour les détails de ce produit.';

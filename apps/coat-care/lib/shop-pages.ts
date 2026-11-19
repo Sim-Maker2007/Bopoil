@@ -183,9 +183,14 @@ export function mostReduced(variants: ShopProduct[]) {
     .reduce<ShopProduct | null>((best, variant) => (!best || share(variant) > share(best) ? variant : best), null);
 }
 
+// « −20 % · Soldes d’automne », « −9 $ par commande · Black Friday Baci+ ».
+export function promotionTag(promotion: ShopPromotion, currency = "CAD") {
+  return `${promotionLabel(promotion, currency)}${promotion.perOrder ? " par commande" : ""} · ${promotion.name}`;
+}
+
 export function variantPriceHtml(variant: ShopProduct) {
   return priceHtml(variant.priceCents, variant.regularPriceCents, variant.currency)
-    + (variant.promotion ? ` <span class="shop-promo-tag">${escapeHtml(`${promotionLabel(variant.promotion, variant.currency)} · ${variant.promotion.name}`)}</span>` : "");
+    + (variant.promotion ? ` <span class="shop-promo-tag">${escapeHtml(promotionTag(variant.promotion, variant.currency))}</span>` : "");
 }
 
 function optionValue(variant: ShopProduct, name: string) {
@@ -478,6 +483,8 @@ export function productPageHtml(
     variants: Object.fromEntries(item.variants.map((entry) => [entry.id, {
       name: entry.name,
       price: entry.priceCents,
+      regular: entry.regularPriceCents,
+      promotion: entry.promotion,
       currency: entry.currency,
       images: entry.imageUrls,
       priceHtml: variantPriceHtml(entry),
