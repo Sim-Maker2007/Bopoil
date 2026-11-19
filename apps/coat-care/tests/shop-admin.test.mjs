@@ -121,6 +121,9 @@ test("the admin catalog lists retail products, categories with their parents, an
         { id: "P2_D", type: "DISCOUNT", discount_data: { name: "5 $", discount_type: "FIXED_AMOUNT", amount_money: { amount: 500, currency: "CAD" } } },
         { id: "P2_S", type: "PRODUCT_SET", product_set_data: { product_ids_any: ["VAR_S"] } },
         { id: "P2_R", type: "PRICING_RULE", pricing_rule_data: { name: "Cinq dollars", discount_id: "P2_D", match_products_id: "P2_S", valid_from_date: "2026-12-01" } },
+        { id: "C1_D", type: "DISCOUNT", discount_data: { name: "Obtenez 5 $ de remise lors de votre prochaine visite !", discount_type: "FIXED_AMOUNT", amount_money: { amount: 500, currency: "CAD" }, application_method: "MANUALLY_APPLIED" } },
+        { id: "C1_S", type: "PRODUCT_SET", product_set_data: { all_products: true } },
+        { id: "C1_R", type: "PRICING_RULE", pricing_rule_data: { discount_id: "C1_D", match_products_id: "C1_S", application_mode: "ATTACHED", discount_target_scope: "WHOLE_PURCHASE" } },
       ],
       related_objects: [
         { id: "IMG_A", type: "IMAGE", image_data: { url: "https://squarecdn.test/a.jpg" } },
@@ -259,7 +262,7 @@ test("editing a promotion rewrites its three Square objects over their current v
 });
 
 test("a promotion set up in Square with conditions cannot be changed or deleted here", async () => {
-  for (const [rule, set] of [[{ customer_group_ids_any: ["VIP"] }, {}], [{}, { quantity_min: 2 }]]) {
+  for (const [rule, set] of [[{ customer_group_ids_any: ["VIP"] }, {}], [{}, { quantity_min: 2 }], [{ application_mode: "ATTACHED" }, {}]]) {
     const { fetcher } = fakeSquare(existingPromotion(rule, set));
     await assert.rejects(savePromotion("R1", { name: "X", percentage: 10, startsOn: "2026-11-01", endsOn: "", allProducts: true, productIds: [], categoryIds: [] }, fetcher), /Square dashboard/);
     await assert.rejects(deletePromotion("R1", fetcher), /Square dashboard/);
