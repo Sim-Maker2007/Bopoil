@@ -261,6 +261,10 @@ export function BoutiqueView({ notify }: { notify: (message: string) => void }) 
                 <strong>{promotion.name}</strong>
                 <small>{promotionDates(promotion) || "No dates"}</small>
                 <small>{promotion.allProducts ? "Whole store" : <><span>{covered}</span> <span>{covered === 1 ? "product" : "products"}</span></>}</small>
+                {promotion.website
+                  ? <small className="shop-promo-website off"><span>Not on the website:</span> <span>{promotion.website}</span></small>
+                  : <small className="shop-promo-website">On the website</small>}
+                <details className="shop-promo-details"><summary>Square details</summary><pre>{promotion.details}</pre></details>
               </div>
               <span className={`shop-chip ${promotion.status === "active" ? "promo" : "muted"}`}>{STATUS_LABELS[promotion.status]}</span>
               {promotion.editable

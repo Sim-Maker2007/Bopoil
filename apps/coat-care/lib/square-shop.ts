@@ -104,6 +104,7 @@ type CatalogObject = Availability & {
   pricing_rule_data?: PricingRuleData;
   product_set_data?: ProductSetData;
   discount_data?: DiscountData;
+  time_period_data?: { event?: string };
   item_option_data?: { name?: string; display_name?: string; show_colors?: boolean; values?: Array<{ id: string; item_option_value_data?: { name?: string; color?: string } }> };
 };
 
@@ -159,6 +160,11 @@ export const SHOP_TIME_ZONE = "America/Toronto";
 
 export function shopToday(now = new Date()) {
   return dateKeyInZone(now, SHOP_TIME_ZONE);
+}
+
+// « 09:05 » at the salon.
+export function shopTime(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: SHOP_TIME_ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
 }
 
 // Square's French dashboard labels the default variation "Article de base".
@@ -420,12 +426,16 @@ export function couponRule(rule: PricingRuleData) {
   return rule.application_mode === "ATTACHED";
 }
 
-// Whole-day rules: Square reads the dates in the salon's time zone, and the
-// end date is the promotion's last day.
-export function promotionRunsOn(rule: PricingRuleData, day: string) {
-  const wholeDay = (!rule.valid_from_local_time || rule.valid_from_local_time.startsWith("00:00"))
-    && (!rule.valid_until_local_time || rule.valid_until_local_time >= "23:59");
-  return wholeDay && (!rule.valid_from_date || rule.valid_from_date <= day) && (!rule.valid_until_date || day <= rule.valid_until_date);
+// Square reads a rule's dates and times in the salon's time zone. The end
+// date is the promotion's last day; a start or end time (« from 9:00 on
+// November 27 ») cuts its first or last day short. A time without its date is
+// a time of day, every day, which the boutique cannot show.
+export function promotionRunsAt(rule: PricingRuleData, day: string, time: string) {
+  if ((rule.valid_from_local_time && !rule.valid_from_date) || (rule.valid_until_local_time && !rule.valid_until_date)) return false;
+  const now = `${day}T${time.slice(0, 5)}`;
+  const from = rule.valid_from_date ? `${rule.valid_from_date}T${(rule.valid_from_local_time || "00:00").slice(0, 5)}` : "";
+  const until = rule.valid_until_date ? `${rule.valid_until_date}T${(rule.valid_until_local_time || "23:59").slice(0, 5)}` : "";
+  return (!from || from <= now) && (!until || now <= until);
 }
 
 // The percentage of a plain « x % off » discount, or 0 for any other kind
@@ -457,28 +467,61 @@ function plainProductSet(set?: ProductSetData) {
   return Boolean(set && (set.all_products || set.product_ids_any?.length) && !set.product_ids_all?.length && !quantityCondition(set));
 }
 
+// Why the boutique leaves a Square pricing rule to Square's checkout, checked
+// in this order. The Online store admin shows the reason next to the
+// promotion (app/crm-language.ts has them in French).
+export const PROMOTION_ISSUES = {
+  coupon: "A coupon or loyalty reward: Square takes it off only for the customer who redeems it.",
+  schedule: "It runs on a schedule (days of the week or hours of the day).",
+  customerGroup: "It is for a customer group only.",
+  minimumSpend: "It needs a minimum spend.",
+  excludes: "It leaves out some products (an exclusion in Square).",
+  otherProducts: "It discounts other products than the ones that trigger it.",
+  notNow: "It is not running right now (its dates or times).",
+  discountKind: "Its discount is not a set percentage or amount (variable, or with a maximum value).",
+  noProducts: "Square did not send the products it covers.",
+  quantity: "It needs a quantity of two or more, or several products together.",
+  wholeOrder: "It takes an amount off the whole order, not off products.",
+} as const;
+
+// "" when the boutique shows the rule (a percentage or an amount off listed
+// items, variations or categories, running now, for any shopper, without a
+// minimum order), else the reason it does not.
+export function promotionIssue(rule: PricingRuleData, byId: Map<string, CatalogObject>, day: string, time: string): string {
+  if (couponRule(rule)) return PROMOTION_ISSUES.coupon;
+  if (rule.time_period_ids?.length) return PROMOTION_ISSUES.schedule;
+  if (rule.customer_group_ids_any?.length) return PROMOTION_ISSUES.customerGroup;
+  if (rule.minimum_order_subtotal_money) return PROMOTION_ISSUES.minimumSpend;
+  if (rule.exclude_products_id) return PROMOTION_ISSUES.excludes;
+  if (rule.apply_products_id) return PROMOTION_ISSUES.otherProducts;
+  if (!promotionRunsAt(rule, day, time)) return PROMOTION_ISSUES.notNow;
+  const discount = byId.get(rule.discount_id || "")?.discount_data;
+  const amount = discountPercentage(discount) ? null : discountAmount(discount);
+  if (!discountPercentage(discount) && !amount) return PROMOTION_ISSUES.discountKind;
+  const set = byId.get(rule.match_products_id || "")?.product_set_data;
+  if (!set || !(set.all_products || set.product_ids_any?.length || set.product_ids_all?.length)) return PROMOTION_ISSUES.noProducts;
+  if (!plainProductSet(set)) return PROMOTION_ISSUES.quantity;
+  // An amount Square takes once off the whole purchase. Over chosen products
+  // it lowers the price of one of them; over the whole store it is a discount
+  // on the order, not on any product.
+  if (amount && rule.discount_target_scope === "WHOLE_PURCHASE" && set.all_products) return PROMOTION_ISSUES.wholeOrder;
+  return "";
+}
+
 // Square applies every automatic discount (pricing rule) itself at checkout.
-// The storefront shows those it can price exactly: a percentage or an amount
-// off listed items, variations or categories, for whole days, for any
-// shopper, without a minimum order. Any other rule stays Square's alone and
-// the card keeps its regular price until checkout.
-export function readPromotions(objects: CatalogObject[] = [], today = shopToday()) {
+// The storefront shows those it can price exactly (promotionIssue); any other
+// rule stays Square's alone and the card keeps its regular price until checkout.
+export function readPromotions(objects: CatalogObject[] = [], today = shopToday(), time = shopTime()) {
   const byId = new Map(objects.map((object) => [object.id, object]));
   const promotions: Array<ShopPromotion & { currency: string; ids: Set<string> | "all" }> = [];
   for (const object of objects) {
     const rule = object.type === "PRICING_RULE" && !object.is_deleted ? object.pricing_rule_data : undefined;
-    if (!rule || couponRule(rule) || rule.time_period_ids?.length || rule.customer_group_ids_any?.length || rule.minimum_order_subtotal_money
-      || rule.exclude_products_id || rule.apply_products_id || !promotionRunsOn(rule, today)) continue;
+    if (!rule || promotionIssue(rule, byId, today, time)) continue;
     const discount = byId.get(rule.discount_id || "")?.discount_data;
-    const set = byId.get(rule.match_products_id || "")?.product_set_data;
+    const set = byId.get(rule.match_products_id || "")!.product_set_data!;
     const percentage = discountPercentage(discount);
     const amount = percentage ? null : discountAmount(discount);
-    if (!(percentage || amount) || !set || !plainProductSet(set)) continue;
-    // An amount Square takes once off the whole purchase. Over chosen products
-    // it lowers the price of one of them; over the whole store it is a
-    // discount on the order, not on any product.
     const perOrder = Boolean(amount) && rule.discount_target_scope === "WHOLE_PURCHASE";
-    if (perOrder && set.all_products) continue;
     promotions.push({
       id: object.id,
       name: (rule.name || discount?.name || "").trim() || "Promotion",
@@ -542,9 +585,9 @@ export function descriptionText(item: { description?: string; description_html?:
   return item.description_plaintext || htmlToText(item.description);
 }
 
-export function normalizeCatalog(objects: CatalogObject[] = [], related: CatalogObject[] = [], locationId = "", today = shopToday()): ShopProduct[] {
+export function normalizeCatalog(objects: CatalogObject[] = [], related: CatalogObject[] = [], locationId = "", today = shopToday(), time = shopTime()): ShopProduct[] {
   const images = indexCatalogImages([...related, ...objects]);
-  const promotions = readPromotions([...related, ...objects], today);
+  const promotions = readPromotions([...related, ...objects], today, time);
   const categories = new Map<string, string>();
   for (const object of [...related, ...objects]) {
     if (object.type === "CATEGORY" && object.category_data?.name) categories.set(object.id, object.category_data.name);

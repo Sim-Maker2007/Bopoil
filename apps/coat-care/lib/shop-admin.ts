@@ -11,9 +11,11 @@ import {
   indexCatalogImages,
   loadCatalogObjects,
   normalizeCatalog,
+  promotionIssue,
   quantityCondition,
   retrieveMissingImages,
   shopConfig,
+  shopTime,
   shopToday,
   uniqueIds,
 } from "./square-shop.ts";
@@ -61,6 +63,8 @@ export type AdminPromotion = {
   categoryIds: string[];
   status: "active" | "scheduled" | "ended";
   editable: boolean; // false for a rule set up in Square with conditions this admin does not offer
+  website: string; // "" when the boutique shows it, else why not (PROMOTION_ISSUES)
+  details: string; // Square's own fields for the rule, its discount and products, to tell why
 };
 
 export type AdminCatalog = { products: AdminProduct[]; categories: AdminCategory[]; promotions: AdminPromotion[]; today: string };
@@ -144,7 +148,34 @@ function promotionStatus(rule: PricingRuleData, today: string): AdminPromotion["
   return "active";
 }
 
-function toAdminPromotion(rule: CatalogObject, byId: Map<string, CatalogObject>, today: string): AdminPromotion {
+// The rule as Square saved it, with its discount, products and schedule. A
+// list of products is summed up by kind (« 7 ITEM »); an id Square did not
+// send counts as « not sent ».
+function squareDetails(data: PricingRuleData, byId: Map<string, CatalogObject>) {
+  const kinds = (ids?: string[]) => {
+    if (!ids?.length) return undefined;
+    const counts = new Map<string, number>();
+    for (const id of ids) {
+      const kind = byId.get(id)?.type || "not sent";
+      counts.set(kind, (counts.get(kind) || 0) + 1);
+    }
+    return [...counts].map(([kind, count]) => `${count} ${kind}`).join(", ");
+  };
+  const products = (id?: string) => {
+    const set = id ? byId.get(id)?.product_set_data : undefined;
+    return set ? { ...set, product_ids_any: kinds(set.product_ids_any), product_ids_all: kinds(set.product_ids_all) } : id ? "not sent" : undefined;
+  };
+  return JSON.stringify({
+    rule: data,
+    discount: byId.get(data.discount_id || "")?.discount_data || "not sent",
+    products: products(data.match_products_id),
+    excluded_products: products(data.exclude_products_id),
+    applied_products: products(data.apply_products_id),
+    time_periods: data.time_period_ids?.map((id) => byId.get(id)?.time_period_data?.event || "not sent"),
+  }, null, 1);
+}
+
+function toAdminPromotion(rule: CatalogObject, byId: Map<string, CatalogObject>, today: string, time = shopTime()): AdminPromotion {
   const data = rule.pricing_rule_data || {};
   const discount = byId.get(data.discount_id || "")?.discount_data;
   const set = byId.get(data.match_products_id || "")?.product_set_data;
@@ -173,10 +204,12 @@ function toAdminPromotion(rule: CatalogObject, byId: Map<string, CatalogObject>,
     categoryIds,
     status: promotionStatus(data, today),
     editable,
+    website: promotionIssue(data, byId, today, time),
+    details: squareDetails(data, byId),
   };
 }
 
-const ADMIN_OBJECT_TYPES = ["ITEM", "CATEGORY", "PRICING_RULE", "PRODUCT_SET", "DISCOUNT"];
+const ADMIN_OBJECT_TYPES = ["ITEM", "CATEGORY", "PRICING_RULE", "PRODUCT_SET", "DISCOUNT", "TIME_PERIOD"];
 
 export async function loadAdminCatalog(fetcher?: typeof fetch, today = shopToday()): Promise<AdminCatalog> {
   const { objects, related } = await loadCatalogObjects(ADMIN_OBJECT_TYPES, fetcher);
