@@ -117,6 +117,12 @@ export type PricingRuleData = {
   valid_until_local_time?: string;
   customer_group_ids_any?: string[];
   minimum_order_subtotal_money?: Money;
+  // Fields Square returns but leaves out of its reference. AUTOMATIC: Square
+  // applies the rule by itself; ATTACHED: a Loyalty reward or a Marketing
+  // coupon, applied only to the order of a customer who redeems it.
+  application_mode?: string;
+  // LINE_ITEM: off each matching item; WHOLE_PURCHASE: once off the order.
+  discount_target_scope?: string;
 };
 export type ProductSetData = {
   name?: string;
@@ -403,6 +409,14 @@ export function availableAt(object: Availability, locationId: string) {
   return object.present_at_all_locations !== false || Boolean(object.present_at_location_ids?.includes(locationId));
 }
 
+// A rule Square applies by itself to every shopper. Loyalty rewards and
+// Marketing coupons (« Obtenez 5 $ de remise lors de votre prochaine visite »)
+// are pricing rules too, over the whole store, but only a customer who
+// redeems one gets it.
+export function automaticRule(rule: PricingRuleData) {
+  return !rule.application_mode || rule.application_mode === "AUTOMATIC";
+}
+
 // Whole-day rules: Square reads the dates in the salon's time zone, and the
 // end date is the promotion's last day.
 export function promotionRunsOn(rule: PricingRuleData, day: string) {
@@ -450,12 +464,14 @@ export function readPromotions(objects: CatalogObject[] = [], today = shopToday(
   const promotions: Array<ShopPromotion & { currency: string; ids: Set<string> | "all" }> = [];
   for (const object of objects) {
     const rule = object.type === "PRICING_RULE" && !object.is_deleted ? object.pricing_rule_data : undefined;
-    if (!rule || rule.time_period_ids?.length || rule.customer_group_ids_any?.length || rule.minimum_order_subtotal_money
+    if (!rule || !automaticRule(rule) || rule.time_period_ids?.length || rule.customer_group_ids_any?.length || rule.minimum_order_subtotal_money
       || rule.exclude_products_id || rule.apply_products_id || !promotionRunsOn(rule, today)) continue;
     const discount = byId.get(rule.discount_id || "")?.discount_data;
     const set = byId.get(rule.match_products_id || "")?.product_set_data;
     const percentage = discountPercentage(discount);
-    const amount = percentage ? null : discountAmount(discount);
+    // An amount off the whole purchase comes off once per order, not off each item.
+    const perItem = !rule.discount_target_scope || rule.discount_target_scope === "LINE_ITEM";
+    const amount = percentage || !perItem ? null : discountAmount(discount);
     if (!(percentage || amount) || !set || !plainProductSet(set)) continue;
     promotions.push({
       name: (rule.name || discount?.name || "").trim() || "Promotion",

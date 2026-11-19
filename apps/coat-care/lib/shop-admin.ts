@@ -4,6 +4,7 @@ import {
   type DiscountData,
   type PricingRuleData,
   type ProductSetData,
+  automaticRule,
   descriptionText,
   discountAmount,
   discountPercentage,
@@ -156,7 +157,7 @@ function toAdminPromotion(rule: CatalogObject, byId: Map<string, CatalogObject>,
   const percentage = discountPercentage(discount);
   // This admin writes « x % off these items or categories, from one day to
   // another ». A rule with anything more stays editable in Square only.
-  const editable = Boolean(percentage && set && (set.all_products || ids.length) && !otherIds.length
+  const editable = Boolean(automaticRule(data) && percentage && set && (set.all_products || ids.length) && !otherIds.length
     && !set.product_ids_all?.length && !quantityCondition(set)
     && !data.time_period_ids?.length && !data.customer_group_ids_any?.length && !data.minimum_order_subtotal_money
     && !data.exclude_products_id && !data.apply_products_id && !data.valid_from_local_time && !data.valid_until_local_time);
@@ -203,7 +204,8 @@ export async function loadAdminCatalog(fetcher?: typeof fetch, today = shopToday
   for (const object of all) {
     for (const variation of object.item_data?.variations || []) byId.set(variation.id, { id: variation.id, type: "ITEM_VARIATION" });
   }
-  const promotions = objects.filter((object) => object.type === "PRICING_RULE" && !object.is_deleted)
+  // Loyalty rewards and Marketing coupons are managed in those parts of Square, not here.
+  const promotions = objects.filter((object) => object.type === "PRICING_RULE" && !object.is_deleted && automaticRule(object.pricing_rule_data || {}))
     .map((rule) => toAdminPromotion(rule, byId, today))
     .sort((a, b) => ["active", "scheduled", "ended"].indexOf(a.status) - ["active", "scheduled", "ended"].indexOf(b.status) || b.startsOn.localeCompare(a.startsOn));
   return { products, categories, promotions, today };
