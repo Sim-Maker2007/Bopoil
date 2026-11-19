@@ -31,6 +31,8 @@
     known[id] = {
       name: v.name,
       price: v.price,
+      regular: v.regular,
+      promotion: v.promotion || null,
       currency: v.currency || 'CAD',
       images: images,
       media: images[0] ? '<img' + Cart.imageAttrs(images[0], [256]) + ' alt="">' : Cart.paw()

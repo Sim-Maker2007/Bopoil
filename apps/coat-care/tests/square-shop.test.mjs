@@ -645,7 +645,7 @@ test("an active percentage promotion lowers the price and keeps the regular one"
   const byId = Object.fromEntries(products.map((product) => [product.id, product]));
   assert.equal(byId.VAR_P1.priceCents, 1999, "20 % off 24,99 $ rounds the discount to the cent");
   assert.equal(byId.VAR_P1.regularPriceCents, 2499);
-  assert.deepEqual(byId.VAR_P1.promotion, { name: "Promo A", percentage: 20, amountCents: 0 });
+  assert.deepEqual(byId.VAR_P1.promotion, { id: "A_R", name: "Promo A", percentage: 20, amountCents: 0, perOrder: false });
   assert.equal(byId.VAR_P2.priceCents, 4799);
   assert.equal(byId.VAR_Q.priceCents, 1500, "a product outside the promotion keeps its price");
   assert.equal(byId.VAR_Q.promotion, null);
@@ -679,7 +679,7 @@ test("a discount set up in the Square dashboard for one unit of a product shows 
     const products = normalizeCatalog([...promoItems, ...promotion("DASH", { ids: ["ITEM_Q"], from: "2026-11-15", until: "2026-11-30", set })], [], "", "2026-11-18");
     const product = products.find((entry) => entry.id === "VAR_Q");
     assert.equal(product.priceCents, 1200, JSON.stringify(set));
-    assert.deepEqual(product.promotion, { name: "Promo DASH", percentage: 20, amountCents: 0 });
+    assert.deepEqual(product.promotion, { id: "DASH_R", name: "Promo DASH", percentage: 20, amountCents: 0, perOrder: false });
   }
 });
 
@@ -694,7 +694,7 @@ test("an amount off set up in Square comes off each unit of every product it cov
   assert.equal(byId.VAR_P2.priceCents, 5099, "every size of the product");
   assert.equal(byId.VAR_Q.priceCents, 600);
   assert.equal(byId.VAR_Q.regularPriceCents, 1500);
-  assert.deepEqual(byId.VAR_Q.promotion, { name: "Promo BACI", percentage: 0, amountCents: 900 });
+  assert.deepEqual(byId.VAR_Q.promotion, { id: "BACI_R", name: "Promo BACI", percentage: 0, amountCents: 900, perOrder: false });
 });
 
 test("a Loyalty reward or Marketing coupon is never shown: only the customer who redeems it gets it", () => {
@@ -711,9 +711,20 @@ test("a Loyalty reward or Marketing coupon is never shown: only the customer who
   }
 });
 
-test("an amount Square takes once off the whole order is not shown as an amount off each item", () => {
+test("an amount the Square dashboard takes once off the order lowers each product's price for one unit", () => {
+  // How the Square dashboard saves « Montant ($) » on chosen products: once off the whole purchase.
+  const rule = { application_mode: "AUTOMATIC", discount_target_scope: "WHOLE_PURCHASE" };
+  const products = normalizeCatalog([...promoItems, ...promotion("BACI", { ids: ["ITEM_P"], from: "2026-11-19", rule, set: { quantity_exact: 1 }, discount: amountOff(900) })], [], "", "2026-11-20");
+  const byId = Object.fromEntries(products.map((product) => [product.id, product]));
+  assert.equal(byId.VAR_P1.priceCents, 1599);
+  assert.equal(byId.VAR_P2.priceCents, 5099);
+  assert.deepEqual(byId.VAR_P1.promotion, { id: "BACI_R", name: "Promo BACI", percentage: 0, amountCents: 900, perOrder: true });
+  assert.equal(byId.VAR_Q.promotion, null);
+});
+
+test("an amount off the whole order of anything in the store is not a product's price", () => {
   const rows = [...promoItems, ...promotion("ORDER", { all: true, from: "2026-11-01", rule: { application_mode: "AUTOMATIC", discount_target_scope: "WHOLE_PURCHASE" }, discount: amountOff(500) })];
-  assert.equal(normalizeCatalog(rows, [], "", "2026-11-20").find((product) => product.id === "VAR_Q").priceCents, 1500);
+  for (const product of normalizeCatalog(rows, [], "", "2026-11-20")) assert.equal(product.promotion, null, product.id);
 });
 
 test("an amount off never takes a price below zero, and needs the price's currency", () => {
